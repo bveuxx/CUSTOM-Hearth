@@ -423,6 +423,124 @@
 	line-height: 1.5;
 }
 
+/* ---- Toolbar -------------------------------------------------------- */
+
+.hearth-toolbar {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: 12px;
+}
+
+.hearth-tool-btn {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 6px 12px;
+	border-radius: 9px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+	font-size: 0.85rem;
+	transition: all 120ms ease;
+}
+
+.hearth-tool-btn:hover {
+	color: var(--text-normal);
+	border-color: var(--interactive-accent);
+}
+
+.hearth-tool-btn.is-active {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+}
+
+.hearth-tool-icon {
+	display: flex;
+}
+
+/* ---- Per-card colors ------------------------------------------------ */
+
+.hearth-card.has-accent {
+	border-color: var(--card-accent);
+}
+
+.hearth-card.has-accent .hearth-card-head {
+	border-bottom-color: var(--card-accent);
+}
+
+.hearth-card.has-accent .hearth-card-title {
+	color: var(--card-accent);
+}
+
+.hearth-card-body.has-bg {
+	background: var(--card-bg);
+}
+
+/* ---- Arrange mode (drag & resize) ----------------------------------- */
+
+.hearth-grid.is-arranging .hearth-card {
+	user-select: none;
+}
+
+.hearth-grid.is-arranging .hearth-card::after {
+	/* dashed outline cue without affecting layout */
+	content: "";
+	position: absolute;
+	inset: 0;
+	border: 1px dashed var(--interactive-accent);
+	border-radius: 14px;
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.hearth-card {
+	position: relative;
+}
+
+.hearth-card-overlay {
+	position: absolute;
+	inset: 0;
+	z-index: 5;
+	cursor: grab;
+	background: transparent;
+}
+
+.hearth-card.is-moving {
+	cursor: grabbing;
+	z-index: 20;
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.hearth-card.is-moving .hearth-card-overlay {
+	cursor: grabbing;
+}
+
+.hearth-card.is-resizing {
+	z-index: 20;
+}
+
+.hearth-resize-handle {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 18px;
+	height: 18px;
+	z-index: 6;
+	cursor: nwse-resize;
+	background:
+		linear-gradient(
+			135deg,
+			transparent 0 50%,
+			var(--interactive-accent) 50% 60%,
+			transparent 60% 70%,
+			var(--interactive-accent) 70% 80%,
+			transparent 80%
+		);
+	border-bottom-right-radius: 12px;
+}
+
 /* ---- Settings ------------------------------------------------------- */
 
 .hearth-card-setting .setting-item-control {

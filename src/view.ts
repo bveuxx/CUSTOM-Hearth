@@ -8,6 +8,8 @@ export const VIEW_TYPE_HOME = "hearth-home-view";
 
 export class HomeView extends ItemView {
 	plugin: HearthPlugin;
+	/** Whether the dashboard is in layout/arrange mode (drag & resize). */
+	arrangeMode = false;
 	/** Per-render child component so embeds/markdown get cleaned up on re-render. */
 	private renderChild: Component | null = null;
 

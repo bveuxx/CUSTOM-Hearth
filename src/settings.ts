@@ -282,6 +282,9 @@ export class HomeSettingTab extends PluginSettingTab {
 						id: `card-${Date.now().toString(36)}`,
 						kind: "text",
 						title: "New card",
+						// x/y are -1 so ensureLayout() packs it into the next free slot.
+						x: -1,
+						y: -1,
 						w: 4,
 						h: 2,
 					});
