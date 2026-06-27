@@ -80,6 +80,15 @@ into `<vault>/.obsidian/plugins/hearth/`.
 - [x] Per-card backgrounds and accent colors
 - [x] Card library / templates
 - [x] Best-effort Bases (`.base`) embedding (depends on the core Bases plugin)
+- [ ] **Manage embeds from the dashboard** — cards shouldn't be fixed presets;
+  add, remove, and swap embedded files directly on the board, fully driven by
+  the user
+- [ ] **Filter click expands a match menu** — clicking a search filter should
+  drop down the matching items immediately (not only after focusing the search
+  field); especially handy for groups with just a few files
+- [ ] **Excalidraw filter** — dedicated file-type filter for Excalidraw drawings
+- [ ] **"Other" filter** — catch-all for every file not matched by any other
+  filter
 - [ ] Collision-aware auto-packing while dragging
 - [ ] Inline web/iframe embeds
 - [ ] Import/export dashboard layouts
