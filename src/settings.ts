@@ -380,7 +380,50 @@ export class HomeSettingTab extends PluginSettingTab {
 				}),
 		);
 
+		this.colorsRow(containerEl, card);
+
 		if (card.kind === "links") this.linksEditor(containerEl, card);
+	}
+
+	private colorsRow(containerEl: HTMLElement, card: DashboardCard): void {
+		const row = new Setting(containerEl)
+			.setClass("hearth-color-setting")
+			.setName("Colors")
+			.setDesc("Accent and background tint for this card.");
+
+		row.addColorPicker((c) =>
+			c.setValue(card.accent ?? "#7c5cff").onChange(async (v) => {
+				card.accent = v;
+				await this.save();
+			}),
+		);
+		row.addExtraButton((b) =>
+			b
+				.setIcon("rotate-ccw")
+				.setTooltip("Clear accent")
+				.onClick(async () => {
+					card.accent = undefined;
+					await this.save();
+					this.display();
+				}),
+		);
+
+		row.addColorPicker((c) =>
+			c.setValue(card.background ?? "#000000").onChange(async (v) => {
+				card.background = v;
+				await this.save();
+			}),
+		);
+		row.addExtraButton((b) =>
+			b
+				.setIcon("rotate-ccw")
+				.setTooltip("Clear background")
+				.onClick(async () => {
+					card.background = undefined;
+					await this.save();
+					this.display();
+				}),
+		);
 	}
 
 	private linksEditor(containerEl: HTMLElement, card: DashboardCard): void {
