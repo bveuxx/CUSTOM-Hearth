@@ -5,9 +5,9 @@ launcher in one. Hearth gives your vault a welcoming front page: a big search
 field, quick file-type filters, a new-note button, and a grid of cards that
 embed notes, images, bases, bookmarks and quick text.
 
-> Status: **v1 (foundation)**. The top section and a basic card grid are
-> functional. Drag & resize of cards and a few advanced embeds land in the next
-> iterations — see [Roadmap](#roadmap).
+> Status: **v0.2** — the top section and a fully arrangeable card dashboard
+> (drag, resize, templates, per-card colors) are in. See [Roadmap](#roadmap)
+> for what's next.
 
 ## Features
 
@@ -30,10 +30,17 @@ embed notes, images, bases, bookmarks and quick text.
   can embed, a card can show.
 - **Bookmarks** — pulls from Obsidian's core Bookmarks plugin.
 - **Favorites** — a grid of curated note cards.
+- **Recent files** — your recently opened files (configurable count).
+- **Links / launchpad** — a grid of tiles opening notes, URLs or commands.
+- **Clock & greeting** — a live time-of-day greeting, clock and date.
 - **Text / jot-down** — a quick scratch field saved with the card.
 
-Each card has a configurable width/height (in grid columns). The dashboard can
-either scroll or be locked to a single page.
+### Arranging the dashboard
+- **Drag & resize** — hit **Arrange** to move cards (drag anywhere) and resize
+  them (corner handle); everything snaps to the grid and is saved.
+- **Card library** — **Add card** opens a picker of ready-made presets.
+- **Per-card colors** — give any card an accent and a background tint.
+- The dashboard can either scroll or be locked to a single page.
 
 ## Installation (BRAT)
 
@@ -68,11 +75,14 @@ To test in a vault, symlink or copy `main.js`, `manifest.json` and `styles.css`
 into `<vault>/.obsidian/plugins/hearth/`.
 
 ## Roadmap
-- [ ] Drag & resize cards on a free-form grid (custom lightweight engine)
-- [ ] More card embed types and inline embed previews
-- [ ] Richer Bases embedding once the API allows it
-- [ ] Per-card backgrounds and accent colors
-- [ ] Card library / templates
+- [x] Drag & resize cards on a free-form grid (custom lightweight engine)
+- [x] More card types (recent, links/launchpad, clock)
+- [x] Per-card backgrounds and accent colors
+- [x] Card library / templates
+- [x] Best-effort Bases (`.base`) embedding (depends on the core Bases plugin)
+- [ ] Collision-aware auto-packing while dragging
+- [ ] Inline web/iframe embeds
+- [ ] Import/export dashboard layouts
 
 ## License
 MIT © ondreu

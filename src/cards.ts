@@ -67,6 +67,15 @@ function renderEmbed(
 		return;
 	}
 
+	// Bases (.base) embeds depend on the core Bases plugin being enabled.
+	if (file.extension.toLowerCase() === "base") {
+		const bases = view.app.internalPlugins.getPluginById("bases");
+		if (!bases?.enabled) {
+			emptyState(body, "database", "Enable the core Bases plugin to embed .base files");
+			return;
+		}
+	}
+
 	const host = body.createDiv("hearth-embed markdown-rendered");
 	// Rendering the embed markdown lets Obsidian (and plugins like Bases) handle
 	// notes, images, canvas and .base files uniformly.
