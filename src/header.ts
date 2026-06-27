@@ -1,6 +1,7 @@
 import { setIcon } from "obsidian";
 import type { HomeView } from "./view";
 import { SearchSection } from "./search";
+import { HEARTH_ICON_ID } from "./icon";
 
 /** Renders the title/logo, the search bar with the New-note button, and the
  * auto-detected filter row. */
@@ -9,8 +10,16 @@ export function renderHeader(view: HomeView, container: HTMLElement): void {
 
 	if (s.showTitle) {
 		const titleRow = container.createDiv("hearth-title");
+		const logo = s.logo.trim();
+		// A custom emoji/text logo is shown verbatim; otherwise fall back to the
+		// Hearth crystal icon as the brand mark.
+		if (logo === "") {
+			const logoEl = titleRow.createSpan({ cls: "hearth-logo hearth-logo-icon" });
+			setIcon(logoEl, HEARTH_ICON_ID);
+		} else {
+			titleRow.createSpan({ cls: "hearth-logo", text: logo });
+		}
 		titleRow.createSpan({ cls: "hearth-title-text", text: s.title });
-		if (s.logo) titleRow.createSpan({ cls: "hearth-logo", text: s.logo });
 	}
 
 	const search = new SearchSection(view);
