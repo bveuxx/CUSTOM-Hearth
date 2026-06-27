@@ -503,6 +503,7 @@
 .hearth-toolbar {
 	display: flex;
 	justify-content: flex-end;
+	gap: 8px;
 	margin-bottom: 12px;
 }
 
@@ -580,6 +581,61 @@
 	z-index: 5;
 	cursor: grab;
 	background: transparent;
+}
+
+/* The editable header must sit above the drag overlay so its field and
+ * action buttons stay interactive; cards are still dragged from the body. */
+.hearth-grid.is-arranging .hearth-card-head.is-editing {
+	position: relative;
+	z-index: 7;
+	gap: 8px;
+}
+
+.hearth-card-title-input {
+	flex: 1;
+	min-width: 0;
+	padding: 4px 8px;
+	border-radius: 7px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-weight: 600;
+	font-size: 0.9rem;
+}
+
+.hearth-card-title-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.hearth-card-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+}
+
+.hearth-card-action {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 5px;
+	border-radius: 7px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.hearth-card-action:hover {
+	color: var(--text-normal);
+	border-color: var(--interactive-accent);
+}
+
+.hearth-card-action.is-danger:hover {
+	color: var(--text-on-accent);
+	background: var(--text-error);
+	border-color: var(--text-error);
 }
 
 .hearth-card.is-moving {
