@@ -1,7 +1,8 @@
-import { Plugin, TFile, TFolder, WorkspaceLeaf, Notice } from "obsidian";
+import { addIcon, Plugin, TFile, TFolder, WorkspaceLeaf, Notice } from "obsidian";
 import { HomeView, VIEW_TYPE_HOME } from "./view";
 import { DEFAULT_SETTINGS, HomeSettings } from "./types";
 import { HomeSettingTab } from "./settings";
+import { HEARTH_ICON_ID, HEARTH_ICON_SVG } from "./icon";
 
 export default class HearthPlugin extends Plugin {
 	settings: HomeSettings;
@@ -9,9 +10,13 @@ export default class HearthPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
+		// Register the Hearth crystal so it can be used as the ribbon, tab and
+		// header icon.
+		addIcon(HEARTH_ICON_ID, HEARTH_ICON_SVG);
+
 		this.registerView(VIEW_TYPE_HOME, (leaf) => new HomeView(leaf, this));
 
-		this.addRibbonIcon("home", "Open Hearth home", () => this.activateView());
+		this.addRibbonIcon(HEARTH_ICON_ID, "Open Hearth home", () => this.activateView());
 
 		this.addCommand({
 			id: "open-home",

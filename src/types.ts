@@ -93,7 +93,8 @@ export interface HomeSettings {
 export const DEFAULT_SETTINGS: HomeSettings = {
 	title: "Obsidian",
 	showTitle: true,
-	logo: "💎",
+	// Empty => the Hearth crystal icon is shown as the brand mark.
+	logo: "",
 	searchPlaceholder: "Search the vault",
 	showNewNoteButton: true,
 

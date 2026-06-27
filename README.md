@@ -120,8 +120,8 @@ Filters & file types
   spreadsheets in the file-type filters
 
 Appearance & layout
-- [ ] **Real app icon** — replace the placeholder Obsidian logo with the proper
-  Hearth icon (provided)
+- [x] **Real app icon** — Hearth crystal icon used for the ribbon, tab and
+  header logo (shipped as an SVG in the bundle)
 - [ ] **Tighter margins** — reduce card/content padding to enlarge the usable
   working area
 - [ ] **Tighter top margin** — reduce the header/top spacing for better use of

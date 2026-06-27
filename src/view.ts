@@ -3,6 +3,7 @@ import type HearthPlugin from "./main";
 import { renderHeader } from "./header";
 import { renderDashboard } from "./dashboard";
 import { applyBackground } from "./background";
+import { HEARTH_ICON_ID } from "./icon";
 
 export const VIEW_TYPE_HOME = "hearth-home-view";
 
@@ -27,7 +28,7 @@ export class HomeView extends ItemView {
 	}
 
 	getIcon(): string {
-		return "home";
+		return HEARTH_ICON_ID;
 	}
 
 	async onOpen(): Promise<void> {

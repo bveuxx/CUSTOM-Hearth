@@ -69,6 +69,16 @@
 	line-height: 1;
 }
 
+.hearth-logo-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.hearth-logo-icon svg {
+	width: 1em;
+	height: 1em;
+}
+
 /* ---- Search --------------------------------------------------------- */
 
 .hearth-search {

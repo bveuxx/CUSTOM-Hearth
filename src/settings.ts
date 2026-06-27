@@ -93,7 +93,7 @@ export class HomeSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Logo")
-			.setDesc("An emoji or short text shown next to the title.")
+			.setDesc("An emoji or short text shown next to the title. Leave empty for the Hearth crystal icon.")
 			.addText((t) =>
 				t.setValue(s.logo).onChange(async (v) => {
 					s.logo = v;
