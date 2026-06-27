@@ -30,6 +30,12 @@ export const CARD_TEMPLATES: CardTemplate[] = [
 		build: () => ({ kind: "embed", title: "Base", target: "", w: 6, h: 4 }),
 	},
 	{
+		id: "web",
+		name: "Web page (iframe)",
+		icon: "globe",
+		build: () => ({ kind: "web", title: "Web", url: "", w: 6, h: 4 }),
+	},
+	{
 		id: "bookmarks",
 		name: "Bookmarks",
 		icon: "bookmark",

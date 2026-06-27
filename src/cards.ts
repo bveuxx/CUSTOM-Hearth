@@ -21,6 +21,9 @@ export function renderCardBody(
 		case "embed":
 			renderEmbed(view, card, body, component);
 			break;
+		case "web":
+			renderWeb(card, body);
+			break;
 		case "bookmarks":
 			renderBookmarks(view, body);
 			break;
@@ -80,6 +83,33 @@ function renderEmbed(
 	// Rendering the embed markdown lets Obsidian (and plugins like Bases) handle
 	// notes, images, canvas and .base files uniformly.
 	MarkdownRenderer.render(view.app, `![[${target}]]`, host, target, component);
+}
+
+// ---- Web / iframe embed -------------------------------------------------
+
+function renderWeb(card: DashboardCard, body: HTMLElement): void {
+	const url = card.url?.trim();
+	if (!url) {
+		emptyState(body, "globe", "Set a web URL in settings");
+		return;
+	}
+	// Only allow http(s) URLs into the iframe.
+	if (!/^https?:\/\//i.test(url)) {
+		emptyState(body, "globe", "URL must start with http:// or https://");
+		return;
+	}
+
+	body.addClass("hearth-web-body");
+	const frame = body.createEl("iframe", { cls: "hearth-web" });
+	frame.setAttribute("src", url);
+	frame.setAttribute("loading", "lazy");
+	frame.setAttribute("referrerpolicy", "no-referrer");
+	// Sandbox keeps embedded pages from reaching into the app while still
+	// letting normal sites run their scripts.
+	frame.setAttribute(
+		"sandbox",
+		"allow-scripts allow-same-origin allow-popups allow-forms",
+	);
 }
 
 // ---- Bookmarks (Obsidian core) -----------------------------------------

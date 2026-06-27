@@ -6,6 +6,7 @@ import { CARD_TEMPLATES, cardFromTemplate } from "./templates";
 
 const CARD_KIND_LABELS: Record<CardKind, string> = {
 	embed: "Embed (note / image / base)",
+	web: "Web page (iframe)",
 	bookmarks: "Bookmarks",
 	favorites: "Favorites",
 	text: "Text / jot-down",
@@ -347,6 +348,18 @@ export class HomeSettingTab extends PluginSettingTab {
 					});
 				t.inputEl.setAttribute("list", "hearth-file-list");
 			});
+		}
+
+		if (card.kind === "web") {
+			setting.addText((t) =>
+				t
+					.setPlaceholder("https://example.com")
+					.setValue(card.url ?? "")
+					.onChange(async (v) => {
+						card.url = v;
+						await this.save();
+					}),
+			);
 		}
 
 		if (card.kind === "recent") {

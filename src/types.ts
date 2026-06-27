@@ -1,6 +1,7 @@
 /** The kind of content a dashboard card renders. */
 export type CardKind =
 	| "embed"
+	| "web"
 	| "bookmarks"
 	| "favorites"
 	| "text"
@@ -28,6 +29,8 @@ export interface DashboardCard {
 	// ---- Content (per kind) ----
 	/** kind === "embed": vault path of the file to embed (.md, image, .base, ...). */
 	target?: string;
+	/** kind === "web": the web page URL to embed in an iframe. */
+	url?: string;
 	/** kind === "text": the jotted-down content. */
 	text?: string;
 	/** kind === "links": the launchpad tiles. */
