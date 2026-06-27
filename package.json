@@ -1,0 +1,28 @@
+{
+	"name": "hearth",
+	"version": "0.3.0",
+	"description": "A beautiful, customizable home screen for Obsidian — search, dashboard, and launcher in one.",
+	"main": "main.js",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"typecheck": "tsc -noEmit -skipLibCheck"
+	},
+	"keywords": [
+		"obsidian",
+		"obsidian-plugin",
+		"dashboard",
+		"home",
+		"launcher"
+	],
+	"author": "ondreu",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^20.11.0",
+		"builtin-modules": "^3.3.0",
+		"esbuild": "^0.20.0",
+		"obsidian": "latest",
+		"tslib": "^2.6.2",
+		"typescript": "^5.4.0"
+	}
+}

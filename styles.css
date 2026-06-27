@@ -1,0 +1,706 @@
+/* ===================================================================== */
+/*  Hearth — home dashboard                                              */
+/* ===================================================================== */
+
+.hearth-view {
+	position: relative;
+	height: 100%;
+	overflow: hidden;
+	padding: 0;
+}
+
+/* Background layer sits behind everything. */
+.hearth-bg {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	pointer-events: none;
+}
+
+.hearth-scroll {
+	position: relative;
+	z-index: 1;
+	height: 100%;
+	overflow-y: auto;
+	padding: 4vh 24px 48px;
+}
+
+.hearth-scroll.hearth-fit {
+	overflow-y: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.hearth-inner {
+	margin: 0 auto;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 28px;
+}
+
+.hearth-fit .hearth-inner {
+	height: 100%;
+	min-height: 0;
+}
+
+/* ---- Header --------------------------------------------------------- */
+
+.hearth-header {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 18px;
+}
+
+.hearth-title {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-size: clamp(2.2rem, 5vw, 3.4rem);
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	color: var(--text-normal);
+	margin-top: 2vh;
+}
+
+.hearth-logo {
+	font-size: 0.9em;
+	line-height: 1;
+}
+
+/* ---- Search --------------------------------------------------------- */
+
+.hearth-search {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	max-width: 720px;
+}
+
+.hearth-search-bar {
+	position: relative;
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 52px;
+	padding: 0 18px;
+	border-radius: 14px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+	transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.hearth-search-bar:focus-within {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1);
+}
+
+.hearth-search-icon {
+	display: flex;
+	color: var(--text-muted);
+}
+
+.hearth-search-input {
+	flex: 1;
+	border: none !important;
+	outline: none !important;
+	box-shadow: none !important;
+	background: transparent !important;
+	font-size: 1.05rem;
+	color: var(--text-normal);
+	padding: 0 !important;
+	height: 100%;
+}
+
+.hearth-newnote {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 52px;
+	padding: 0 18px;
+	border-radius: 14px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	font-size: 0.95rem;
+	white-space: nowrap;
+	transition: background 120ms ease, border-color 120ms ease;
+}
+
+.hearth-newnote:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+.hearth-newnote-icon {
+	display: flex;
+}
+
+/* ---- Search results dropdown --------------------------------------- */
+
+.hearth-search-results {
+	width: 100%;
+	max-width: 720px;
+	max-height: 360px;
+	overflow-y: auto;
+	margin-top: -6px;
+	border-radius: 12px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+	padding: 6px;
+}
+
+.hearth-result {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 9px 12px;
+	border-radius: 8px;
+	cursor: pointer;
+}
+
+.hearth-result:hover,
+.hearth-result.is-selected {
+	background: var(--background-modifier-hover);
+}
+
+.hearth-result-icon {
+	display: flex;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.hearth-result-text {
+	min-width: 0;
+}
+
+.hearth-result-name {
+	color: var(--text-normal);
+	font-size: 0.95rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.hearth-result-path {
+	color: var(--text-faint);
+	font-size: 0.78rem;
+}
+
+.hearth-search-empty {
+	padding: 12px;
+	text-align: center;
+	color: var(--text-muted);
+}
+
+/* ---- Filters -------------------------------------------------------- */
+
+.hearth-filters {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 8px;
+	max-width: 720px;
+}
+
+.hearth-filter {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 38px;
+	height: 38px;
+	border-radius: 10px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: all 120ms ease;
+}
+
+.hearth-filter:hover {
+	color: var(--text-normal);
+	border-color: var(--interactive-accent);
+}
+
+.hearth-filter.is-active {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+}
+
+.hearth-filter-icon {
+	display: flex;
+}
+
+/* ---- Dashboard grid ------------------------------------------------- */
+
+.hearth-dashboard {
+	flex: 1;
+	min-height: 0;
+}
+
+.hearth-grid {
+	display: grid;
+	grid-template-columns: repeat(var(--hearth-cols, 12), minmax(0, 1fr));
+	grid-auto-rows: 92px;
+	gap: 16px;
+}
+
+.hearth-fit .hearth-grid {
+	height: 100%;
+}
+
+.hearth-card {
+	grid-column: span min(var(--card-w, 4), var(--hearth-cols, 12));
+	grid-row: span var(--card-h, 2);
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	border-radius: 14px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+	overflow: hidden;
+	transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.hearth-card:hover {
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+.hearth-card-head {
+	display: flex;
+	align-items: center;
+	padding: 10px 14px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.hearth-card-title {
+	font-weight: 600;
+	font-size: 0.9rem;
+	color: var(--text-normal);
+}
+
+.hearth-card-head:has(.hearth-card-title:empty) {
+	display: none;
+}
+
+.hearth-card-body {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	padding: 12px 14px;
+}
+
+/* Empty states */
+.hearth-card-empty,
+.hearth-grid-empty {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	color: var(--text-faint);
+	text-align: center;
+}
+
+.hearth-grid-empty {
+	grid-column: 1 / -1;
+	min-height: 160px;
+}
+
+.hearth-card-empty-icon {
+	display: flex;
+	opacity: 0.7;
+}
+
+.hearth-card-empty-text {
+	font-size: 0.85rem;
+}
+
+/* Embeds */
+.hearth-embed img,
+.hearth-embed video {
+	max-width: 100%;
+	border-radius: 8px;
+}
+
+/* Web / iframe embeds fill the whole card body. */
+.hearth-card-body.hearth-web-body {
+	padding: 0;
+	overflow: hidden;
+}
+
+.hearth-web {
+	display: block;
+	width: 100%;
+	height: 100%;
+	border: 0;
+}
+
+.hearth-import-input {
+	width: 100%;
+	font-family: var(--font-monospace);
+	font-size: 0.8rem;
+	resize: vertical;
+}
+
+/* Lists (bookmarks) */
+.hearth-list {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.hearth-list-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 7px 8px;
+	border-radius: 7px;
+	cursor: pointer;
+}
+
+.hearth-list-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.hearth-list-icon {
+	display: flex;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.hearth-list-label {
+	font-size: 0.9rem;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Favorites cards */
+.hearth-favorites {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+	gap: 10px;
+}
+
+.hearth-fav-card {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 12px;
+	border-radius: 10px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	cursor: pointer;
+	transition: border-color 120ms ease, background 120ms ease;
+}
+
+.hearth-fav-card:hover {
+	border-color: var(--interactive-accent);
+	background: var(--background-modifier-hover);
+}
+
+.hearth-fav-card.is-missing {
+	opacity: 0.6;
+	cursor: default;
+}
+
+.hearth-fav-icon {
+	display: flex;
+	color: var(--text-muted);
+}
+
+.hearth-fav-name {
+	font-size: 0.85rem;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Text / jot-down */
+.hearth-text {
+	width: 100%;
+	height: 100%;
+	min-height: 60px;
+	resize: none;
+	border: none;
+	outline: none;
+	background: transparent;
+	color: var(--text-normal);
+	font-family: var(--font-text);
+	font-size: 0.92rem;
+	line-height: 1.5;
+}
+
+/* Links / launchpad */
+.hearth-links {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+	gap: 10px;
+}
+
+.hearth-link-tile {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 14px 8px;
+	border-radius: 12px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	cursor: pointer;
+	text-align: center;
+	transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+}
+
+.hearth-link-tile:hover {
+	border-color: var(--interactive-accent);
+	background: var(--background-modifier-hover);
+	transform: translateY(-1px);
+}
+
+.hearth-link-icon {
+	display: flex;
+	color: var(--text-muted);
+}
+
+.hearth-link-icon .svg-icon {
+	width: 22px;
+	height: 22px;
+}
+
+.hearth-link-label {
+	font-size: 0.8rem;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 100%;
+}
+
+/* Clock / greeting */
+.hearth-clock {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+}
+
+.hearth-clock-greeting {
+	font-size: 0.85rem;
+	color: var(--text-muted);
+}
+
+.hearth-clock-time {
+	font-size: clamp(1.8rem, 6vw, 2.6rem);
+	font-weight: 700;
+	letter-spacing: -0.01em;
+	color: var(--text-normal);
+	line-height: 1.1;
+}
+
+.hearth-clock-date {
+	font-size: 0.85rem;
+	color: var(--text-muted);
+}
+
+/* ---- Toolbar -------------------------------------------------------- */
+
+.hearth-toolbar {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.hearth-tool-btn {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	padding: 6px 12px;
+	border-radius: 9px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+	font-size: 0.85rem;
+	transition: all 120ms ease;
+}
+
+.hearth-tool-btn:hover {
+	color: var(--text-normal);
+	border-color: var(--interactive-accent);
+}
+
+.hearth-tool-btn.is-active {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+}
+
+.hearth-tool-icon {
+	display: flex;
+}
+
+/* ---- Per-card colors ------------------------------------------------ */
+
+.hearth-card.has-accent {
+	border-color: var(--card-accent);
+}
+
+.hearth-card.has-accent .hearth-card-head {
+	border-bottom-color: var(--card-accent);
+}
+
+.hearth-card.has-accent .hearth-card-title {
+	color: var(--card-accent);
+}
+
+.hearth-card-body.has-bg {
+	background: var(--card-bg);
+}
+
+/* ---- Arrange mode (drag & resize) ----------------------------------- */
+
+.hearth-grid.is-arranging .hearth-card {
+	user-select: none;
+}
+
+.hearth-grid.is-arranging .hearth-card::after {
+	/* dashed outline cue without affecting layout */
+	content: "";
+	position: absolute;
+	inset: 0;
+	border: 1px dashed var(--interactive-accent);
+	border-radius: 14px;
+	opacity: 0.5;
+	pointer-events: none;
+}
+
+.hearth-card {
+	position: relative;
+}
+
+.hearth-card-overlay {
+	position: absolute;
+	inset: 0;
+	z-index: 5;
+	cursor: grab;
+	background: transparent;
+}
+
+/* The editable header must sit above the drag overlay so its field and
+ * action buttons stay interactive; cards are still dragged from the body. */
+.hearth-grid.is-arranging .hearth-card-head.is-editing {
+	position: relative;
+	z-index: 7;
+	gap: 8px;
+}
+
+.hearth-card-title-input {
+	flex: 1;
+	min-width: 0;
+	padding: 4px 8px;
+	border-radius: 7px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-weight: 600;
+	font-size: 0.9rem;
+}
+
+.hearth-card-title-input:focus {
+	outline: none;
+	border-color: var(--interactive-accent);
+}
+
+.hearth-card-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+}
+
+.hearth-card-action {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 5px;
+	border-radius: 7px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.hearth-card-action:hover {
+	color: var(--text-normal);
+	border-color: var(--interactive-accent);
+}
+
+.hearth-card-action.is-danger:hover {
+	color: var(--text-on-accent);
+	background: var(--text-error);
+	border-color: var(--text-error);
+}
+
+.hearth-card.is-moving {
+	cursor: grabbing;
+	z-index: 20;
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+
+.hearth-card.is-moving .hearth-card-overlay {
+	cursor: grabbing;
+}
+
+.hearth-card.is-resizing {
+	z-index: 20;
+}
+
+.hearth-resize-handle {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	width: 18px;
+	height: 18px;
+	z-index: 6;
+	cursor: nwse-resize;
+	background:
+		linear-gradient(
+			135deg,
+			transparent 0 50%,
+			var(--interactive-accent) 50% 60%,
+			transparent 60% 70%,
+			var(--interactive-accent) 70% 80%,
+			transparent 80%
+		);
+	border-bottom-right-radius: 12px;
+}
+
+/* ---- Settings ------------------------------------------------------- */
+
+.hearth-card-setting .setting-item-control,
+.hearth-link-setting .setting-item-control {
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 6px;
+}
+
+.hearth-count-input {
+	width: 64px;
+}
