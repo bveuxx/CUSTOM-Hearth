@@ -35,6 +35,20 @@ embed notes, images, bases, bookmarks and quick text.
 Each card has a configurable width/height (in grid columns). The dashboard can
 either scroll or be locked to a single page.
 
+## Installation (BRAT)
+
+Hearth isn't in the community store yet, so install it as a beta plugin with
+[BRAT](https://github.com/TfTHacker/obsidian42-brat):
+
+1. Install **BRAT** from Community Plugins and enable it.
+2. Run the command **“BRAT: Add a beta plugin for testing”**.
+3. Enter the repository: `ondreu/Hearth` and confirm.
+4. BRAT downloads the latest release and installs Hearth. Enable it under
+   **Settings → Community plugins**.
+
+BRAT will keep Hearth up to date with each new release. New releases are cut
+automatically by GitHub Actions when a version tag (e.g. `0.1.0`) is pushed.
+
 ## Usage
 - Hearth opens automatically on startup and replaces empty new tabs (both
   toggleable in settings).

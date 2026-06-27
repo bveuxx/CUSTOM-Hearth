@@ -1,0 +1,65 @@
+name: Release Obsidian plugin
+
+on:
+  push:
+    tags:
+      # Run for version tags that match the manifest version, e.g. 0.1.0
+      - "[0-9]+.[0-9]+.[0-9]+"
+  # Allow cutting a release manually from the Actions tab / API.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.1.0). Defaults to manifest.json version."
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+
+      - name: Install & build
+        run: |
+          npm install
+          npm run build
+
+      - name: Verify build output
+        run: test -f main.js && test -f manifest.json && test -f styles.css
+
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ github.event.inputs.version }}"
+            [ -z "$tag" ] && tag="$(node -p "require('./manifest.json').version")"
+          else
+            tag="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ steps.tag.outputs.tag }}"
+          # Assets must be attached as individual files (not zipped) so BRAT can
+          # fetch manifest.json, main.js and styles.css directly. Idempotent so
+          # re-runs just refresh the assets.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" main.js manifest.json styles.css --clobber
+          else
+            gh release create "$tag" \
+              --target "$GITHUB_SHA" \
+              --title "$tag" \
+              --generate-notes \
+              main.js manifest.json styles.css
+          fi
