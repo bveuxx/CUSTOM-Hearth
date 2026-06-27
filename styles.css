@@ -345,6 +345,13 @@
 	border: 0;
 }
 
+.hearth-import-input {
+	width: 100%;
+	font-family: var(--font-monospace);
+	font-size: 0.8rem;
+	resize: vertical;
+}
+
 /* Lists (bookmarks) */
 .hearth-list {
 	display: flex;

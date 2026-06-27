@@ -1,8 +1,9 @@
-import { App, Menu, PluginSettingTab, Setting } from "obsidian";
+import { App, Menu, Notice, PluginSettingTab, Setting } from "obsidian";
 import type HearthPlugin from "./main";
 import { FILE_TYPE_GROUPS } from "./filetypes";
 import { BackgroundKind, CardKind, DashboardCard, LinkItem } from "./types";
 import { CARD_TEMPLATES, cardFromTemplate } from "./templates";
+import { exportLayout, importLayout } from "./layout";
 
 const CARD_KIND_LABELS: Record<CardKind, string> = {
 	embed: "Embed (note / image / base)",
@@ -51,6 +52,7 @@ export class HomeSettingTab extends PluginSettingTab {
 		this.behaviourSection(containerEl);
 		this.filtersSection(containerEl);
 		this.dashboardSection(containerEl);
+		this.layoutSection(containerEl);
 		this.favoritesSection(containerEl);
 	}
 
@@ -506,6 +508,63 @@ export class HomeSettingTab extends PluginSettingTab {
 				this.display();
 			}),
 		);
+	}
+
+	// ---- Layout import / export ----------------------------------------
+
+	private layoutSection(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName("Import / export layout")
+			.setDesc("Back up or share your dashboard (cards, grid, favorites) as JSON.")
+			.setHeading();
+		const s = this.plugin.settings;
+
+		new Setting(containerEl)
+			.setName("Export layout")
+			.setDesc("Copy the current dashboard layout to the clipboard.")
+			.addButton((b) =>
+				b
+					.setButtonText("Copy JSON")
+					.onClick(async () => {
+						try {
+							await navigator.clipboard.writeText(exportLayout(s));
+							new Notice("Hearth: layout copied to clipboard.");
+						} catch {
+							new Notice("Hearth: couldn't access the clipboard.");
+						}
+					}),
+			);
+
+		let pending = "";
+		new Setting(containerEl)
+			.setName("Import layout")
+			.setDesc("Paste a previously exported layout, then Import. This replaces your current cards.")
+			.addTextArea((t) => {
+				t.setPlaceholder('{ "hearthLayout": 1, "cards": [ … ] }').onChange(
+					(v) => (pending = v),
+				);
+				t.inputEl.rows = 4;
+				t.inputEl.addClass("hearth-import-input");
+			})
+			.addButton((b) =>
+				b
+					.setButtonText("Import")
+					.setWarning()
+					.onClick(async () => {
+						if (!pending.trim()) {
+							new Notice("Hearth: paste a layout to import first.");
+							return;
+						}
+						const error = importLayout(s, pending);
+						if (error) {
+							new Notice(`Hearth: ${error}`);
+							return;
+						}
+						await this.save();
+						this.display();
+						new Notice("Hearth: layout imported.");
+					}),
+			);
 	}
 
 	// ---- Favorites ------------------------------------------------------
