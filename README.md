@@ -96,6 +96,42 @@ into `<vault>/.obsidian/plugins/hearth/`.
 - [x] Collision-aware auto-packing while dragging
 - [x] Inline web/iframe embeds
 - [x] Import/export dashboard layouts
+### Planned
+
+Dashboard editing
+- [ ] **Add links from the dashboard** — `links`/launchpad tiles can currently
+  only be added in settings; allow adding/editing them on the board
+- [ ] **Add favorites from the dashboard** — curate favorites directly on the
+  board, not just in settings
+- [ ] **Web URL from the dashboard** — set/edit a web card's URL on the board
+  (not only in settings)
+- [ ] **More granular card sizing** — finer resize steps and/or numeric width
+  & height inputs per card
+
+Embeds
+- [ ] **Scale individual embeds** — per-card zoom/scale for embedded content
+  (investigate whether Obsidian's renderer allows it)
+- [ ] **Editable `.md` embeds** — a toggle to edit an embedded note in place
+- [ ] **Excalidraw embed card** — dedicated card template for embedding an
+  Excalidraw drawing
+
+Filters & file types
+- [ ] **`.usheet` (Univer Sheet) support** — recognize `.usheet` files as
+  spreadsheets in the file-type filters
+
+Appearance & layout
+- [ ] **Real app icon** — replace the placeholder Obsidian logo with the proper
+  Hearth icon (provided)
+- [ ] **Tighter margins** — reduce card/content padding to enlarge the usable
+  working area
+- [ ] **Tighter top margin** — reduce the header/top spacing for better use of
+  vertical space
+- [ ] **Customizable clock** — configurable clock card (time format, seconds,
+  greeting text, date format)
+- [ ] **Bookmark favicons** — show favicons next to URL bookmarks in the
+  Bookmarks card
+
+Bigger ideas
 - [ ] Multiple dashboards / switchable pages
 - [ ] Per-card refresh interval for live embeds
 
