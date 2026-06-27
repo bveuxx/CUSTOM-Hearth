@@ -1,0 +1,10 @@
+{
+	"id": "hearth",
+	"name": "Hearth",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "A beautiful, customizable home screen for Obsidian — search, dashboard, and launcher in one.",
+	"author": "ondreu",
+	"authorUrl": "https://github.com/ondreu/hearth",
+	"isDesktopOnly": false
+}
