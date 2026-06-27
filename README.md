@@ -5,9 +5,10 @@ launcher in one. Hearth gives your vault a welcoming front page: a big search
 field, quick file-type filters, a new-note button, and a grid of cards that
 embed notes, images, bases, bookmarks and quick text.
 
-> Status: **v0.2** — the top section and a fully arrangeable card dashboard
-> (drag, resize, templates, per-card colors) are in. See [Roadmap](#roadmap)
-> for what's next.
+> Status: **v0.3** — the top section and a fully arrangeable card dashboard
+> (drag, resize, collision-aware packing, on-board card management, templates,
+> per-card colors, web embeds, layout import/export) are in. See
+> [Roadmap](#roadmap) for what's next.
 
 ## Features
 
@@ -28,6 +29,7 @@ embed notes, images, bases, bookmarks and quick text.
 - **Embed** — embed a note (`.md`), image, canvas, or `.base` file. Rendered
   through Obsidian's own renderer, so anything Obsidian (or the Bases plugin)
   can embed, a card can show.
+- **Web page** — embed any `http(s)` URL in a sandboxed iframe.
 - **Bookmarks** — pulls from Obsidian's core Bookmarks plugin.
 - **Favorites** — a grid of curated note cards.
 - **Recent files** — your recently opened files (configurable count).
@@ -37,9 +39,13 @@ embed notes, images, bases, bookmarks and quick text.
 
 ### Arranging the dashboard
 - **Drag & resize** — hit **Arrange** to move cards (drag anywhere) and resize
-  them (corner handle); everything snaps to the grid and is saved.
-- **Card library** — **Add card** opens a picker of ready-made presets.
+  them (corner handle); everything snaps to the grid and is saved. Cards push
+  each other out of the way as you drag and compact upward when you let go.
+- **On-board management** — in arrange mode each card header is editable:
+  rename inline, swap the embedded file via a fuzzy picker, or remove the card.
+  **Add card** (toolbar) drops in a new card from the library.
 - **Per-card colors** — give any card an accent and a background tint.
+- **Import / export** — back up or share the whole layout as JSON from settings.
 - The dashboard can either scroll or be locked to a single page.
 
 ## Installation (BRAT)
@@ -80,18 +86,18 @@ into `<vault>/.obsidian/plugins/hearth/`.
 - [x] Per-card backgrounds and accent colors
 - [x] Card library / templates
 - [x] Best-effort Bases (`.base`) embedding (depends on the core Bases plugin)
-- [ ] **Manage embeds from the dashboard** — cards shouldn't be fixed presets;
-  add, remove, and swap embedded files directly on the board, fully driven by
-  the user
-- [ ] **Filter click expands a match menu** — clicking a search filter should
-  drop down the matching items immediately (not only after focusing the search
-  field); especially handy for groups with just a few files
-- [ ] **Excalidraw filter** — dedicated file-type filter for Excalidraw drawings
-- [ ] **"Other" filter** — catch-all for every file not matched by any other
+- [x] **Manage embeds from the dashboard** — add, remove, swap embedded files
+  and rename cards directly on the board, fully driven by the user
+- [x] **Filter click expands a match menu** — clicking a search filter drops
+  down the matching items immediately
+- [x] **Excalidraw filter** — dedicated file-type filter for Excalidraw drawings
+- [x] **"Other" filter** — catch-all for every file not matched by any other
   filter
-- [ ] Collision-aware auto-packing while dragging
-- [ ] Inline web/iframe embeds
-- [ ] Import/export dashboard layouts
+- [x] Collision-aware auto-packing while dragging
+- [x] Inline web/iframe embeds
+- [x] Import/export dashboard layouts
+- [ ] Multiple dashboards / switchable pages
+- [ ] Per-card refresh interval for live embeds
 
 ## License
 MIT © ondreu
