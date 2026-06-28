@@ -26,7 +26,7 @@ embed notes, images, bases, bookmarks and quick text.
 ![Simple](assets/dashboardsimple.png)
 
 
-![Empty](assets/dashboardempty.png)
+![Empty](assets/dashboardwall.png)
 
 
 ![Switch](assets/dashboardswitch.png)
