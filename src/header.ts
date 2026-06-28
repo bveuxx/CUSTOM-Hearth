@@ -24,7 +24,11 @@ export function renderHeader(view: HomeView, container: HTMLElement): void {
 
 	const search = new SearchSection(view);
 
-	const searchRow = container.createDiv("hearth-search");
+	// A relative wrapper around the search row so the results dropdown can float
+	// as an overlay beneath the bar instead of pushing the dashboard down (which
+	// on mobile / fit-to-page clipped content out of view).
+	const searchWrap = container.createDiv("hearth-search-wrap");
+	const searchRow = searchWrap.createDiv("hearth-search");
 	const bar = search.renderBar(searchRow);
 
 	if (s.showNewNoteButton) {
@@ -39,6 +43,6 @@ export function renderHeader(view: HomeView, container: HTMLElement): void {
 		void bar;
 	}
 
-	// Results dropdown + filter chips render under the search row.
-	search.renderResultsAndFilters(container);
+	// Results dropdown overlays from the wrapper; filter chips render under it.
+	search.renderResultsAndFilters(searchWrap, container);
 }

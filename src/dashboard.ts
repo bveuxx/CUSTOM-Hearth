@@ -181,11 +181,13 @@ function renderToolbar(view: HomeView, container: HTMLElement): void {
 
 	const arrange = bar.createEl("button", { cls: "hearth-tool-btn" });
 	arrange.toggleClass("is-active", view.arrangeMode);
+	// Outside arrange mode keep it as a small, unobtrusive icon button; while
+	// arranging, show the labelled "Done arranging" action.
+	arrange.toggleClass("is-icon", !view.arrangeMode);
 	setIcon(arrange.createSpan("hearth-tool-icon"), view.arrangeMode ? "check" : "move");
-	arrange.createSpan({
-		cls: "hearth-tool-label",
-		text: view.arrangeMode ? "Done arranging" : "Arrange",
-	});
+	if (view.arrangeMode) {
+		arrange.createSpan({ cls: "hearth-tool-label", text: "Done arranging" });
+	}
 	arrange.setAttribute(
 		"aria-label",
 		view.arrangeMode ? "Finish arranging cards" : "Move & resize cards",

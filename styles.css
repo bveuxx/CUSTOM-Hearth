@@ -51,6 +51,18 @@
 	flex-direction: column;
 	align-items: center;
 	gap: 18px;
+	/* Sit above the dashboard so the search dropdown overlay isn't covered. */
+	position: relative;
+	z-index: 2;
+}
+
+.hearth-search-wrap {
+	position: relative;
+	width: 100%;
+	max-width: 720px;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
 }
 
 .hearth-title {
@@ -154,11 +166,15 @@
 /* ---- Search results dropdown --------------------------------------- */
 
 .hearth-search-results {
-	width: 100%;
-	max-width: 720px;
-	max-height: 360px;
+	/* Float beneath the search bar as an overlay so showing results never
+	   reflows or clips the dashboard (important on mobile / fit-to-page). */
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 0;
+	right: 0;
+	z-index: 30;
+	max-height: min(360px, 50vh);
 	overflow-y: auto;
-	margin-top: -6px;
 	border-radius: 12px;
 	border: 1px solid var(--background-modifier-border);
 	background: var(--background-primary);
@@ -571,6 +587,27 @@
 
 .hearth-tool-icon {
 	display: flex;
+}
+
+/* Compact icon-only toolbar button (e.g. the Arrange toggle at rest). */
+.hearth-tool-btn.is-icon {
+	padding: 3px;
+	border-radius: 7px;
+	opacity: 0.55;
+}
+
+.hearth-tool-btn.is-icon:hover {
+	opacity: 1;
+}
+
+.hearth-tool-btn.is-icon .hearth-tool-icon {
+	width: 15px;
+	height: 15px;
+}
+
+.hearth-tool-btn.is-icon .hearth-tool-icon svg {
+	width: 15px;
+	height: 15px;
 }
 
 /* ---- Per-card colors ------------------------------------------------ */

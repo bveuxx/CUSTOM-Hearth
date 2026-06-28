@@ -1,4 +1,5 @@
 import {
+	Platform,
 	prepareFuzzySearch,
 	setIcon,
 	TAbstractFile,
@@ -64,20 +65,20 @@ export class SearchSection {
 		return bar;
 	}
 
-	/** Renders the results dropdown container + the filter chip row. The
-	 * `parent` here wraps the whole search section (bar included), so it is used
-	 * as the boundary for the click-outside handler. */
-	renderResultsAndFilters(parent: HTMLElement): void {
-		this.rootEl = parent;
-		this.resultsEl = parent.createDiv("hearth-search-results");
+	/** Renders the results dropdown (as an overlay inside `overlayParent`, which
+	 * must be positioned) and the filter chip row (under `boundary`). `boundary`
+	 * wraps the whole search section and is the click-outside dismissal area. */
+	renderResultsAndFilters(overlayParent: HTMLElement, boundary: HTMLElement): void {
+		this.rootEl = boundary;
+		this.resultsEl = overlayParent.createDiv("hearth-search-results");
 		this.resultsEl.hide();
-		this.renderFilters(parent);
+		this.renderFilters(boundary);
 
 		// Close the dropdown when clicking outside the whole search section.
 		// Registered here (not in renderBar) so clicks on the filter chips —
 		// which live below the bar — count as inside and don't dismiss results.
 		this.view.registerDomEvent(document, "click", (e) => {
-			if (!parent.contains(e.target as Node)) this.hide();
+			if (!boundary.contains(e.target as Node)) this.hide();
 		});
 	}
 
@@ -119,7 +120,9 @@ export class SearchSection {
 					.forEach((c) => c.removeClass("is-active"));
 				chip.toggleClass("is-active", this.activeFilter === group.id);
 				this.update();
-				this.inputEl.focus();
+				// On desktop, refocus the field for quick typing; on mobile this
+				// would pop the on-screen keyboard and cover the results, so skip.
+				if (!Platform.isMobile) this.inputEl.focus();
 			});
 		}
 	}
