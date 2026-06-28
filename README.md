@@ -121,6 +121,8 @@ into `<vault>/.obsidian/plugins/hearth/`.
   place; edits save straight back to the vault
 - [x] **Excalidraw drawing card** — dedicated card template for embedding an
   Excalidraw drawing, with a prompt to install the plugin when it's missing
+- [x] **Canvas card** — dedicated card template for embedding a `.canvas` file,
+  with a prompt to enable the core Canvas plugin when it's off
 ### Planned
 
 Bigger ideas

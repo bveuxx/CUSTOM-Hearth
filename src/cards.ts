@@ -85,6 +85,15 @@ function renderEmbed(
 		}
 	}
 
+	// Canvas embeds depend on the core Canvas plugin being enabled.
+	if (file.extension.toLowerCase() === "canvas") {
+		const canvas = view.app.internalPlugins.getPluginById("canvas");
+		if (!canvas?.enabled) {
+			emptyState(body, "layout-dashboard", "Enable the core Canvas plugin to embed canvases");
+			return;
+		}
+	}
+
 	// Excalidraw drawings render through the community Excalidraw plugin.
 	if (isExcalidraw(file)) {
 		if (!view.app.plugins.enabledPlugins.has(EXCALIDRAW_PLUGIN_ID)) {

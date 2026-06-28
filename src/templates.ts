@@ -36,6 +36,12 @@ export const CARD_TEMPLATES: CardTemplate[] = [
 		build: () => ({ kind: "embed", title: "Drawing", target: "", w: 6, h: 4 }),
 	},
 	{
+		id: "canvas",
+		name: "Embedded canvas",
+		icon: "layout-dashboard",
+		build: () => ({ kind: "embed", title: "Canvas", target: "", w: 6, h: 4 }),
+	},
+	{
 		id: "web",
 		name: "Web page (iframe)",
 		icon: "globe",
