@@ -82,7 +82,7 @@ into `<vault>/.obsidian/plugins/hearth/`.
 
 ## Roadmap
 - [x] Drag & resize cards on a free-form grid (custom lightweight engine)
-- [x] More card types (recent, links/launchpad, clock)
+- [x] More card types (recent, links/launchpad, commands, clock)
 - [x] Per-card backgrounds and accent colors
 - [x] Card library / templates
 - [x] Best-effort Bases (`.base`) embedding (depends on the core Bases plugin)
@@ -108,6 +108,9 @@ into `<vault>/.obsidian/plugins/hearth/`.
 - [x] **Bookmark favicons** — show site favicons next to URL bookmarks
 - [x] **Real app icon** — used for the ribbon, tab and header logo (shipped in
   the bundle)
+- [x] **Commands card** — tiles that run chosen command-palette commands
+- [x] **Mobile search** — results float as an overlay so they no longer push
+  the dashboard off-screen on phones
 ### Planned
 
 Embeds

@@ -1,4 +1,4 @@
-import { App, FuzzySuggestModal, TFile } from "obsidian";
+import { App, Command, FuzzySuggestModal, TFile } from "obsidian";
 
 /**
  * A fuzzy file picker used to choose (or swap) the file embedded by a card
@@ -23,5 +23,31 @@ export class FilePickerModal extends FuzzySuggestModal<TFile> {
 
 	onChooseItem(file: TFile): void {
 		this.onChoose(file);
+	}
+}
+
+/**
+ * A fuzzy picker over every registered command, used to add command tiles to a
+ * "commands" card from the dashboard.
+ */
+export class CommandPickerModal extends FuzzySuggestModal<Command> {
+	private onChoose: (command: Command) => void;
+
+	constructor(app: App, onChoose: (command: Command) => void) {
+		super(app);
+		this.onChoose = onChoose;
+		this.setPlaceholder("Pick a command…");
+	}
+
+	getItems(): Command[] {
+		return this.app.commands.listCommands();
+	}
+
+	getItemText(command: Command): string {
+		return command.name;
+	}
+
+	onChooseItem(command: Command): void {
+		this.onChoose(command);
 	}
 }

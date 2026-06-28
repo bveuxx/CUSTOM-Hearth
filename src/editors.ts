@@ -1,5 +1,5 @@
 import { App, Modal, Setting } from "obsidian";
-import { FilePickerModal } from "./pickers";
+import { CommandPickerModal, FilePickerModal } from "./pickers";
 import { CardKind, DashboardCard, LinkItem } from "./types";
 
 const CARD_KIND_LABELS: Record<CardKind, string> = {
@@ -10,6 +10,7 @@ const CARD_KIND_LABELS: Record<CardKind, string> = {
 	text: "Text / jot-down",
 	recent: "Recent files",
 	links: "Links / launchpad",
+	commands: "Commands",
 	clock: "Clock & greeting",
 };
 
@@ -156,6 +157,9 @@ export class CardSettingsModal extends Modal {
 			case "links":
 				this.linksEditor(containerEl);
 				break;
+			case "commands":
+				this.commandsEditor(containerEl);
+				break;
 			case "favorites":
 				this.favoritesEditor(containerEl);
 				break;
@@ -224,6 +228,46 @@ export class CardSettingsModal extends Modal {
 				});
 				this.opts.save();
 				this.render();
+			}),
+		);
+	}
+
+	private commandsEditor(containerEl: HTMLElement): void {
+		new Setting(containerEl).setName("Commands").setHeading();
+		const commands = (this.card.commands ??= []);
+
+		commands.forEach((cmd, index) => {
+			const row = new Setting(containerEl)
+				.setClass("hearth-link-setting")
+				.setName(cmd.name || cmd.id);
+			row.addText((t) =>
+				t
+					.setPlaceholder("Icon (optional)")
+					.setValue(cmd.icon ?? "")
+					.onChange((v) => {
+						cmd.icon = v || undefined;
+						this.opts.save();
+					}),
+			);
+			row.addExtraButton((b) =>
+				b
+					.setIcon("trash-2")
+					.setTooltip("Remove command")
+					.onClick(() => {
+						commands.splice(index, 1);
+						this.opts.save();
+						this.render();
+					}),
+			);
+		});
+
+		new Setting(containerEl).addButton((b) =>
+			b.setButtonText("Add command").onClick(() => {
+				new CommandPickerModal(this.app, (command) => {
+					commands.push({ id: command.id, name: command.name, icon: command.icon });
+					this.opts.save();
+					this.render();
+				}).open();
 			}),
 		);
 	}

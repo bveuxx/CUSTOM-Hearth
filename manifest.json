@@ -1,7 +1,7 @@
 {
 	"id": "hearth",
 	"name": "Hearth",
-	"version": "0.4.1",
+	"version": "0.4.2",
 	"minAppVersion": "1.5.0",
 	"description": "A beautiful, customizable home screen for Obsidian — search, dashboard, and launcher in one.",
 	"author": "ondreu",
