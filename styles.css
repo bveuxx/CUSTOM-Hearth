@@ -773,18 +773,28 @@
 
 /* ---- Empty board (no cards): centre the search like a launcher ------ */
 
+/* Make the scroll a flex column so the inner can reliably fill its height. */
+.hearth-view.hearth-empty-board .hearth-scroll {
+	display: flex;
+	flex-direction: column;
+}
+
 .hearth-view.hearth-empty-board .hearth-inner {
-	min-height: 100%;
+	flex: 1 1 auto;
+	min-height: 0;
 }
 
 /* Centre the header + dashboard group vertically while the dashboard switcher
- * stays anchored at the top. The auto margins above the header and below the
+ * stays anchored at the top. The auto margin above the header and below the
  * dashboard absorb the free space equally, so the group lands in the middle. */
 .hearth-view.hearth-empty-board .hearth-header {
 	margin-top: auto;
 }
 
+/* Stop the dashboard from growing to fill the column (its default), so the
+ * free space is left for the auto margins to centre the search. */
 .hearth-view.hearth-empty-board .hearth-dashboard {
+	flex: 0 0 auto;
 	margin-bottom: auto;
 }
 
