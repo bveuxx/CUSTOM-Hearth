@@ -278,6 +278,8 @@
 .hearth-dashboard {
 	flex: 1;
 	min-height: 0;
+	/* Anchor the floating (at-rest) toolbar to the dashboard. */
+	position: relative;
 }
 
 .hearth-grid {
@@ -574,7 +576,23 @@
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
+}
+
+/* While arranging the bar carries the Add card / Done actions, so keep it in
+ * normal flow above the grid. */
+.hearth-toolbar.is-arranging {
 	margin-bottom: 12px;
+}
+
+/* At rest the bar holds only the compact Arrange toggle. Float it into the
+ * gap above the grid so it no longer reserves a whole empty row, letting the
+ * cards reclaim that space. */
+.hearth-toolbar:not(.is-arranging) {
+	position: absolute;
+	right: 0;
+	bottom: 100%;
+	margin: 0 0 4px 0;
+	z-index: 3;
 }
 
 .hearth-tool-btn {

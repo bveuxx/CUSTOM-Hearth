@@ -186,6 +186,9 @@ function openCardSettings(view: HomeView, card: DashboardCard): void {
 
 function renderToolbar(view: HomeView, container: HTMLElement): void {
 	const bar = container.createDiv("hearth-toolbar");
+	// At rest the bar holds only the compact Arrange toggle; flag it so CSS can
+	// float it into the gap above the grid instead of reserving a whole row.
+	bar.toggleClass("is-arranging", view.arrangeMode);
 
 	if (view.arrangeMode) {
 		const add = bar.createEl("button", { cls: "hearth-tool-btn" });
