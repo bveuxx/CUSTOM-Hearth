@@ -773,10 +773,19 @@
 
 /* ---- Empty board (no cards): centre the search like a launcher ------ */
 
-.hearth-view.hearth-empty-board .hearth-scroll {
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
+.hearth-view.hearth-empty-board .hearth-inner {
+	min-height: 100%;
+}
+
+/* Centre the header + dashboard group vertically while the dashboard switcher
+ * stays anchored at the top. The auto margins above the header and below the
+ * dashboard absorb the free space equally, so the group lands in the middle. */
+.hearth-view.hearth-empty-board .hearth-header {
+	margin-top: auto;
+}
+
+.hearth-view.hearth-empty-board .hearth-dashboard {
+	margin-bottom: auto;
 }
 
 /* Don't let the "No cards yet" placeholder stretch and push the search off
