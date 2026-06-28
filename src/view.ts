@@ -2,6 +2,7 @@ import { Component, ItemView, Platform, WorkspaceLeaf } from "obsidian";
 import type HearthPlugin from "./main";
 import { renderHeader } from "./header";
 import { renderDashboard } from "./dashboard";
+import { renderDashboardSwitcher } from "./dashboards";
 import { applyBackground } from "./background";
 import { HEARTH_ICON_ID } from "./icon";
 
@@ -93,6 +94,10 @@ export class HomeView extends ItemView {
 		root.addClass("hearth-view");
 		root.toggleClass("hearth-compact", this.plugin.settings.compact);
 
+		// Mobile-only mode: on a phone/tablet, collapse to just the search field.
+		const mobileOnly = Platform.isMobile && this.plugin.settings.mobileSearchOnly;
+		root.toggleClass("hearth-mobile-only", mobileOnly);
+
 		applyBackground(this, root);
 
 		const scroll = root.createDiv("hearth-scroll");
@@ -101,10 +106,14 @@ export class HomeView extends ItemView {
 		const inner = scroll.createDiv("hearth-inner");
 		inner.style.maxWidth = `${this.plugin.settings.maxWidth}px`;
 
+		if (!mobileOnly) renderDashboardSwitcher(this, inner);
+
 		const header = inner.createDiv("hearth-header");
 		renderHeader(this, header);
 
-		const dashboard = inner.createDiv("hearth-dashboard");
-		renderDashboard(this, dashboard, child);
+		if (!mobileOnly) {
+			const dashboard = inner.createDiv("hearth-dashboard");
+			renderDashboard(this, dashboard, child);
+		}
 	}
 }

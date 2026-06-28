@@ -1,4 +1,13 @@
-import { CardKind, DashboardCard, HomeSettings, LinkItem } from "./types";
+import {
+	activeCards,
+	activeDashboard,
+	CardKind,
+	ClockConfig,
+	CommandItem,
+	DashboardCard,
+	HomeSettings,
+	LinkItem,
+} from "./types";
 
 /** Current dashboard-layout export schema version. */
 export const LAYOUT_SCHEMA = 1;
@@ -21,14 +30,15 @@ const CARD_KINDS: CardKind[] = [
 	"text",
 	"recent",
 	"links",
+	"commands",
 	"clock",
 ];
 
-/** Serialize the layout-relevant settings to a pretty JSON string. */
+/** Serialize the active dashboard's layout to a pretty JSON string. */
 export function exportLayout(s: HomeSettings): string {
 	const data: LayoutExport = {
 		hearthLayout: LAYOUT_SCHEMA,
-		cards: s.cards,
+		cards: activeCards(s),
 		gridColumns: s.gridColumns,
 		fitToPage: s.fitToPage,
 		maxWidth: s.maxWidth,
@@ -86,11 +96,43 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 	const background = str(r.background);
 	if (background !== undefined) card.background = background;
 	if (typeof r.count === "number") card.count = r.count;
+	if (typeof r.scale === "number") card.scale = r.scale;
+	if (typeof r.refreshSec === "number") card.refreshSec = r.refreshSec;
+	if (typeof r.editable === "boolean") card.editable = r.editable;
 	if (Array.isArray(r.links)) {
 		card.links = r.links.map(sanitizeLink).filter((l): l is LinkItem => l !== null);
 	}
+	if (Array.isArray(r.commands)) {
+		card.commands = r.commands
+			.map(sanitizeCommand)
+			.filter((c): c is CommandItem => c !== null);
+	}
+	if (r.clock && typeof r.clock === "object") {
+		card.clock = sanitizeClock(r.clock as Record<string, unknown>);
+	}
 
 	return card;
+}
+
+function sanitizeCommand(raw: unknown): CommandItem | null {
+	if (!raw || typeof raw !== "object") return null;
+	const r = raw as Record<string, unknown>;
+	const id = str(r.id);
+	if (!id) return null;
+	return { id, name: str(r.name) ?? id, icon: str(r.icon) };
+}
+
+function sanitizeClock(r: Record<string, unknown>): ClockConfig {
+	const clock: ClockConfig = {};
+	if (typeof r.use24Hour === "boolean") clock.use24Hour = r.use24Hour;
+	if (typeof r.showSeconds === "boolean") clock.showSeconds = r.showSeconds;
+	if (typeof r.showGreeting === "boolean") clock.showGreeting = r.showGreeting;
+	const greeting = str(r.greetingText);
+	if (greeting !== undefined) clock.greetingText = greeting;
+	if (r.dateMode === "full" || r.dateMode === "short" || r.dateMode === "none") {
+		clock.dateMode = r.dateMode;
+	}
+	return clock;
 }
 
 /**
@@ -119,7 +161,7 @@ export function importLayout(s: HomeSettings, json: string): string | null {
 		return "Layout contained no valid cards.";
 	}
 
-	s.cards = cards;
+	activeDashboard(s).cards = cards;
 	s.gridColumns = Math.round(num(data.gridColumns, s.gridColumns));
 	if (typeof data.fitToPage === "boolean") s.fitToPage = data.fitToPage;
 	s.maxWidth = Math.round(num(data.maxWidth, s.maxWidth));

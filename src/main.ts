@@ -1,6 +1,6 @@
 import { addIcon, Plugin, TFile, TFolder, WorkspaceLeaf, Notice } from "obsidian";
 import { HomeView, VIEW_TYPE_HOME } from "./view";
-import { DEFAULT_SETTINGS, HomeSettings } from "./types";
+import { DEFAULT_SETTINGS, HomeSettings, migrateSettings } from "./types";
 import { HomeSettingTab } from "./settings";
 import { HEARTH_ICON_ID, HEARTH_ICON_SVG } from "./icon";
 
@@ -30,6 +30,8 @@ export default class HearthPlugin extends Plugin {
 			callback: () => this.createNewNote(),
 		});
 
+		this.registerDashboardCommands();
+
 		this.addSettingTab(new HomeSettingTab(this.app, this));
 
 		// Replace freshly-opened empty tabs with the home view.
@@ -50,6 +52,56 @@ export default class HearthPlugin extends Plugin {
 		if (!leaf || !this.settings.replaceNewTabs) return;
 		if (leaf.getViewState().type !== "empty") return;
 		leaf.setViewState({ type: VIEW_TYPE_HOME });
+	}
+
+	/** Switch the active dashboard and refresh any open home views. */
+	setActiveDashboard(id: string) {
+		if (this.settings.activeDashboardId === id) return;
+		this.settings.activeDashboardId = id;
+		void this.saveData(this.settings);
+		this.refreshViews();
+	}
+
+	private cycleDashboard(direction: 1 | -1) {
+		const dashboards = this.settings.dashboards;
+		if (dashboards.length < 2) return;
+		const current = dashboards.findIndex(
+			(d) => d.id === this.settings.activeDashboardId,
+		);
+		const start = current < 0 ? 0 : current;
+		const next = (start + direction + dashboards.length) % dashboards.length;
+		this.setActiveDashboard(dashboards[next].id);
+	}
+
+	/**
+	 * Commands to jump straight to a dashboard by position, plus next/previous.
+	 * No default hotkeys are bound (Mod+number is taken by core tab switching);
+	 * users can assign their own in Settings → Hotkeys.
+	 */
+	private registerDashboardCommands() {
+		for (let i = 1; i <= 9; i++) {
+			this.addCommand({
+				id: `switch-dashboard-${i}`,
+				name: `Switch to dashboard ${i}`,
+				checkCallback: (checking) => {
+					const dash = this.settings.dashboards[i - 1];
+					if (!dash) return false;
+					if (!checking) this.setActiveDashboard(dash.id);
+					return true;
+				},
+			});
+		}
+
+		this.addCommand({
+			id: "next-dashboard",
+			name: "Next dashboard",
+			callback: () => this.cycleDashboard(1),
+		});
+		this.addCommand({
+			id: "previous-dashboard",
+			name: "Previous dashboard",
+			callback: () => this.cycleDashboard(-1),
+		});
 	}
 
 	async activateView() {
@@ -86,7 +138,9 @@ export default class HearthPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const raw = ((await this.loadData()) ?? {}) as Record<string, unknown>;
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, raw);
+		migrateSettings(this.settings, raw);
 	}
 
 	async saveSettings() {

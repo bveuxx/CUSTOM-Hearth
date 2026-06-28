@@ -52,7 +52,7 @@ const OTHER_GROUP = FILE_TYPE_GROUPS.find((g) => g.id === OTHER_GROUP_ID)!;
  * commonly with the Excalidraw plugin, as `*.excalidraw.md` notes. The latter
  * report a "md" extension, so match on the name suffix as well.
  */
-function isExcalidraw(file: TFile): boolean {
+export function isExcalidraw(file: TFile): boolean {
 	const ext = file.extension.toLowerCase();
 	if (ext === "excalidraw") return true;
 	return file.name.toLowerCase().endsWith(".excalidraw.md");

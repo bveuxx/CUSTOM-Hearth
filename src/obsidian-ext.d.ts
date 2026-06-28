@@ -15,6 +15,10 @@ declare module "obsidian" {
 			executeCommandById(id: string): boolean;
 			listCommands(): Command[];
 		};
+		plugins: {
+			/** Ids of every enabled community plugin. */
+			enabledPlugins: Set<string>;
+		};
 	}
 
 	interface FileManager {

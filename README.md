@@ -1,14 +1,34 @@
 # Hearth
 
+![Hearth](assets/screenshots/banner.svg)
+
 A beautiful, customizable **home screen for Obsidian** — search, dashboard, and
 launcher in one. Hearth gives your vault a welcoming front page: a big search
 field, quick file-type filters, a new-note button, and a grid of cards that
 embed notes, images, bases, bookmarks and quick text.
 
-> Status: **v0.5** — the top section and a fully arrangeable card dashboard
+> Status: **v0.8** — the top section and a fully arrangeable card dashboard
 > (drag, resize, collision-aware packing, on-board card management, templates,
-> per-card colors, web embeds, live auto-refreshing and zoomable embeds,
-> layout import/export) are in. See [Roadmap](#roadmap) for what's next.
+> per-card colors, web embeds, live auto-refreshing, zoomable and editable
+> embeds, Excalidraw and canvas cards, multiple switchable dashboards with
+> per-board overrides, pinned cards, a search-only mobile mode, layout
+> import/export) are in. See [Roadmap](#roadmap) for what's next.
+
+## Screenshots
+
+<!-- Placeholders below render as SVGs. Replace each file under
+     assets/screenshots/ with a real screenshot (PNG/JPG is fine — just keep
+     the filename, or update the links here). -->
+
+| Dashboard | Search & filters |
+| --- | --- |
+| ![Dashboard](assets/screenshots/dashboard.svg) | ![Search & filters](assets/screenshots/search.svg) |
+
+| Arrange mode | Multiple dashboards |
+| --- | --- |
+| ![Arrange mode](assets/screenshots/arrange.svg) | ![Multiple dashboards](assets/screenshots/dashboards.svg) |
+
+<img src="assets/screenshots/mobile.svg" alt="Mobile mode" width="280" />
 
 ## Features
 
@@ -29,7 +49,11 @@ embed notes, images, bases, bookmarks and quick text.
 - **Embed** — embed a note (`.md`), image, canvas, or `.base` file. Rendered
   through Obsidian's own renderer, so anything Obsidian (or the Bases plugin)
   can embed, a card can show. Each embed has a **zoom** control to scale its
-  content up or down to fit the card.
+  content up or down to fit the card, and Markdown notes can be made
+  **editable** in place — edits save straight back to the vault.
+- **Excalidraw & canvas cards** — dedicated templates for embedding an
+  Excalidraw drawing or a `.canvas` file, with a friendly prompt when the
+  required plugin isn't enabled.
 - **Web page** — embed any `http(s)` URL in a sandboxed iframe.
 - **Live content** — embed and web cards can auto-refresh on an interval, so a
   card tracking a frequently-edited note or a live page stays up to date.
@@ -37,8 +61,23 @@ embed notes, images, bases, bookmarks and quick text.
 - **Favorites** — a grid of curated note cards.
 - **Recent files** — your recently opened files (configurable count).
 - **Links / launchpad** — a grid of tiles opening notes, URLs or commands.
+- **Commands** — tiles that run any command-palette command, with an adjustable
+  **button size**.
 - **Clock & greeting** — a live time-of-day greeting, clock and date.
 - **Text / jot-down** — a quick scratch field saved with the card.
+
+### Multiple dashboards
+- **Switcher** — a `[1] [2] [+]` row in the top-left switches between boards and
+  adds new ones. Give a board an **emoji/icon** to label its button instead of a
+  number. Right-click a button for **dashboard settings** (name, icon,
+  overrides) or to **delete** it.
+- **Per-dashboard overrides** — each board can override the global **grid
+  columns**, **row height** and **background**, or fall back to the defaults.
+- **Pinned cards** — pin any card to show it on *every* dashboard, sharing one
+  definition and position across boards.
+- **Keyboard shortcuts** — commands to jump to a dashboard by position
+  (*Switch to dashboard 1…9*) and to move to the **next/previous** dashboard.
+  Bind them under **Settings → Hotkeys** (e.g. `Ctrl/Cmd+1`).
 
 ### Arranging the dashboard
 - **Drag & resize** — hit **Arrange** to move cards (drag anywhere) and resize
@@ -48,8 +87,14 @@ embed notes, images, bases, bookmarks and quick text.
   rename inline, swap the embedded file via a fuzzy picker, or remove the card.
   **Add card** (toolbar) drops in a new card from the library.
 - **Per-card colors** — give any card an accent and a background tint.
-- **Import / export** — back up or share the whole layout as JSON from settings.
+- **Granular sizing** — numeric width/height per card, plus a configurable row
+  height so cards can be sized finely.
+- **Import / export** — back up or share the active board's layout as JSON.
 - The dashboard can either scroll or be locked to a single page.
+
+### Mobile
+- **Mobile mode** — an optional search-only launcher: on phones and tablets the
+  dashboard collapses to just the search field (desktop is unaffected).
 
 ## Installation (BRAT)
 
@@ -116,15 +161,32 @@ into `<vault>/.obsidian/plugins/hearth/`.
   the dashboard off-screen on phones
 - [x] **Live cards** — per-card auto-refresh interval for embed and web cards
 - [x] **Embed zoom** — per-card scale control for embedded content
+- [x] **Editable `.md` embeds** — a per-card toggle to edit an embedded note in
+  place; edits save straight back to the vault
+- [x] **Excalidraw drawing card** — dedicated card template for embedding an
+  Excalidraw drawing, with a prompt to install the plugin when it's missing
+- [x] **Canvas card** — dedicated card template for embedding a `.canvas` file,
+  with a prompt to enable the core Canvas plugin when it's off
+- [x] **Multiple dashboards** — several switchable boards, managed from the
+  `[1] [2] [+]` switcher in the top-left (right-click a button for settings or
+  delete)
+- [x] **Per-dashboard overrides** — columns, row height and background can be set
+  per board, falling back to the global defaults
+- [x] **Per-dashboard icon** — an emoji/short text on the switcher button instead
+  of a number
+- [x] **Pinned cards** — show a card on every dashboard, shared across boards
+- [x] **Dashboard keyboard shortcuts** — switch to a board by position, or
+  next/previous (bindable in Settings → Hotkeys)
+- [x] **Mobile mode** — an option to collapse to just the search field on phones
+  and tablets, leaving the dashboard for desktop
+- [x] **Granular row height** — a Row height setting for finer control over how
+  tall cards can be
+- [x] **Command tile size** — adjustable button size on the commands card
 ### Planned
 
-Embeds
-- [ ] **Editable `.md` embeds** — a toggle to edit an embedded note in place
-- [ ] **Excalidraw embed card** — dedicated card template for embedding an
-  Excalidraw drawing
-
 Bigger ideas
-- [ ] Multiple dashboards / switchable pages
+- [ ] Reorder dashboards in the switcher (drag the buttons)
+- [ ] Per-board fit-to-page / max-width overrides
 
 ## License
 MIT © ondreu

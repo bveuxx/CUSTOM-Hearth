@@ -210,6 +210,19 @@ export class HomeSettingTab extends PluginSettingTab {
 					await this.save();
 				}),
 			);
+
+		new Setting(containerEl)
+			.setName("Mobile mode (search only)")
+			.setDesc(
+				"On phones and tablets, hide the dashboard and show only the search " +
+					"field. No effect on desktop.",
+			)
+			.addToggle((t) =>
+				t.setValue(s.mobileSearchOnly).onChange(async (v) => {
+					s.mobileSearchOnly = v;
+					await this.save();
+				}),
+			);
 	}
 
 	// ---- Filters --------------------------------------------------------
@@ -264,6 +277,7 @@ export class HomeSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Grid columns")
+			.setDesc("Default column count. Each dashboard can override it from its own settings.")
 			.addSlider((sl) =>
 				sl
 					.setLimits(4, 16, 1)
@@ -271,6 +285,20 @@ export class HomeSettingTab extends PluginSettingTab {
 					.setDynamicTooltip()
 					.onChange(async (v) => {
 						s.gridColumns = v;
+						await this.save();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName("Row height")
+			.setDesc("Default row height in pixels (lower = finer card sizing). Each dashboard can override it.")
+			.addSlider((sl) =>
+				sl
+					.setLimits(32, 160, 4)
+					.setValue(s.rowHeight)
+					.setDynamicTooltip()
+					.onChange(async (v) => {
+						s.rowHeight = v;
 						await this.save();
 					}),
 			);

@@ -25,6 +25,10 @@ export interface CardSettingsOptions {
 	gridColumns: number;
 	/** The global favorites list (shared by all favorites cards). */
 	favorites: string[];
+	/** Whether this card is currently pinned to all dashboards. */
+	isPinned: boolean;
+	/** Pin/unpin this card across all dashboards. */
+	setPinned: (pinned: boolean) => void;
 	/** Persist the current settings (no view rebuild). */
 	save: () => void;
 	/** Rebuild the dashboard view to reflect content/layout changes. */
@@ -79,6 +83,7 @@ export class CardSettingsModal extends Modal {
 		this.contentSection(contentEl);
 		this.colorsSection(contentEl);
 		this.sizeSection(contentEl);
+		this.pinSection(contentEl);
 
 		new Setting(contentEl)
 			.addButton((b) =>
@@ -140,6 +145,15 @@ export class CardSettingsModal extends Modal {
 								card.scale = v === 100 ? undefined : v / 100;
 								this.opts.save();
 							}),
+					);
+				new Setting(containerEl)
+					.setName("Editable")
+					.setDesc("Edit the embedded note's text in place (Markdown notes only).")
+					.addToggle((t) =>
+						t.setValue(card.editable ?? false).onChange((v) => {
+							card.editable = v || undefined;
+							this.opts.save();
+						}),
 					);
 				this.refreshSetting(containerEl);
 				break;
@@ -266,6 +280,21 @@ export class CardSettingsModal extends Modal {
 	}
 
 	private commandsEditor(containerEl: HTMLElement): void {
+		const card = this.card;
+		new Setting(containerEl)
+			.setName("Button size")
+			.setDesc("Size of the command tiles. Applies when you close this dialog.")
+			.addSlider((s) =>
+				s
+					.setLimits(60, 180, 10)
+					.setValue(card.tileSize ?? 90)
+					.setDynamicTooltip()
+					.onChange((v) => {
+						card.tileSize = v === 90 ? undefined : v;
+						this.opts.save();
+					}),
+			);
+
 		new Setting(containerEl).setName("Commands").setHeading();
 		const commands = (this.card.commands ??= []);
 
@@ -451,6 +480,20 @@ export class CardSettingsModal extends Modal {
 			t.inputEl.addClass("hearth-count-input");
 			t.inputEl.setAttribute("aria-label", "Height in rows");
 		});
+	}
+
+	/** Pin/unpin this card so it appears on every dashboard. */
+	private pinSection(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName("Pin to all dashboards")
+			.setDesc("Show this card on every dashboard, sharing one definition and position.")
+			.addToggle((t) =>
+				t.setValue(this.opts.isPinned).onChange((v) => {
+					this.opts.setPinned(v);
+					this.opts.isPinned = v;
+					this.opts.save();
+				}),
+			);
 	}
 
 	onClose(): void {

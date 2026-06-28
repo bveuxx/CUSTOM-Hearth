@@ -1,28 +1,30 @@
 import { TFile } from "obsidian";
 import type { HomeView } from "./view";
+import { effectiveBackground } from "./types";
 
 /**
  * Apply the optional, customizable background as a separate layer behind the
- * content so opacity/blur don't affect the foreground.
+ * content so opacity/blur don't affect the foreground. Uses the active
+ * dashboard's override when set, otherwise the global default.
  */
 export function applyBackground(view: HomeView, root: HTMLElement): void {
-	const s = view.plugin.settings;
-	if (s.backgroundKind === "none" || !s.backgroundValue) return;
+	const bg = effectiveBackground(view.plugin.settings);
+	if (bg.kind === "none" || !bg.value) return;
 
 	const layer = root.createDiv("hearth-bg");
-	layer.style.opacity = String(s.backgroundOpacity);
-	if (s.backgroundBlur > 0) layer.style.filter = `blur(${s.backgroundBlur}px)`;
+	layer.style.opacity = String(bg.opacity);
+	if (bg.blur > 0) layer.style.filter = `blur(${bg.blur}px)`;
 
-	if (s.backgroundKind === "color") {
-		layer.style.background = s.backgroundValue;
+	if (bg.kind === "color") {
+		layer.style.background = bg.value;
 		return;
 	}
 
 	let url: string | null = null;
-	if (s.backgroundKind === "url") {
-		url = s.backgroundValue;
-	} else if (s.backgroundKind === "image") {
-		const file = view.app.vault.getAbstractFileByPath(s.backgroundValue);
+	if (bg.kind === "url") {
+		url = bg.value;
+	} else if (bg.kind === "image") {
+		const file = view.app.vault.getAbstractFileByPath(bg.value);
 		if (file instanceof TFile) url = view.app.vault.getResourcePath(file);
 	}
 

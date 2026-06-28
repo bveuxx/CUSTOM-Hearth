@@ -3,14 +3,21 @@ import type { HomeView } from "./view";
 import { renderCardBody } from "./cards";
 import { CARD_TEMPLATES, cardFromTemplate } from "./templates";
 import { CardSettingsModal } from "./editors";
-import { DashboardCard } from "./types";
+import {
+	activeCards,
+	DashboardCard,
+	effectiveColumns,
+	effectiveRowHeight,
+	removeCard,
+	renderCards,
+	setCardPinned,
+} from "./types";
 import {
 	applyCardPosition,
 	enableDragResize,
 	ensureLayout,
 	GridLayout,
 	GRID_GAP,
-	ROW_HEIGHT,
 } from "./grid";
 
 /** Renders the dashboard toolbar and the positioned grid of cards. In arrange
@@ -22,19 +29,21 @@ export function renderDashboard(
 	component: Component,
 ): void {
 	const s = view.plugin.settings;
+	const cards = renderCards(s);
+	const columns = effectiveColumns(s);
 
 	// Persist any coordinates we had to backfill for older cards.
-	if (ensureLayout(s.cards, s.gridColumns)) void view.plugin.saveData(s);
+	if (ensureLayout(cards, columns)) void view.plugin.saveData(s);
 
 	renderToolbar(view, container);
 
 	const grid = container.createDiv("hearth-grid");
 	grid.toggleClass("is-arranging", view.arrangeMode);
-	grid.style.setProperty("--hearth-cols", String(s.gridColumns));
-	grid.style.setProperty("--hearth-row-h", `${ROW_HEIGHT}px`);
+	grid.style.setProperty("--hearth-cols", String(columns));
+	grid.style.setProperty("--hearth-row-h", `${effectiveRowHeight(s)}px`);
 	grid.style.setProperty("--hearth-gap", `${GRID_GAP}px`);
 
-	if (s.cards.length === 0) {
+	if (cards.length === 0) {
 		const empty = grid.createDiv("hearth-grid-empty");
 		setIcon(empty.createDiv("hearth-card-empty-icon"), "layout-grid");
 		empty.createDiv({
@@ -50,16 +59,17 @@ export function renderDashboard(
 
 	// Shared layout state lets the drag engine push neighbouring cards aside.
 	const gridLayout: GridLayout = {
-		cards: s.cards,
+		cards,
 		elements: new Map(),
-		columns: s.gridColumns,
+		columns,
 	};
 
-	for (const card of s.cards) {
+	for (const card of cards) {
 		const el = grid.createDiv("hearth-card");
 		gridLayout.elements.set(card, el);
-		applyCardPosition(el, card, s.gridColumns);
+		applyCardPosition(el, card, columns);
 
+		if (card.pinned) el.addClass("is-pinned");
 		if (card.accent) {
 			el.style.setProperty("--card-accent", card.accent);
 			el.addClass("has-accent");
@@ -160,9 +170,7 @@ function renderCardControls(
 	setIcon(remove, "trash-2");
 	remove.addEventListener("pointerdown", (e) => e.stopPropagation());
 	remove.addEventListener("click", () => {
-		const cards = view.plugin.settings.cards;
-		const i = cards.indexOf(card);
-		if (i >= 0) cards.splice(i, 1);
+		removeCard(view.plugin.settings, card);
 		persistAndRender(view);
 	});
 }
@@ -172,13 +180,14 @@ function renderCardControls(
 function openCardSettings(view: HomeView, card: DashboardCard): void {
 	const s = view.plugin.settings;
 	new CardSettingsModal(view.app, card, {
-		gridColumns: s.gridColumns,
+		gridColumns: effectiveColumns(s),
 		favorites: s.favorites,
+		isPinned: s.pinnedCards.includes(card),
+		setPinned: (pinned) => setCardPinned(s, card, pinned),
 		save: () => void view.plugin.saveData(s),
 		rerender: () => view.render(),
 		remove: () => {
-			const i = s.cards.indexOf(card);
-			if (i >= 0) s.cards.splice(i, 1);
+			removeCard(s, card);
 			persistAndRender(view);
 		},
 	}).open();
@@ -203,7 +212,7 @@ function renderToolbar(view: HomeView, container: HTMLElement): void {
 						.setTitle(template.name)
 						.setIcon(template.icon)
 						.onClick(() => {
-							view.plugin.settings.cards.push(cardFromTemplate(template));
+							activeCards(view.plugin.settings).push(cardFromTemplate(template));
 							persistAndRender(view);
 						}),
 				);

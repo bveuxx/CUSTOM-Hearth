@@ -8,7 +8,10 @@ import {
 import type { HomeView } from "./view";
 import type { BookmarkItem } from "./obsidian-ext";
 import { CommandItem, DashboardCard, LinkItem } from "./types";
-import { iconForFile } from "./filetypes";
+import { iconForFile, isExcalidraw } from "./filetypes";
+
+/** Community plugin id for Excalidraw (used to detect drawing support). */
+const EXCALIDRAW_PLUGIN_ID = "obsidian-excalidraw-plugin";
 
 /** Render a card's body based on its kind. */
 export function renderCardBody(
@@ -82,6 +85,31 @@ function renderEmbed(
 		}
 	}
 
+	// Canvas embeds depend on the core Canvas plugin being enabled.
+	if (file.extension.toLowerCase() === "canvas") {
+		const canvas = view.app.internalPlugins.getPluginById("canvas");
+		if (!canvas?.enabled) {
+			emptyState(body, "layout-dashboard", "Enable the core Canvas plugin to embed canvases");
+			return;
+		}
+	}
+
+	// Excalidraw drawings render through the community Excalidraw plugin.
+	if (isExcalidraw(file)) {
+		if (!view.app.plugins.enabledPlugins.has(EXCALIDRAW_PLUGIN_ID)) {
+			emptyState(body, "pen-tool", "Install the Excalidraw plugin to embed drawings");
+			return;
+		}
+	}
+
+	// Editable Markdown notes are edited in place rather than rendered read-only.
+	const ext = file.extension.toLowerCase();
+	const isMarkdown = ext === "md" || ext === "markdown";
+	if (card.editable && isMarkdown && !isExcalidraw(file)) {
+		renderEditableEmbed(view, file, body);
+		return;
+	}
+
 	const host = body.createDiv("hearth-embed markdown-rendered");
 	// Optional zoom: scale the rendered content and widen it inversely so it
 	// still fills the card width before scaling (the body handles overflow).
@@ -93,6 +121,33 @@ function renderEmbed(
 	// Rendering the embed markdown lets Obsidian (and plugins like Bases) handle
 	// notes, images, canvas and .base files uniformly.
 	MarkdownRenderer.render(view.app, `![[${target}]]`, host, target, component);
+}
+
+/** Edit an embedded Markdown note in place: load its text into a textarea and
+ * write changes back to the vault (debounced). */
+function renderEditableEmbed(view: HomeView, file: TFile, body: HTMLElement): void {
+	const area = body.createEl("textarea", {
+		cls: "hearth-text hearth-embed-edit",
+		attr: { placeholder: "Empty note…" },
+	});
+	// Disable until the file content has loaded so we never save a blank buffer
+	// over the note before its text arrives.
+	area.disabled = true;
+	void view.app.vault.read(file).then((content) => {
+		area.value = content;
+		area.disabled = false;
+	});
+
+	const save = debounce(
+		() => {
+			// Re-resolve the file in case it was renamed/replaced while open.
+			const current = view.app.vault.getAbstractFileByPath(file.path);
+			if (current instanceof TFile) void view.app.vault.modify(current, area.value);
+		},
+		500,
+		true,
+	);
+	area.addEventListener("input", save);
 }
 
 // ---- Web / iframe embed -------------------------------------------------
@@ -324,7 +379,10 @@ function renderCommands(view: HomeView, card: DashboardCard, body: HTMLElement):
 		return;
 	}
 
-	const grid = body.createDiv("hearth-links");
+	const grid = body.createDiv("hearth-links hearth-commands-grid");
+	if (card.tileSize && card.tileSize > 0) {
+		grid.style.setProperty("--hearth-tile", `${card.tileSize}px`);
+	}
 	for (const cmd of commands) {
 		const tile = grid.createDiv("hearth-link-tile");
 		setIcon(tile.createDiv("hearth-link-icon"), cmd.icon || "terminal-square");
