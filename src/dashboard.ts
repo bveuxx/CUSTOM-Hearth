@@ -2,8 +2,7 @@ import { Component, Menu, setIcon } from "obsidian";
 import type { HomeView } from "./view";
 import { renderCardBody } from "./cards";
 import { CARD_TEMPLATES, cardFromTemplate } from "./templates";
-import { FilePickerModal } from "./pickers";
-import { WebUrlModal, LinksEditorModal, FavoritesEditorModal } from "./editors";
+import { CardSettingsModal } from "./editors";
 import { DashboardCard } from "./types";
 import {
 	applyCardPosition,
@@ -92,7 +91,7 @@ function persistAndRender(view: HomeView): void {
 }
 
 /** The editable card header shown in arrange mode: an inline title field plus
- * actions to swap the embedded file and remove the card. */
+ * actions to open the card's settings and to remove the card. */
 function renderCardControls(
 	view: HomeView,
 	card: DashboardCard,
@@ -116,31 +115,13 @@ function renderCardControls(
 
 	const actions = head.createDiv("hearth-card-actions");
 
-	if (card.kind === "embed") {
-		const swap = actions.createEl("button", {
-			cls: "hearth-card-action",
-			attr: { "aria-label": "Choose file to embed" },
-		});
-		setIcon(swap, "file-symlink");
-		swap.addEventListener("pointerdown", (e) => e.stopPropagation());
-		swap.addEventListener("click", () => {
-			new FilePickerModal(view.app, (file) => {
-				card.target = file.path;
-				persistAndRender(view);
-			}).open();
-		});
-	}
-
-	const configure = configureAction(view, card);
-	if (configure) {
-		const btn = actions.createEl("button", {
-			cls: "hearth-card-action",
-			attr: { "aria-label": configure.label },
-		});
-		setIcon(btn, "settings-2");
-		btn.addEventListener("pointerdown", (e) => e.stopPropagation());
-		btn.addEventListener("click", configure.open);
-	}
+	const settingsBtn = actions.createEl("button", {
+		cls: "hearth-card-action",
+		attr: { "aria-label": "Card settings" },
+	});
+	setIcon(settingsBtn, "settings-2");
+	settingsBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
+	settingsBtn.addEventListener("click", () => openCardSettings(view, card));
 
 	const remove = actions.createEl("button", {
 		cls: "hearth-card-action is-danger",
@@ -156,45 +137,21 @@ function renderCardControls(
 	});
 }
 
-/** For cards whose content can be edited on the board (web URL, links,
- * favorites), return a labelled action that opens the right editor. Returns
- * null for kinds that have no board-side editor. */
-function configureAction(
-	view: HomeView,
-	card: DashboardCard,
-): { label: string; open: () => void } | null {
-	const save = () => void view.plugin.saveData(view.plugin.settings);
-	const rerender = () => view.render();
-
-	switch (card.kind) {
-		case "web":
-			return {
-				label: "Set web URL",
-				open: () =>
-					new WebUrlModal(view.app, card.url ?? "", (url) => {
-						card.url = url;
-						persistAndRender(view);
-					}).open(),
-			};
-		case "links":
-			return {
-				label: "Edit links",
-				open: () => new LinksEditorModal(view.app, card, save, rerender).open(),
-			};
-		case "favorites":
-			return {
-				label: "Edit favorites",
-				open: () =>
-					new FavoritesEditorModal(
-						view.app,
-						view.plugin.settings.favorites,
-						save,
-						rerender,
-					).open(),
-			};
-		default:
-			return null;
-	}
+/** Open the full settings editor for a single card, driven entirely from the
+ * board so nothing has to be configured in the plugin settings tab. */
+function openCardSettings(view: HomeView, card: DashboardCard): void {
+	const s = view.plugin.settings;
+	new CardSettingsModal(view.app, card, {
+		gridColumns: s.gridColumns,
+		favorites: s.favorites,
+		save: () => void view.plugin.saveData(s),
+		rerender: () => view.render(),
+		remove: () => {
+			const i = s.cards.indexOf(card);
+			if (i >= 0) s.cards.splice(i, 1);
+			persistAndRender(view);
+		},
+	}).open();
 }
 
 function renderToolbar(view: HomeView, container: HTMLElement): void {
