@@ -188,6 +188,10 @@ into `<vault>/.obsidian/plugins/hearth/`.
 - [x] **Command tile size** — adjustable button size on the commands card
 - [x] **Daily note card** — always embeds today's daily note, with a prompt to
   create it when missing
+- [x] **Live embeds** — embed and daily cards refresh from vault events the
+  moment their file changes; editable notes sync without ever losing the cursor
+- [x] **Reorder list items** — move links, command tiles and favorites up/down
+  from the card's settings
 ### Planned
 
 Bigger ideas
