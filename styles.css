@@ -664,6 +664,8 @@
 	z-index: 5;
 	cursor: grab;
 	background: transparent;
+	/* Claim the gesture so dragging a card doesn't also scroll/swipe the page. */
+	touch-action: none;
 }
 
 /* The editable header must sit above the drag overlay so its field and
@@ -743,6 +745,8 @@
 	height: 18px;
 	z-index: 6;
 	cursor: nwse-resize;
+	/* Resizing must not also scroll/swipe the page on touch devices. */
+	touch-action: none;
 	background:
 		linear-gradient(
 			135deg,
@@ -753,6 +757,14 @@
 			transparent 80%
 		);
 	border-bottom-right-radius: 12px;
+}
+
+/* Bigger, easier-to-grab resize target on touch devices. */
+@media (pointer: coarse) {
+	.hearth-resize-handle {
+		width: 30px;
+		height: 30px;
+	}
 }
 
 /* ---- Settings ------------------------------------------------------- */
