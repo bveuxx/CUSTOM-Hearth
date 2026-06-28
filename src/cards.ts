@@ -83,6 +83,13 @@ function renderEmbed(
 	}
 
 	const host = body.createDiv("hearth-embed markdown-rendered");
+	// Optional zoom: scale the rendered content and widen it inversely so it
+	// still fills the card width before scaling (the body handles overflow).
+	const scale = card.scale && card.scale > 0 ? card.scale : 1;
+	if (scale !== 1) {
+		host.addClass("is-scaled");
+		host.style.setProperty("--hearth-embed-scale", String(scale));
+	}
 	// Rendering the embed markdown lets Obsidian (and plugins like Bases) handle
 	// notes, images, canvas and .base files uniformly.
 	MarkdownRenderer.render(view.app, `![[${target}]]`, host, target, component);

@@ -5,10 +5,10 @@ launcher in one. Hearth gives your vault a welcoming front page: a big search
 field, quick file-type filters, a new-note button, and a grid of cards that
 embed notes, images, bases, bookmarks and quick text.
 
-> Status: **v0.3** — the top section and a fully arrangeable card dashboard
+> Status: **v0.5** — the top section and a fully arrangeable card dashboard
 > (drag, resize, collision-aware packing, on-board card management, templates,
-> per-card colors, web embeds, layout import/export) are in. See
-> [Roadmap](#roadmap) for what's next.
+> per-card colors, web embeds, live auto-refreshing and zoomable embeds,
+> layout import/export) are in. See [Roadmap](#roadmap) for what's next.
 
 ## Features
 
@@ -28,8 +28,11 @@ embed notes, images, bases, bookmarks and quick text.
 ### Dashboard cards
 - **Embed** — embed a note (`.md`), image, canvas, or `.base` file. Rendered
   through Obsidian's own renderer, so anything Obsidian (or the Bases plugin)
-  can embed, a card can show.
+  can embed, a card can show. Each embed has a **zoom** control to scale its
+  content up or down to fit the card.
 - **Web page** — embed any `http(s)` URL in a sandboxed iframe.
+- **Live content** — embed and web cards can auto-refresh on an interval, so a
+  card tracking a frequently-edited note or a live page stays up to date.
 - **Bookmarks** — pulls from Obsidian's core Bookmarks plugin.
 - **Favorites** — a grid of curated note cards.
 - **Recent files** — your recently opened files (configurable count).
@@ -111,18 +114,17 @@ into `<vault>/.obsidian/plugins/hearth/`.
 - [x] **Commands card** — tiles that run chosen command-palette commands
 - [x] **Mobile search** — results float as an overlay so they no longer push
   the dashboard off-screen on phones
+- [x] **Live cards** — per-card auto-refresh interval for embed and web cards
+- [x] **Embed zoom** — per-card scale control for embedded content
 ### Planned
 
 Embeds
-- [ ] **Scale individual embeds** — per-card zoom/scale for embedded content
-  (investigate whether Obsidian's renderer allows it)
 - [ ] **Editable `.md` embeds** — a toggle to edit an embedded note in place
 - [ ] **Excalidraw embed card** — dedicated card template for embedding an
   Excalidraw drawing
 
 Bigger ideas
 - [ ] Multiple dashboards / switchable pages
-- [ ] Per-card refresh interval for live embeds
 
 ## License
 MIT © ondreu
