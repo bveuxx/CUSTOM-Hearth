@@ -30,6 +30,8 @@ embed notes, images, bases, bookmarks and quick text.
   through Obsidian's own renderer, so anything Obsidian (or the Bases plugin)
   can embed, a card can show.
 - **Web page** — embed any `http(s)` URL in a sandboxed iframe.
+- **Live content** — embed and web cards can auto-refresh on an interval, so a
+  card tracking a frequently-edited note or a live page stays up to date.
 - **Bookmarks** — pulls from Obsidian's core Bookmarks plugin.
 - **Favorites** — a grid of curated note cards.
 - **Recent files** — your recently opened files (configurable count).
@@ -122,7 +124,6 @@ Embeds
 
 Bigger ideas
 - [ ] Multiple dashboards / switchable pages
-- [ ] Per-card refresh interval for live embeds
 
 ## License
 MIT © ondreu

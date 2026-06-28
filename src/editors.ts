@@ -128,6 +128,7 @@ export class CardSettingsModal extends Modal {
 							}).open();
 						}),
 				);
+				this.refreshSetting(containerEl);
 				break;
 			}
 			case "web":
@@ -140,6 +141,7 @@ export class CardSettingsModal extends Modal {
 							this.opts.save();
 						}),
 				);
+				this.refreshSetting(containerEl);
 				break;
 			case "recent":
 				new Setting(containerEl)
@@ -167,6 +169,24 @@ export class CardSettingsModal extends Modal {
 				this.clockEditor(containerEl);
 				break;
 		}
+	}
+
+	/** Auto-refresh interval (seconds) for live embed/web cards. 0 = off. */
+	private refreshSetting(containerEl: HTMLElement): void {
+		const card = this.card;
+		new Setting(containerEl)
+			.setName("Auto-refresh")
+			.setDesc("Re-render this card every N seconds to pick up changes. 0 = off.")
+			.addText((t) => {
+				t.setValue(String(card.refreshSec ?? 0)).onChange((v) => {
+					const n = parseInt(v, 10);
+					card.refreshSec = Number.isNaN(n) || n <= 0 ? undefined : n;
+					this.opts.save();
+				});
+				t.inputEl.type = "number";
+				t.inputEl.addClass("hearth-count-input");
+				t.inputEl.setAttribute("aria-label", "Refresh interval in seconds");
+			});
 	}
 
 	private linksEditor(containerEl: HTMLElement): void {

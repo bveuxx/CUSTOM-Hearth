@@ -75,12 +75,42 @@ export function renderDashboard(
 
 		const body = el.createDiv("hearth-card-body");
 		if (card.background) body.addClass("has-bg");
-		renderCardBody(view, card, body, component);
+		mountCardBody(view, card, body, component);
 
 		if (view.arrangeMode) {
 			enableDragResize(view, el, grid, card, gridLayout, component, commit);
 		}
 	}
+}
+
+/** Render a card's body, wiring up an auto-refresh interval when the card asks
+ * for one. Each refresh re-renders the body under a fresh child component so
+ * markdown/iframe embeds are torn down and rebuilt cleanly (picking up file
+ * edits or reloading the page) without leaking the previous render. */
+function mountCardBody(
+	view: HomeView,
+	card: DashboardCard,
+	body: HTMLElement,
+	parent: Component,
+): void {
+	const every = card.refreshSec && card.refreshSec > 0 ? card.refreshSec : 0;
+	if (!every) {
+		renderCardBody(view, card, body, parent);
+		return;
+	}
+
+	let child: Component | null = null;
+	const draw = () => {
+		if (child) parent.removeChild(child);
+		child = new Component();
+		parent.addChild(child);
+		body.empty();
+		renderCardBody(view, card, body, child);
+	};
+	draw();
+	// registerInterval ties the timer to the view's render lifecycle, so it is
+	// cleared on the next full rebuild (and on view close).
+	parent.registerInterval(window.setInterval(draw, every * 1000));
 }
 
 /** Save the current settings and rebuild the view (used after structural

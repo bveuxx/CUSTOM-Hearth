@@ -68,6 +68,11 @@ export interface DashboardCard {
 	/** kind === "clock": time/greeting/date display options. */
 	clock?: ClockConfig;
 
+	// ---- Live content ----
+	/** Auto-refresh interval in seconds for live content (embed / web). 0 or
+	 * omitted means the card is rendered once and never refreshed. */
+	refreshSec?: number;
+
 	// ---- Appearance ----
 	/** Optional accent color (CSS color) for the card header/border. */
 	accent?: string;
