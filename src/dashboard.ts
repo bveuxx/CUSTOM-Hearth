@@ -3,6 +3,7 @@ import type { HomeView } from "./view";
 import { renderCardBody } from "./cards";
 import { CARD_TEMPLATES, cardFromTemplate } from "./templates";
 import { FilePickerModal } from "./pickers";
+import { WebUrlModal, LinksEditorModal, FavoritesEditorModal } from "./editors";
 import { DashboardCard } from "./types";
 import {
 	applyCardPosition,
@@ -130,6 +131,17 @@ function renderCardControls(
 		});
 	}
 
+	const configure = configureAction(view, card);
+	if (configure) {
+		const btn = actions.createEl("button", {
+			cls: "hearth-card-action",
+			attr: { "aria-label": configure.label },
+		});
+		setIcon(btn, "settings-2");
+		btn.addEventListener("pointerdown", (e) => e.stopPropagation());
+		btn.addEventListener("click", configure.open);
+	}
+
 	const remove = actions.createEl("button", {
 		cls: "hearth-card-action is-danger",
 		attr: { "aria-label": "Remove card" },
@@ -142,6 +154,47 @@ function renderCardControls(
 		if (i >= 0) cards.splice(i, 1);
 		persistAndRender(view);
 	});
+}
+
+/** For cards whose content can be edited on the board (web URL, links,
+ * favorites), return a labelled action that opens the right editor. Returns
+ * null for kinds that have no board-side editor. */
+function configureAction(
+	view: HomeView,
+	card: DashboardCard,
+): { label: string; open: () => void } | null {
+	const save = () => void view.plugin.saveData(view.plugin.settings);
+	const rerender = () => view.render();
+
+	switch (card.kind) {
+		case "web":
+			return {
+				label: "Set web URL",
+				open: () =>
+					new WebUrlModal(view.app, card.url ?? "", (url) => {
+						card.url = url;
+						persistAndRender(view);
+					}).open(),
+			};
+		case "links":
+			return {
+				label: "Edit links",
+				open: () => new LinksEditorModal(view.app, card, save, rerender).open(),
+			};
+		case "favorites":
+			return {
+				label: "Edit favorites",
+				open: () =>
+					new FavoritesEditorModal(
+						view.app,
+						view.plugin.settings.favorites,
+						save,
+						rerender,
+					).open(),
+			};
+		default:
+			return null;
+	}
 }
 
 function renderToolbar(view: HomeView, container: HTMLElement): void {
