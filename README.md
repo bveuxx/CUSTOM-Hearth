@@ -96,9 +96,9 @@ into `<vault>/.obsidian/plugins/hearth/`.
 - [x] Collision-aware auto-packing while dragging
 - [x] Inline web/iframe embeds
 - [x] Import/export dashboard layouts
-- [x] **Edit card content on the board** — add/edit launchpad links, curate
-  favorites and set web URLs from the dashboard (arrange mode), not just in
-  settings
+- [x] **Configure cards on the board** — every per-card setting (type, title,
+  content, colors and size) is edited from the card itself in arrange mode, not
+  in the settings tab
 - [x] **More granular card sizing** — numeric width & height inputs per card
 - [x] **Customizable clock** — 24-hour time, seconds, greeting toggle/override
   and date display mode
@@ -106,8 +106,8 @@ into `<vault>/.obsidian/plugins/hearth/`.
   file-type filters
 - [x] **Compact spacing** — toggle to tighten card padding and the top margin
 - [x] **Bookmark favicons** — show site favicons next to URL bookmarks
-- [x] **Real app icon** — Hearth crystal icon used for the ribbon, tab and
-  header logo (shipped as an SVG in the bundle)
+- [x] **Real app icon** — used for the ribbon, tab and header logo (shipped in
+  the bundle)
 ### Planned
 
 Embeds
