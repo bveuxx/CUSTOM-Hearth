@@ -509,7 +509,23 @@
 	text-overflow: ellipsis;
 }
 
-/* Text / jot-down */
+/* Text / jot-down: a rendered Markdown preview that swaps to a textarea on
+ * double-click (so links in the preview stay clickable). */
+.hearth-jot {
+	height: 100%;
+}
+
+.hearth-jot-preview {
+	height: 100%;
+	overflow: auto;
+	cursor: text;
+}
+
+.hearth-jot-preview.is-empty {
+	color: var(--text-faint);
+	font-style: italic;
+}
+
 .hearth-text {
 	width: 100%;
 	height: 100%;

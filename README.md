@@ -67,7 +67,8 @@ embed notes, images, bases, bookmarks and quick text.
 - **Commands** — tiles that run any command-palette command, with an adjustable
   **button size**.
 - **Clock & greeting** — a live time-of-day greeting, clock and date.
-- **Text / jot-down** — a quick scratch field saved with the card.
+- **Text / jot-down** — a quick scratch field saved with the card, rendered as
+  **Markdown** (double-click to edit).
 
 ### Multiple dashboards
 - **Switcher** — a `[1] [2] [+]` row in the top-left switches between boards and

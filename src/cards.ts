@@ -39,7 +39,7 @@ export function renderCardBody(
 			renderFavorites(view, body);
 			break;
 		case "text":
-			renderText(view, card, body);
+			renderText(view, card, body, component);
 			break;
 		case "recent":
 			renderRecent(view, card, body);
@@ -107,10 +107,12 @@ function renderEmbed(
 		}
 	}
 
-	// Editable Markdown notes are edited in place rather than rendered read-only.
 	const ext = file.extension.toLowerCase();
 	const isMarkdown = ext === "md" || ext === "markdown";
-	if (card.editable && isMarkdown && !isExcalidraw(file)) {
+	const excalidraw = isExcalidraw(file);
+
+	// Editable Markdown notes are edited in place rather than rendered read-only.
+	if (card.editable && isMarkdown && !excalidraw) {
 		renderEditableEmbed(view, file, body);
 		return;
 	}
@@ -123,9 +125,34 @@ function renderEmbed(
 		host.addClass("is-scaled");
 		host.style.setProperty("--hearth-embed-scale", String(scale));
 	}
-	// Rendering the embed markdown lets Obsidian (and plugins like Bases) handle
-	// notes, images, canvas and .base files uniformly.
-	MarkdownRenderer.render(view.app, `![[${target}]]`, host, target, component);
+
+	if (isMarkdown && !excalidraw) {
+		// Render the note's actual content so all Markdown (headings, lists,
+		// callouts, links…) shows. A bare ![[embed]] only renders a placeholder
+		// outside a real Markdown view, which looks empty on the dashboard.
+		void renderMarkdownFile(view, file, host, component);
+	} else {
+		// Images, canvas, .base and Excalidraw go through Obsidian's own
+		// transclusion embed, which handles those file types uniformly.
+		MarkdownRenderer.render(view.app, `![[${target}]]`, host, target, component);
+	}
+}
+
+/** Strip a leading YAML frontmatter block so it isn't rendered as body content. */
+function stripFrontmatter(text: string): string {
+	const match = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/.exec(text);
+	return match ? text.slice(match[0].length) : text;
+}
+
+/** Render a Markdown file's real content (not a transclusion placeholder). */
+async function renderMarkdownFile(
+	view: HomeView,
+	file: TFile,
+	host: HTMLElement,
+	component: Component,
+): Promise<void> {
+	const raw = await view.app.vault.cachedRead(file);
+	await MarkdownRenderer.render(view.app, stripFrontmatter(raw), host, file.path, component);
 }
 
 /** Edit an embedded Markdown note in place: load its text into a textarea and
@@ -217,7 +244,7 @@ function renderDaily(
 	}
 
 	const host = body.createDiv("hearth-embed markdown-rendered");
-	MarkdownRenderer.render(view.app, `![[${path}]]`, host, path, component);
+	void renderMarkdownFile(view, file, host, component);
 }
 
 // ---- Web / iframe embed -------------------------------------------------
@@ -361,12 +388,50 @@ function renderFavorites(view: HomeView, body: HTMLElement): void {
 
 // ---- Text / jot-down ----------------------------------------------------
 
-function renderText(view: HomeView, card: DashboardCard, body: HTMLElement): void {
-	const area = body.createEl("textarea", {
-		cls: "hearth-text",
+function renderText(
+	view: HomeView,
+	card: DashboardCard,
+	body: HTMLElement,
+	component: Component,
+): void {
+	const wrap = body.createDiv("hearth-jot");
+	const preview = wrap.createDiv("hearth-jot-preview markdown-rendered");
+	preview.setAttribute("title", "Double-click to edit");
+	const area = wrap.createEl("textarea", {
+		cls: "hearth-text hearth-jot-edit",
 		attr: { placeholder: "Jot something down…" },
 	});
-	area.value = card.text ?? "";
+	area.hide();
+
+	const placeholder = "Jot something down…";
+	const renderPreview = () => {
+		preview.empty();
+		const text = card.text ?? "";
+		if (!text.trim()) {
+			preview.addClass("is-empty");
+			preview.setText(placeholder);
+			return;
+		}
+		preview.removeClass("is-empty");
+		// Render the jotted text as Markdown so headings, lists, checkboxes and
+		// links all show, just like a note.
+		void MarkdownRenderer.render(view.app, text, preview, "", component);
+	};
+
+	const enterEdit = () => {
+		area.value = card.text ?? "";
+		preview.hide();
+		area.show();
+		area.focus();
+	};
+	const leaveEdit = () => {
+		area.hide();
+		preview.show();
+		renderPreview();
+	};
+
+	// Double-click (not single) so links in the preview stay clickable.
+	preview.addEventListener("dblclick", enterEdit);
 
 	const save = debounce(
 		() => {
@@ -377,6 +442,13 @@ function renderText(view: HomeView, card: DashboardCard, body: HTMLElement): voi
 		true,
 	);
 	area.addEventListener("input", save);
+	area.addEventListener("blur", () => {
+		card.text = area.value;
+		void view.plugin.saveData(view.plugin.settings);
+		leaveEdit();
+	});
+
+	renderPreview();
 }
 
 // ---- Recent files -------------------------------------------------------
