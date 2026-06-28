@@ -87,15 +87,13 @@ export class CardSettingsModal extends Modal {
 		this.pinSection(contentEl);
 
 		new Setting(contentEl)
-			.addButton((b) =>
-				b
-					.setButtonText("Remove card")
-					.setWarning()
-					.onClick(() => {
-						this.opts.remove();
-						this.close();
-					}),
-			)
+			.addButton((b) => {
+				b.setButtonText("Remove card").onClick(() => {
+					this.opts.remove();
+					this.close();
+				});
+				b.buttonEl.addClass("hearth-danger-btn");
+			})
 			.addButton((b) =>
 				b
 					.setButtonText("Done")

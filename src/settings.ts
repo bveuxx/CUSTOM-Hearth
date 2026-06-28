@@ -342,10 +342,10 @@ export class HomeSettingTab extends PluginSettingTab {
 				t.inputEl.rows = 4;
 				t.inputEl.addClass("hearth-import-input");
 			})
-			.addButton((b) =>
+			.addButton((b) => {
+				b.buttonEl.addClass("hearth-danger-btn");
 				b
 					.setButtonText("Import")
-					.setWarning()
 					.onClick(async () => {
 						if (!pending.trim()) {
 							new Notice("Hearth: paste a layout to import first.");
@@ -359,7 +359,7 @@ export class HomeSettingTab extends PluginSettingTab {
 						await this.save();
 						this.display();
 						new Notice("Hearth: layout imported.");
-					}),
-			);
+					});
+			});
 	}
 }
