@@ -31,6 +31,15 @@
 	flex-direction: column;
 }
 
+/* While the mobile keyboard is open, constrain the scroll area to the visible
+   viewport height and allow scrolling so nothing hides behind the keyboard
+   (overrides fit-to-page clipping for the duration). */
+.hearth-view.hearth-kbd-open .hearth-scroll,
+.hearth-view.hearth-kbd-open .hearth-scroll.hearth-fit {
+	height: var(--hearth-vh, 100%);
+	overflow-y: auto;
+}
+
 .hearth-inner {
 	margin: 0 auto;
 	width: 100%;

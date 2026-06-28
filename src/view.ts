@@ -1,4 +1,4 @@
-import { Component, ItemView, WorkspaceLeaf } from "obsidian";
+import { Component, ItemView, Platform, WorkspaceLeaf } from "obsidian";
 import type HearthPlugin from "./main";
 import { renderHeader } from "./header";
 import { renderDashboard } from "./dashboard";
@@ -33,6 +33,41 @@ export class HomeView extends ItemView {
 
 	async onOpen(): Promise<void> {
 		this.render();
+		this.trackViewport();
+	}
+
+	/**
+	 * On mobile the on-screen keyboard overlays the window without resizing the
+	 * leaf, so the lower UI ends up hidden behind it. Track the real visible area
+	 * (visualViewport) and, while the keyboard is up, cap the scroll area to it
+	 * and allow scrolling so everything stays reachable. Cleaned up on close.
+	 */
+	private trackViewport(): void {
+		const vv = window.visualViewport;
+		if (!vv || !Platform.isMobile) return;
+
+		const update = () => {
+			const top = this.contentEl.getBoundingClientRect().top;
+			const visibleBottom = vv.offsetTop + vv.height;
+			this.contentEl.style.setProperty(
+				"--hearth-vh",
+				`${Math.max(0, Math.round(visibleBottom - top))}px`,
+			);
+			// Keyboard up when the visual viewport is meaningfully shorter than
+			// the layout viewport.
+			this.contentEl.toggleClass(
+				"hearth-kbd-open",
+				vv.height < window.innerHeight - 120,
+			);
+		};
+
+		vv.addEventListener("resize", update);
+		vv.addEventListener("scroll", update);
+		this.register(() => {
+			vv.removeEventListener("resize", update);
+			vv.removeEventListener("scroll", update);
+		});
+		update();
 	}
 
 	async onClose(): Promise<void> {
