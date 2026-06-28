@@ -390,6 +390,22 @@
 	opacity: 0.6;
 }
 
+/* Daily-note card: the "create today's note" prompt button. */
+.hearth-daily-create {
+	margin-top: 10px;
+	padding: 6px 14px;
+	border-radius: 8px;
+	border: 1px solid var(--interactive-accent);
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	cursor: pointer;
+	font-size: 0.85rem;
+}
+
+.hearth-daily-create:hover {
+	opacity: 0.9;
+}
+
 /* Web / iframe embeds fill the whole card body. */
 .hearth-card-body.hearth-web-body {
 	padding: 0;

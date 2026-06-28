@@ -2,6 +2,8 @@ import {
 	Component,
 	debounce,
 	MarkdownRenderer,
+	moment,
+	Notice,
 	setIcon,
 	TFile,
 } from "obsidian";
@@ -23,6 +25,9 @@ export function renderCardBody(
 	switch (card.kind) {
 		case "embed":
 			renderEmbed(view, card, body, component);
+			break;
+		case "daily":
+			renderDaily(view, card, body, component);
 			break;
 		case "web":
 			renderWeb(card, body);
@@ -148,6 +153,71 @@ function renderEditableEmbed(view: HomeView, file: TFile, body: HTMLElement): vo
 		true,
 	);
 	area.addEventListener("input", save);
+}
+
+// ---- Daily note (today) -------------------------------------------------
+
+interface DailyNotesOptions {
+	/** moment.js date format, e.g. "YYYY-MM-DD". */
+	format?: string;
+	/** Folder daily notes live in. */
+	folder?: string;
+}
+
+/** Resolve today's daily-note path from the core Daily notes plugin settings. */
+function todaysDailyNotePath(options: DailyNotesOptions): string {
+	const format = (options.format || "").trim() || "YYYY-MM-DD";
+	const folder = (options.folder || "").trim().replace(/^\/+|\/+$/g, "");
+	const stamp = moment().format(format);
+	return `${folder ? `${folder}/` : ""}${stamp}.md`;
+}
+
+/**
+ * Embed today's daily note, resolved fresh on every render so the card always
+ * tracks the current day. Falls back to a "create today's note" prompt when the
+ * note doesn't exist yet, and respects the per-card editable toggle.
+ */
+function renderDaily(
+	view: HomeView,
+	card: DashboardCard,
+	body: HTMLElement,
+	component: Component,
+): void {
+	const plugin = view.app.internalPlugins.getPluginById("daily-notes");
+	if (!plugin?.enabled) {
+		emptyState(body, "calendar", "Enable the core Daily notes plugin");
+		return;
+	}
+
+	const options = (plugin.instance as { options?: DailyNotesOptions } | undefined)?.options ?? {};
+	const path = todaysDailyNotePath(options);
+	const file = view.app.vault.getAbstractFileByPath(path);
+
+	if (!(file instanceof TFile)) {
+		const empty = body.createDiv("hearth-card-empty");
+		setIcon(empty.createDiv("hearth-card-empty-icon"), "calendar-plus");
+		empty.createDiv({ cls: "hearth-card-empty-text", text: "No note for today yet" });
+		const create = empty.createEl("button", {
+			cls: "hearth-daily-create",
+			text: "Create today's note",
+		});
+		create.addEventListener("click", () => {
+			// The core "Open today's daily note" command creates it from the
+			// configured template and opens it.
+			if (!view.app.commands.executeCommandById("daily-notes")) {
+				new Notice("Hearth: couldn't open today's daily note.");
+			}
+		});
+		return;
+	}
+
+	if (card.editable) {
+		renderEditableEmbed(view, file, body);
+		return;
+	}
+
+	const host = body.createDiv("hearth-embed markdown-rendered");
+	MarkdownRenderer.render(view.app, `![[${path}]]`, host, path, component);
 }
 
 // ---- Web / iframe embed -------------------------------------------------

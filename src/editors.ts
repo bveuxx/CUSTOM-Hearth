@@ -4,6 +4,7 @@ import { CardKind, DashboardCard, LinkItem } from "./types";
 
 const CARD_KIND_LABELS: Record<CardKind, string> = {
 	embed: "Embed (note / image / base)",
+	daily: "Daily note (today)",
 	web: "Web page (iframe)",
 	bookmarks: "Bookmarks",
 	favorites: "Favorites",
@@ -158,6 +159,21 @@ export class CardSettingsModal extends Modal {
 				this.refreshSetting(containerEl);
 				break;
 			}
+			case "daily":
+				new Setting(containerEl)
+					.setName("Editable")
+					.setDesc("Edit today's note in place instead of read-only. Saves to the vault.")
+					.addToggle((t) =>
+						t.setValue(card.editable ?? false).onChange((v) => {
+							card.editable = v || undefined;
+							this.opts.save();
+						}),
+					);
+				new Setting(containerEl)
+					.setName("Daily notes")
+					.setDesc("Today's note is resolved from the core Daily notes plugin's date format and folder.");
+				this.refreshSetting(containerEl);
+				break;
 			case "web":
 				new Setting(containerEl).setName("URL").addText((t) =>
 					t

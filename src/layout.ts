@@ -24,6 +24,7 @@ export interface LayoutExport {
 
 const CARD_KINDS: CardKind[] = [
 	"embed",
+	"daily",
 	"web",
 	"bookmarks",
 	"favorites",
