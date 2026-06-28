@@ -30,9 +30,8 @@ export function applyBackground(view: HomeView, root: HTMLElement): void {
 
 	if (url) {
 		// Escape characters that would break out of the CSS url("...") literal.
+		// cover/center sizing lives in styles.css (.hearth-bg).
 		const safe = url.replace(/["\\]/g, "\\$&");
 		layer.style.backgroundImage = `url("${safe}")`;
-		layer.style.backgroundSize = "cover";
-		layer.style.backgroundPosition = "center";
 	}
 }

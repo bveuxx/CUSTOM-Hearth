@@ -1,7 +1,7 @@
 {
 	"name": "hearth",
-	"version": "0.9.2",
-	"description": "A beautiful, customizable home screen for Obsidian — search, dashboard, and launcher in one.",
+	"version": "0.9.3",
+	"description": "A beautiful, customizable home screen for your vault — search, dashboard, and launcher in one.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
@@ -19,7 +19,6 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@types/node": "^20.11.0",
-		"builtin-modules": "^3.3.0",
 		"esbuild": "^0.20.0",
 		"obsidian": "latest",
 		"tslib": "^2.6.2",

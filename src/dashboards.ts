@@ -1,4 +1,4 @@
-import { App, Menu, Modal, Setting, setIcon } from "obsidian";
+import { Menu, Modal, Setting, setIcon } from "obsidian";
 import type { HomeView } from "./view";
 import { BackgroundConfig, BackgroundKind, Dashboard, newDashboardId } from "./types";
 
@@ -193,8 +193,7 @@ class DashboardSettingsModal extends Modal {
 			row.addSlider((sl) =>
 				sl
 					.setLimits(min, max, step)
-					.setValue(current as number)
-					.setDynamicTooltip()
+					.setValue(current)
 					.onChange((v) => set(v)),
 			);
 		}
@@ -208,7 +207,9 @@ class DashboardSettingsModal extends Modal {
 			.setName("Background")
 			.setDesc("Override the global background for this dashboard.")
 			.addDropdown((d) => {
-				Object.entries(BACKGROUND_OPTIONS).forEach(([k, label]) => d.addOption(k, label));
+				Object.entries(BACKGROUND_OPTIONS).forEach(([k, label]) => {
+					d.addOption(k, label);
+				});
 				d.setValue(bg ? bg.kind : "default").onChange((v) => {
 					if (v === "default") {
 						dash.background = undefined;
@@ -260,7 +261,6 @@ class DashboardSettingsModal extends Modal {
 			sl
 				.setLimits(min, max, step)
 				.setValue(bg[key])
-				.setDynamicTooltip()
 				.onChange((v) => {
 					bg[key] = v;
 					this.commit();

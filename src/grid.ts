@@ -13,7 +13,7 @@ export const MIN_H = 1;
 export function ensureLayout(cards: DashboardCard[], columns: number): boolean {
 	let changed = false;
 	// Track the lowest free row per column.
-	const colBottom = new Array(columns).fill(0);
+	const colBottom: number[] = new Array<number>(columns).fill(0);
 
 	for (const card of cards) {
 		const placed =

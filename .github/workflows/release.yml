@@ -14,6 +14,9 @@ on:
 
 permissions:
   contents: write
+  # Required for build-provenance attestations on the release assets.
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -34,6 +37,14 @@ jobs:
 
       - name: Verify build output
         run: test -f main.js && test -f manifest.json && test -f styles.css
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            styles.css
+            manifest.json
 
       - name: Resolve release tag
         id: tag

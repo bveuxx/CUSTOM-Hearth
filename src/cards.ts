@@ -134,7 +134,7 @@ function renderEmbed(
 	} else {
 		// Images, canvas, .base and Excalidraw go through Obsidian's own
 		// transclusion embed, which handles those file types uniformly.
-		MarkdownRenderer.render(view.app, `![[${target}]]`, host, target, component);
+		void MarkdownRenderer.render(view.app, `![[${target}]]`, host, target, component);
 	}
 }
 
@@ -355,7 +355,7 @@ function openBookmark(view: HomeView, item: BookmarkItem): void {
 	}
 	if (item.path) {
 		const file = view.app.vault.getAbstractFileByPath(item.path);
-		if (file instanceof TFile) view.app.workspace.getLeaf(true).openFile(file);
+		if (file instanceof TFile) void view.app.workspace.getLeaf(true).openFile(file);
 	}
 }
 
@@ -375,9 +375,9 @@ function renderFavorites(view: HomeView, body: HTMLElement): void {
 		if (file instanceof TFile) {
 			setIcon(card.createDiv("hearth-fav-icon"), iconForFile(file));
 			card.createDiv({ cls: "hearth-fav-name", text: file.basename });
-			card.addEventListener("click", () =>
-				view.app.workspace.getLeaf(true).openFile(file),
-			);
+			card.addEventListener("click", () => {
+				void view.app.workspace.getLeaf(true).openFile(file);
+			});
 		} else {
 			card.addClass("is-missing");
 			setIcon(card.createDiv("hearth-fav-icon"), "file-x");
@@ -471,9 +471,9 @@ function renderRecent(view: HomeView, card: DashboardCard, body: HTMLElement): v
 		const row = list.createDiv("hearth-list-item");
 		setIcon(row.createDiv("hearth-list-icon"), iconForFile(file));
 		row.createDiv({ cls: "hearth-list-label", text: file.basename });
-		row.addEventListener("click", () =>
-			view.app.workspace.getLeaf(true).openFile(file),
-		);
+		row.addEventListener("click", () => {
+			void view.app.workspace.getLeaf(true).openFile(file);
+		});
 	}
 }
 
@@ -505,8 +505,8 @@ function openLink(view: HomeView, link: LinkItem): void {
 			break;
 		case "note": {
 			const file = view.app.vault.getAbstractFileByPath(link.target);
-			if (file instanceof TFile) view.app.workspace.getLeaf(true).openFile(file);
-			else if (link.target) view.app.workspace.openLinkText(link.target, "", true);
+			if (file instanceof TFile) void view.app.workspace.getLeaf(true).openFile(file);
+			else if (link.target) void view.app.workspace.openLinkText(link.target, "", true);
 			break;
 		}
 	}

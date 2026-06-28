@@ -38,7 +38,9 @@ export function renderHeader(view: HomeView, container: HTMLElement): void {
 		});
 		setIcon(btn.createSpan("hearth-newnote-icon"), "plus");
 		btn.createSpan({ cls: "hearth-newnote-label", text: "New note" });
-		btn.addEventListener("click", () => view.plugin.createNewNote());
+		btn.addEventListener("click", () => {
+			void view.plugin.createNewNote();
+		});
 		// Keep the New-note button aligned with the search bar width-wise.
 		void bar;
 	}

@@ -80,6 +80,7 @@ export function renderDashboard(
 		if (view.arrangeMode) {
 			renderCardControls(view, card, head, commit);
 		} else {
+			head.toggleClass("is-untitled", !(card.title ?? "").trim());
 			head.createDiv({ cls: "hearth-card-title", text: card.title ?? "" });
 		}
 
@@ -217,7 +218,7 @@ function renderToolbar(view: HomeView, container: HTMLElement): void {
 						}),
 				);
 			}
-			menu.showAtMouseEvent(evt as MouseEvent);
+			menu.showAtMouseEvent(evt);
 		});
 	}
 

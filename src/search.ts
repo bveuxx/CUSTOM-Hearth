@@ -77,7 +77,7 @@ export class SearchSection {
 		// Close the dropdown when clicking outside the whole search section.
 		// Registered here (not in renderBar) so clicks on the filter chips —
 		// which live below the bar — count as inside and don't dismiss results.
-		this.view.registerDomEvent(document, "click", (e) => {
+		this.view.registerDomEvent(this.view.containerEl.ownerDocument, "click", (e) => {
 			if (!boundary.contains(e.target as Node)) this.hide();
 		});
 	}
@@ -238,7 +238,7 @@ export class SearchSection {
 
 	private openFile(file: TAbstractFile): void {
 		if (file instanceof TFile) {
-			this.view.app.workspace.getLeaf(true).openFile(file);
+			void this.view.app.workspace.getLeaf(true).openFile(file);
 			this.hide();
 		} else if (file instanceof TFolder) {
 			// Reveal the folder in the file explorer.

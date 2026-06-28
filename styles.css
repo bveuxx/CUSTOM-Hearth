@@ -15,6 +15,8 @@
 	inset: 0;
 	z-index: 0;
 	pointer-events: none;
+	background-size: cover;
+	background-position: center;
 }
 
 .hearth-scroll {
@@ -135,15 +137,17 @@
 	color: var(--text-muted);
 }
 
-.hearth-search-input {
+/* Extra selector specificity (.hearth-view …) lets these win over Obsidian's
+ * default input styles without needing !important. */
+.hearth-view .hearth-search-bar .hearth-search-input {
 	flex: 1;
-	border: none !important;
-	outline: none !important;
-	box-shadow: none !important;
-	background: transparent !important;
+	border: none;
+	outline: none;
+	box-shadow: none;
+	background: transparent;
 	font-size: 1.05rem;
 	color: var(--text-normal);
-	padding: 0 !important;
+	padding: 0;
 	height: 100%;
 }
 
@@ -324,7 +328,9 @@
 	color: var(--text-normal);
 }
 
-.hearth-card-head:has(.hearth-card-title:empty) {
+/* Hidden via the .is-untitled class (set in dashboard.ts) instead of :has, which
+ * can be costly due to broad selector invalidation. */
+.hearth-card-head.is-untitled {
 	display: none;
 }
 

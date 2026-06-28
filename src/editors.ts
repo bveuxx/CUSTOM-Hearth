@@ -64,9 +64,9 @@ export class CardSettingsModal extends Modal {
 		const card = this.card;
 
 		new Setting(contentEl).setName("Type").addDropdown((d) => {
-			(Object.keys(CARD_KIND_LABELS) as CardKind[]).forEach((k) =>
-				d.addOption(k, CARD_KIND_LABELS[k]),
-			);
+			(Object.keys(CARD_KIND_LABELS) as CardKind[]).forEach((k) => {
+				d.addOption(k, CARD_KIND_LABELS[k]);
+			});
 			d.setValue(card.kind).onChange((v) => {
 				card.kind = v as CardKind;
 				this.opts.save();
@@ -141,7 +141,6 @@ export class CardSettingsModal extends Modal {
 						s
 							.setLimits(50, 200, 10)
 							.setValue(Math.round((card.scale ?? 1) * 100))
-							.setDynamicTooltip()
 							.onChange((v) => {
 								card.scale = v === 100 ? undefined : v / 100;
 								this.opts.save();
@@ -251,9 +250,9 @@ export class CardSettingsModal extends Modal {
 				}),
 			);
 			row.addDropdown((d) => {
-				(Object.keys(LINK_TYPE_LABELS) as LinkItem["type"][]).forEach((k) =>
-					d.addOption(k, LINK_TYPE_LABELS[k]),
-				);
+				(Object.keys(LINK_TYPE_LABELS) as LinkItem["type"][]).forEach((k) => {
+					d.addOption(k, LINK_TYPE_LABELS[k]);
+				});
 				d.setValue(link.type).onChange((v) => {
 					link.type = v as LinkItem["type"];
 					this.opts.save();
@@ -304,7 +303,6 @@ export class CardSettingsModal extends Modal {
 				s
 					.setLimits(60, 180, 10)
 					.setValue(card.tileSize ?? 90)
-					.setDynamicTooltip()
 					.onChange((v) => {
 						card.tileSize = v === 90 ? undefined : v;
 						this.opts.save();

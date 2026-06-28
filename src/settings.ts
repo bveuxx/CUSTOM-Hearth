@@ -107,7 +107,6 @@ export class HomeSettingTab extends PluginSettingTab {
 				sl
 					.setLimits(700, 1600, 20)
 					.setValue(s.maxWidth)
-					.setDynamicTooltip()
 					.onChange(async (v) => {
 						s.maxWidth = v;
 						await this.save();
@@ -124,12 +123,12 @@ export class HomeSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Background type")
 			.addDropdown((d) => {
-				(Object.keys(BACKGROUND_LABELS) as BackgroundKind[]).forEach((k) =>
-					d.addOption(k, BACKGROUND_LABELS[k]),
-				);
-				d.setValue(s.backgroundKind).onChange(async (v) => {
+				(Object.keys(BACKGROUND_LABELS) as BackgroundKind[]).forEach((k) => {
+					d.addOption(k, BACKGROUND_LABELS[k]);
+				});
+				d.setValue(s.backgroundKind).onChange((v) => {
 					s.backgroundKind = v as BackgroundKind;
-					await this.save();
+					void this.save();
 					this.display();
 				});
 			});
@@ -162,7 +161,6 @@ export class HomeSettingTab extends PluginSettingTab {
 					sl
 						.setLimits(0, 1, 0.05)
 						.setValue(s.backgroundOpacity)
-						.setDynamicTooltip()
 						.onChange(async (v) => {
 							s.backgroundOpacity = v;
 							await this.save();
@@ -176,7 +174,6 @@ export class HomeSettingTab extends PluginSettingTab {
 					sl
 						.setLimits(0, 40, 1)
 						.setValue(s.backgroundBlur)
-						.setDynamicTooltip()
 						.onChange(async (v) => {
 							s.backgroundBlur = v;
 							await this.save();
@@ -282,7 +279,6 @@ export class HomeSettingTab extends PluginSettingTab {
 				sl
 					.setLimits(4, 16, 1)
 					.setValue(s.gridColumns)
-					.setDynamicTooltip()
 					.onChange(async (v) => {
 						s.gridColumns = v;
 						await this.save();
@@ -296,7 +292,6 @@ export class HomeSettingTab extends PluginSettingTab {
 				sl
 					.setLimits(32, 160, 4)
 					.setValue(s.rowHeight)
-					.setDynamicTooltip()
 					.onChange(async (v) => {
 						s.rowHeight = v;
 						await this.save();

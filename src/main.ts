@@ -1,4 +1,4 @@
-import { addIcon, Plugin, TFile, TFolder, WorkspaceLeaf, Notice } from "obsidian";
+import { addIcon, Plugin, TFolder, WorkspaceLeaf, Notice } from "obsidian";
 import { HomeView, VIEW_TYPE_HOME } from "./view";
 import { DEFAULT_SETTINGS, HomeSettings, migrateSettings } from "./types";
 import { HomeSettingTab } from "./settings";
@@ -40,7 +40,7 @@ export default class HearthPlugin extends Plugin {
 		);
 
 		this.app.workspace.onLayoutReady(() => {
-			if (this.settings.openOnStartup) this.activateView();
+			if (this.settings.openOnStartup) void this.activateView();
 		});
 	}
 
@@ -51,7 +51,7 @@ export default class HearthPlugin extends Plugin {
 	private maybeReplaceNewTab(leaf: WorkspaceLeaf | null) {
 		if (!leaf || !this.settings.replaceNewTabs) return;
 		if (leaf.getViewState().type !== "empty") return;
-		leaf.setViewState({ type: VIEW_TYPE_HOME });
+		void leaf.setViewState({ type: VIEW_TYPE_HOME });
 	}
 
 	/** Switch the active dashboard and refresh any open home views. */
@@ -109,13 +109,13 @@ export default class HearthPlugin extends Plugin {
 
 		const existing = workspace.getLeavesOfType(VIEW_TYPE_HOME);
 		if (existing.length > 0) {
-			workspace.revealLeaf(existing[0]);
+			await workspace.revealLeaf(existing[0]);
 			return;
 		}
 
 		const leaf = workspace.getLeaf(true);
 		await leaf.setViewState({ type: VIEW_TYPE_HOME, active: true });
-		workspace.revealLeaf(leaf);
+		await workspace.revealLeaf(leaf);
 	}
 
 	/** Create a new note in the user's configured default location and open it. */
