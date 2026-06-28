@@ -7,7 +7,7 @@ import {
 } from "obsidian";
 import type { HomeView } from "./view";
 import type { BookmarkItem } from "./obsidian-ext";
-import { DashboardCard, LinkItem } from "./types";
+import { CommandItem, DashboardCard, LinkItem } from "./types";
 import { iconForFile } from "./filetypes";
 
 /** Render a card's body based on its kind. */
@@ -38,6 +38,9 @@ export function renderCardBody(
 			break;
 		case "links":
 			renderLinks(view, card, body);
+			break;
+		case "commands":
+			renderCommands(view, card, body);
 			break;
 		case "clock":
 			renderClock(view, card, body, component);
@@ -303,6 +306,28 @@ function openLink(view: HomeView, link: LinkItem): void {
 			break;
 		}
 	}
+}
+
+// ---- Commands / command palette tiles -----------------------------------
+
+function renderCommands(view: HomeView, card: DashboardCard, body: HTMLElement): void {
+	const commands = card.commands ?? [];
+	if (commands.length === 0) {
+		emptyState(body, "terminal", "Add commands in card settings");
+		return;
+	}
+
+	const grid = body.createDiv("hearth-links");
+	for (const cmd of commands) {
+		const tile = grid.createDiv("hearth-link-tile");
+		setIcon(tile.createDiv("hearth-link-icon"), cmd.icon || "terminal-square");
+		tile.createDiv({ cls: "hearth-link-label", text: cmd.name || cmd.id });
+		tile.addEventListener("click", () => runCommand(view, cmd));
+	}
+}
+
+function runCommand(view: HomeView, cmd: CommandItem): void {
+	if (cmd.id) view.app.commands.executeCommandById(cmd.id);
 }
 
 // ---- Clock / greeting ---------------------------------------------------

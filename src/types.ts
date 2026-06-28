@@ -7,7 +7,18 @@ export type CardKind =
 	| "text"
 	| "recent"
 	| "links"
+	| "commands"
 	| "clock";
+
+/** A single command tile inside a "commands" card. */
+export interface CommandItem {
+	/** Obsidian command id, e.g. "editor:toggle-bold". */
+	id: string;
+	/** Display name (captured when the command was picked). */
+	name: string;
+	/** Optional Lucide icon id; falls back to a generic command icon. */
+	icon?: string;
+}
 
 /** Per-card configuration for a "clock" card. All fields are optional; omitted
  * fields fall back to the defaults that match the original clock behaviour. */
@@ -50,6 +61,8 @@ export interface DashboardCard {
 	text?: string;
 	/** kind === "links": the launchpad tiles. */
 	links?: LinkItem[];
+	/** kind === "commands": command-palette tiles. */
+	commands?: CommandItem[];
 	/** kind === "recent": how many recent files to show. */
 	count?: number;
 	/** kind === "clock": time/greeting/date display options. */

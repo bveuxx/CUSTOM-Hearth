@@ -1,5 +1,5 @@
 import "obsidian";
-import { TFile, TFolder } from "obsidian";
+import { Command, TFile, TFolder } from "obsidian";
 
 // Minimal typings for Obsidian internals that aren't part of the public API
 // but are stable and widely used by community plugins.
@@ -13,6 +13,7 @@ declare module "obsidian" {
 		};
 		commands: {
 			executeCommandById(id: string): boolean;
+			listCommands(): Command[];
 		};
 	}
 
