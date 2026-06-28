@@ -9,6 +9,21 @@ export type CardKind =
 	| "links"
 	| "clock";
 
+/** Per-card configuration for a "clock" card. All fields are optional; omitted
+ * fields fall back to the defaults that match the original clock behaviour. */
+export interface ClockConfig {
+	/** Use 24-hour time instead of the locale default. */
+	use24Hour?: boolean;
+	/** Show seconds in the time. */
+	showSeconds?: boolean;
+	/** Show the greeting line (default true). */
+	showGreeting?: boolean;
+	/** Override the auto "Good morning/afternoon/evening" greeting. */
+	greetingText?: string;
+	/** How much of the date to show. Default "full". */
+	dateMode?: "full" | "short" | "none";
+}
+
 /** A single tile inside a "links" (launchpad) card. */
 export interface LinkItem {
 	id: string;
@@ -37,6 +52,8 @@ export interface DashboardCard {
 	links?: LinkItem[];
 	/** kind === "recent": how many recent files to show. */
 	count?: number;
+	/** kind === "clock": time/greeting/date display options. */
+	clock?: ClockConfig;
 
 	// ---- Appearance ----
 	/** Optional accent color (CSS color) for the card header/border. */

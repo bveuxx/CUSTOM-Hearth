@@ -414,6 +414,65 @@ export class HomeSettingTab extends PluginSettingTab {
 		this.colorsRow(containerEl, card);
 
 		if (card.kind === "links") this.linksEditor(containerEl, card);
+		if (card.kind === "clock") this.clockEditor(containerEl, card);
+	}
+
+	private clockEditor(containerEl: HTMLElement, card: DashboardCard): void {
+		const cfg = (card.clock ??= {});
+
+		new Setting(containerEl)
+			.setClass("hearth-clock-setting")
+			.setName("24-hour time")
+			.addToggle((t) =>
+				t.setValue(cfg.use24Hour ?? false).onChange(async (v) => {
+					cfg.use24Hour = v;
+					await this.save();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setClass("hearth-clock-setting")
+			.setName("Show seconds")
+			.addToggle((t) =>
+				t.setValue(cfg.showSeconds ?? false).onChange(async (v) => {
+					cfg.showSeconds = v;
+					await this.save();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setClass("hearth-clock-setting")
+			.setName("Show greeting")
+			.addToggle((t) =>
+				t.setValue(cfg.showGreeting !== false).onChange(async (v) => {
+					cfg.showGreeting = v;
+					await this.save();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setClass("hearth-clock-setting")
+			.setName("Greeting override")
+			.setDesc("Leave empty for the automatic morning/afternoon/evening greeting.")
+			.addText((t) =>
+				t.setValue(cfg.greetingText ?? "").onChange(async (v) => {
+					cfg.greetingText = v;
+					await this.save();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setClass("hearth-clock-setting")
+			.setName("Date")
+			.addDropdown((d) => {
+				d.addOption("full", "Weekday, day month");
+				d.addOption("short", "Short");
+				d.addOption("none", "Hidden");
+				d.setValue(cfg.dateMode ?? "full").onChange(async (v) => {
+					cfg.dateMode = v as NonNullable<DashboardCard["clock"]>["dateMode"];
+					await this.save();
+				});
+			});
 	}
 
 	private colorsRow(containerEl: HTMLElement, card: DashboardCard): void {

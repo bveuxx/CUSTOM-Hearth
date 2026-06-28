@@ -40,7 +40,7 @@ export function renderCardBody(
 			renderLinks(view, card, body);
 			break;
 		case "clock":
-			renderClock(view, body, component);
+			renderClock(view, card, body, component);
 			break;
 	}
 }
@@ -307,31 +307,49 @@ function openLink(view: HomeView, link: LinkItem): void {
 
 // ---- Clock / greeting ---------------------------------------------------
 
-function renderClock(view: HomeView, body: HTMLElement, component: Component): void {
+function renderClock(
+	view: HomeView,
+	card: DashboardCard,
+	body: HTMLElement,
+	component: Component,
+): void {
+	const cfg = card.clock ?? {};
+	const showGreeting = cfg.showGreeting !== false;
+	const dateMode = cfg.dateMode ?? "full";
+
 	const wrap = body.createDiv("hearth-clock");
-	const greetingEl = wrap.createDiv("hearth-clock-greeting");
+	const greetingEl = showGreeting ? wrap.createDiv("hearth-clock-greeting") : null;
 	const timeEl = wrap.createDiv("hearth-clock-time");
-	const dateEl = wrap.createDiv("hearth-clock-date");
+	const dateEl = dateMode === "none" ? null : wrap.createDiv("hearth-clock-date");
+
+	const timeOpts: Intl.DateTimeFormatOptions = {
+		hour: "2-digit",
+		minute: "2-digit",
+	};
+	if (cfg.use24Hour) timeOpts.hour12 = false;
+	if (cfg.showSeconds) timeOpts.second = "2-digit";
 
 	const update = () => {
 		const now = new Date();
-		const hour = now.getHours();
-		const greeting =
-			hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-		greetingEl.setText(greeting);
-		timeEl.setText(
-			now.toLocaleTimeString(undefined, {
-				hour: "2-digit",
-				minute: "2-digit",
-			}),
-		);
-		dateEl.setText(
-			now.toLocaleDateString(undefined, {
-				weekday: "long",
-				day: "numeric",
-				month: "long",
-			}),
-		);
+		if (greetingEl) {
+			const hour = now.getHours();
+			const greeting =
+				cfg.greetingText?.trim() ||
+				(hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
+			greetingEl.setText(greeting);
+		}
+		timeEl.setText(now.toLocaleTimeString(undefined, timeOpts));
+		if (dateEl) {
+			dateEl.setText(
+				dateMode === "short"
+					? now.toLocaleDateString(undefined, { dateStyle: "short" })
+					: now.toLocaleDateString(undefined, {
+							weekday: "long",
+							day: "numeric",
+							month: "long",
+						}),
+			);
+		}
 	};
 
 	update();
