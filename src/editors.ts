@@ -128,6 +128,19 @@ export class CardSettingsModal extends Modal {
 							}).open();
 						}),
 				);
+				new Setting(containerEl)
+					.setName("Zoom")
+					.setDesc("Scale the embedded content. Applies when you close this dialog.")
+					.addSlider((s) =>
+						s
+							.setLimits(50, 200, 10)
+							.setValue(Math.round((card.scale ?? 1) * 100))
+							.setDynamicTooltip()
+							.onChange((v) => {
+								card.scale = v === 100 ? undefined : v / 100;
+								this.opts.save();
+							}),
+					);
 				this.refreshSetting(containerEl);
 				break;
 			}

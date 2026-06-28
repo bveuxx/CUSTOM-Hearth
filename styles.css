@@ -367,6 +367,14 @@
 	border-radius: 8px;
 }
 
+/* Per-card zoom: anchor at the top-left and widen inversely so scaled-up
+ * content fills the card before scaling (the card body scrolls any overflow). */
+.hearth-embed.is-scaled {
+	transform: scale(var(--hearth-embed-scale, 1));
+	transform-origin: top left;
+	width: calc(100% / var(--hearth-embed-scale, 1));
+}
+
 /* Web / iframe embeds fill the whole card body. */
 .hearth-card-body.hearth-web-body {
 	padding: 0;

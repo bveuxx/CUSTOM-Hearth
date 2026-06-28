@@ -73,6 +73,10 @@ export interface DashboardCard {
 	 * omitted means the card is rendered once and never refreshed. */
 	refreshSec?: number;
 
+	/** kind === "embed": zoom factor for the embedded content (1 = 100%).
+	 * Omitted means no scaling. */
+	scale?: number;
+
 	// ---- Appearance ----
 	/** Optional accent color (CSS color) for the card header/border. */
 	accent?: string;
