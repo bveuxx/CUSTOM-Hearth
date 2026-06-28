@@ -243,8 +243,11 @@
 .hearth-filters {
 	display: flex;
 	flex-wrap: wrap;
-	justify-content: center;
+	/* Left-align the chips and match the search field's width/position so the
+	 * first filter lines up with the left edge of the search box. */
+	justify-content: flex-start;
 	gap: 8px;
+	width: 100%;
 	max-width: 720px;
 }
 

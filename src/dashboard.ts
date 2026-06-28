@@ -1,6 +1,6 @@
-import { Component, Menu, setIcon } from "obsidian";
+import { Component, debounce, Menu, setIcon, TAbstractFile } from "obsidian";
 import type { HomeView } from "./view";
-import { renderCardBody } from "./cards";
+import { renderCardBody, watchedCardPath } from "./cards";
 import { CARD_TEMPLATES, cardFromTemplate } from "./templates";
 import { CardSettingsModal } from "./editors";
 import {
@@ -94,22 +94,22 @@ export function renderDashboard(
 	}
 }
 
-/** Render a card's body, wiring up an auto-refresh interval when the card asks
- * for one. Each refresh re-renders the body under a fresh child component so
- * markdown/iframe embeds are torn down and rebuilt cleanly (picking up file
- * edits or reloading the page) without leaking the previous render. */
+/** Render a card's body. Each (re)draw renders under a fresh child component so
+ * markdown/iframe embeds are torn down and rebuilt cleanly without leaking the
+ * previous render.
+ *
+ * Liveness is per kind:
+ * - web cards keep the optional polling refresh (refreshSec);
+ * - read-only embed/daily cards redraw from vault events the moment their file
+ *   changes on disk — no polling, no flicker on other cards;
+ * - editable embed/daily cards are never redrawn here; their textarea syncs
+ *   itself so the cursor is never lost. */
 function mountCardBody(
 	view: HomeView,
 	card: DashboardCard,
 	body: HTMLElement,
 	parent: Component,
 ): void {
-	const every = card.refreshSec && card.refreshSec > 0 ? card.refreshSec : 0;
-	if (!every) {
-		renderCardBody(view, card, body, parent);
-		return;
-	}
-
 	let child: Component | null = null;
 	const draw = () => {
 		if (child) parent.removeChild(child);
@@ -119,9 +119,40 @@ function mountCardBody(
 		renderCardBody(view, card, body, child);
 	};
 	draw();
-	// registerInterval ties the timer to the view's render lifecycle, so it is
-	// cleared on the next full rebuild (and on view close).
-	parent.registerInterval(window.setInterval(draw, every * 1000));
+
+	if (card.kind === "web") {
+		const every = card.refreshSec && card.refreshSec > 0 ? card.refreshSec : 0;
+		// registerInterval ties the timer to the view's render lifecycle, so it
+		// is cleared on the next full rebuild (and on view close).
+		if (every) parent.registerInterval(window.setInterval(draw, every * 1000));
+		return;
+	}
+
+	if ((card.kind === "embed" || card.kind === "daily") && !card.editable) {
+		watchCardFile(view, card, parent, draw);
+	}
+}
+
+/** Redraw an embed/daily card's body whenever the file it tracks is created,
+ * modified, renamed or deleted on disk. */
+function watchCardFile(
+	view: HomeView,
+	card: DashboardCard,
+	parent: Component,
+	draw: () => void,
+): void {
+	// Coalesce bursts of writes (e.g. an editor autosaving) into one redraw.
+	const redraw = debounce(draw, 150, true);
+	const affects = (file: TAbstractFile, oldPath?: string) => {
+		const path = watchedCardPath(view, card);
+		if (path == null) return;
+		if (file.path === path || oldPath === path) redraw();
+	};
+	const { vault } = view.app;
+	parent.registerEvent(vault.on("modify", (file) => affects(file)));
+	parent.registerEvent(vault.on("create", (file) => affects(file)));
+	parent.registerEvent(vault.on("delete", (file) => affects(file)));
+	parent.registerEvent(vault.on("rename", (file, oldPath) => affects(file, oldPath)));
 }
 
 /** Save the current settings and rebuild the view (used after structural

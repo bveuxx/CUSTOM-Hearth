@@ -113,7 +113,7 @@ function renderEmbed(
 
 	// Editable Markdown notes are edited in place rather than rendered read-only.
 	if (card.editable && isMarkdown && !excalidraw) {
-		renderEditableEmbed(view, file, body);
+		renderEditableEmbed(view, file, body, component);
 		return;
 	}
 
@@ -156,8 +156,14 @@ async function renderMarkdownFile(
 }
 
 /** Edit an embedded Markdown note in place: load its text into a textarea and
- * write changes back to the vault (debounced). */
-function renderEditableEmbed(view: HomeView, file: TFile, body: HTMLElement): void {
+ * write changes back to the vault (debounced). Stays in sync with external edits
+ * without ever interrupting typing. */
+function renderEditableEmbed(
+	view: HomeView,
+	file: TFile,
+	body: HTMLElement,
+	component: Component,
+): void {
 	const area = body.createEl("textarea", {
 		cls: "hearth-text hearth-embed-edit",
 		attr: { placeholder: "Empty note…" },
@@ -170,16 +176,36 @@ function renderEditableEmbed(view: HomeView, file: TFile, body: HTMLElement): vo
 		area.disabled = false;
 	});
 
+	// True while our own save is writing, so the resulting modify event isn't
+	// mistaken for an external change.
+	let saving = false;
 	const save = debounce(
 		() => {
 			// Re-resolve the file in case it was renamed/replaced while open.
 			const current = view.app.vault.getAbstractFileByPath(file.path);
-			if (current instanceof TFile) void view.app.vault.modify(current, area.value);
+			if (current instanceof TFile) {
+				saving = true;
+				void view.app.vault.modify(current, area.value).finally(() => {
+					saving = false;
+				});
+			}
 		},
 		500,
 		true,
 	);
 	area.addEventListener("input", save);
+
+	// Reflect external edits to the same note — but only when the user isn't
+	// typing here (so the cursor is never yanked) and the change isn't our own.
+	component.registerEvent(
+		view.app.vault.on("modify", (changed) => {
+			if (changed.path !== file.path || saving) return;
+			if (area.ownerDocument.activeElement === area) return;
+			void view.app.vault.read(file).then((content) => {
+				area.value = content;
+			});
+		}),
+	);
 }
 
 // ---- Daily note (today) -------------------------------------------------
@@ -239,12 +265,26 @@ function renderDaily(
 	}
 
 	if (card.editable) {
-		renderEditableEmbed(view, file, body);
+		renderEditableEmbed(view, file, body, component);
 		return;
 	}
 
 	const host = body.createDiv("hearth-embed markdown-rendered");
 	void renderMarkdownFile(view, file, host, component);
+}
+
+/** The vault path an embed/daily card currently tracks, used to refresh the card
+ * live when that file changes. Returns null when there's nothing to watch. */
+export function watchedCardPath(view: HomeView, card: DashboardCard): string | null {
+	if (card.kind === "embed") return card.target?.trim() || null;
+	if (card.kind === "daily") {
+		const plugin = view.app.internalPlugins.getPluginById("daily-notes");
+		if (!plugin?.enabled) return null;
+		const options =
+			(plugin.instance as { options?: DailyNotesOptions } | undefined)?.options ?? {};
+		return todaysDailyNotePath(options);
+	}
+	return null;
 }
 
 // ---- Web / iframe embed -------------------------------------------------

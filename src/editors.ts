@@ -153,7 +153,6 @@ export class CardSettingsModal extends Modal {
 							this.opts.save();
 						}),
 					);
-				this.refreshSetting(containerEl);
 				break;
 			}
 			case "daily":
@@ -168,8 +167,7 @@ export class CardSettingsModal extends Modal {
 					);
 				new Setting(containerEl)
 					.setName("Daily notes")
-					.setDesc("Today's note is resolved from the core Daily notes plugin's date format and folder.");
-				this.refreshSetting(containerEl);
+					.setDesc("Today's note is resolved from the core Daily notes plugin's date format and folder. The card updates live as you edit.");
 				break;
 			case "web":
 				new Setting(containerEl).setName("URL").addText((t) =>
@@ -211,7 +209,17 @@ export class CardSettingsModal extends Modal {
 		}
 	}
 
-	/** Auto-refresh interval (seconds) for live embed/web cards. 0 = off. */
+	/** Move an item within a list, then persist and re-render the editor. */
+	private moveItem<T>(arr: T[], from: number, to: number): void {
+		if (to < 0 || to >= arr.length) return;
+		const [item] = arr.splice(from, 1);
+		arr.splice(to, 0, item);
+		this.opts.save();
+		this.render();
+	}
+
+	/** Auto-refresh interval (seconds) for web cards. 0 = off. (Embed and daily
+	 * cards update live from vault events and don't need this.) */
 	private refreshSetting(containerEl: HTMLElement): void {
 		const card = this.card;
 		new Setting(containerEl)
@@ -264,6 +272,20 @@ export class CardSettingsModal extends Modal {
 						link.target = v;
 						this.opts.save();
 					}),
+			);
+			row.addExtraButton((b) =>
+				b
+					.setIcon("chevron-up")
+					.setTooltip("Move up")
+					.setDisabled(index === 0)
+					.onClick(() => this.moveItem(links, index, index - 1)),
+			);
+			row.addExtraButton((b) =>
+				b
+					.setIcon("chevron-down")
+					.setTooltip("Move down")
+					.setDisabled(index === links.length - 1)
+					.onClick(() => this.moveItem(links, index, index + 1)),
 			);
 			row.addExtraButton((b) =>
 				b
@@ -325,6 +347,20 @@ export class CardSettingsModal extends Modal {
 			);
 			row.addExtraButton((b) =>
 				b
+					.setIcon("chevron-up")
+					.setTooltip("Move up")
+					.setDisabled(index === 0)
+					.onClick(() => this.moveItem(commands, index, index - 1)),
+			);
+			row.addExtraButton((b) =>
+				b
+					.setIcon("chevron-down")
+					.setTooltip("Move down")
+					.setDisabled(index === commands.length - 1)
+					.onClick(() => this.moveItem(commands, index, index + 1)),
+			);
+			row.addExtraButton((b) =>
+				b
 					.setIcon("trash-2")
 					.setTooltip("Remove command")
 					.onClick(() => {
@@ -354,16 +390,32 @@ export class CardSettingsModal extends Modal {
 		const favorites = this.opts.favorites;
 
 		favorites.forEach((path, index) => {
-			new Setting(containerEl).setName(path).addExtraButton((b) =>
-				b
-					.setIcon("trash-2")
-					.setTooltip("Remove")
-					.onClick(() => {
-						favorites.splice(index, 1);
-						this.opts.save();
-						this.render();
-					}),
-			);
+			new Setting(containerEl)
+				.setName(path)
+				.addExtraButton((b) =>
+					b
+						.setIcon("chevron-up")
+						.setTooltip("Move up")
+						.setDisabled(index === 0)
+						.onClick(() => this.moveItem(favorites, index, index - 1)),
+				)
+				.addExtraButton((b) =>
+					b
+						.setIcon("chevron-down")
+						.setTooltip("Move down")
+						.setDisabled(index === favorites.length - 1)
+						.onClick(() => this.moveItem(favorites, index, index + 1)),
+				)
+				.addExtraButton((b) =>
+					b
+						.setIcon("trash-2")
+						.setTooltip("Remove")
+						.onClick(() => {
+							favorites.splice(index, 1);
+							this.opts.save();
+							this.render();
+						}),
+				);
 		});
 
 		new Setting(containerEl).addButton((b) =>
