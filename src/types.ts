@@ -24,16 +24,22 @@ export interface CommandItem {
 /** Per-card configuration for a "clock" card. All fields are optional; omitted
  * fields fall back to the defaults that match the original clock behaviour. */
 export interface ClockConfig {
+	/** Digital (default) or analogue clock face. */
+	mode?: "digital" | "analog";
 	/** Use 24-hour time instead of the locale default. */
 	use24Hour?: boolean;
 	/** Show seconds in the time. */
 	showSeconds?: boolean;
 	/** Show the greeting line (default true). */
 	showGreeting?: boolean;
-	/** Override the auto "Good morning/afternoon/evening" greeting. */
+	/** Override the auto greeting. */
 	greetingText?: string;
+	/** Use the playful, slightly cheeky greetings instead of the plain ones. */
+	playfulGreetings?: boolean;
 	/** How much of the date to show. Default "full". */
-	dateMode?: "full" | "short" | "none";
+	dateMode?: "full" | "long" | "short" | "iso" | "weekday" | "custom" | "none";
+	/** moment.js format string used when dateMode is "custom". */
+	dateFormat?: string;
 }
 
 /** A single tile inside a "links" (launchpad) card. */
@@ -85,6 +91,10 @@ export interface DashboardCard {
 	/** kind === "commands": pixel size of the command tiles (min column width).
 	 * Omitted means the default tile size. */
 	tileSize?: number;
+
+	/** kind === "daily": show a button that opens today's note in the editor.
+	 * Defaults to shown; set false to hide. */
+	showOpenButton?: boolean;
 
 	/** Show this card on every dashboard, sharing one definition and position
 	 * across boards ("synced"). Stored once in settings.pinnedCards. */

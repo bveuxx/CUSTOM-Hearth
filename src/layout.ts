@@ -100,6 +100,8 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 	if (typeof r.scale === "number") card.scale = r.scale;
 	if (typeof r.refreshSec === "number") card.refreshSec = r.refreshSec;
 	if (typeof r.editable === "boolean") card.editable = r.editable;
+	if (typeof r.tileSize === "number") card.tileSize = r.tileSize;
+	if (typeof r.showOpenButton === "boolean") card.showOpenButton = r.showOpenButton;
 	if (Array.isArray(r.links)) {
 		card.links = r.links.map(sanitizeLink).filter((l): l is LinkItem => l !== null);
 	}
@@ -125,13 +127,18 @@ function sanitizeCommand(raw: unknown): CommandItem | null {
 
 function sanitizeClock(r: Record<string, unknown>): ClockConfig {
 	const clock: ClockConfig = {};
+	if (r.mode === "digital" || r.mode === "analog") clock.mode = r.mode;
 	if (typeof r.use24Hour === "boolean") clock.use24Hour = r.use24Hour;
 	if (typeof r.showSeconds === "boolean") clock.showSeconds = r.showSeconds;
 	if (typeof r.showGreeting === "boolean") clock.showGreeting = r.showGreeting;
+	if (typeof r.playfulGreetings === "boolean") clock.playfulGreetings = r.playfulGreetings;
 	const greeting = str(r.greetingText);
 	if (greeting !== undefined) clock.greetingText = greeting;
-	if (r.dateMode === "full" || r.dateMode === "short" || r.dateMode === "none") {
-		clock.dateMode = r.dateMode;
+	const dateFormat = str(r.dateFormat);
+	if (dateFormat !== undefined) clock.dateFormat = dateFormat;
+	const modes = ["full", "long", "short", "iso", "weekday", "custom", "none"];
+	if (typeof r.dateMode === "string" && modes.includes(r.dateMode)) {
+		clock.dateMode = r.dateMode as NonNullable<ClockConfig["dateMode"]>;
 	}
 	return clock;
 }

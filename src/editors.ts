@@ -1,6 +1,6 @@
 import { App, Modal, Setting } from "obsidian";
 import { CommandPickerModal, FilePickerModal } from "./pickers";
-import { CardKind, DashboardCard, LinkItem } from "./types";
+import { CardKind, ClockConfig, DashboardCard, LinkItem } from "./types";
 
 const CARD_KIND_LABELS: Record<CardKind, string> = {
 	embed: "Embed (note / image / base)",
@@ -162,6 +162,15 @@ export class CardSettingsModal extends Modal {
 					.addToggle((t) =>
 						t.setValue(card.editable ?? false).onChange((v) => {
 							card.editable = v || undefined;
+							this.opts.save();
+						}),
+					);
+				new Setting(containerEl)
+					.setName("Open button")
+					.setDesc("Show a button to open today's note in the editor.")
+					.addToggle((t) =>
+						t.setValue(card.showOpenButton !== false).onChange((v) => {
+							card.showOpenButton = v ? undefined : false;
 							this.opts.save();
 						}),
 					);
@@ -438,12 +447,24 @@ export class CardSettingsModal extends Modal {
 	private clockEditor(containerEl: HTMLElement): void {
 		const cfg = (this.card.clock ??= {});
 
-		new Setting(containerEl).setName("24-hour time").addToggle((t) =>
-			t.setValue(cfg.use24Hour ?? false).onChange((v) => {
-				cfg.use24Hour = v;
+		new Setting(containerEl).setName("Style").addDropdown((d) => {
+			d.addOption("digital", "Digital");
+			d.addOption("analog", "Analog");
+			d.setValue(cfg.mode ?? "digital").onChange((v) => {
+				cfg.mode = v as NonNullable<ClockConfig["mode"]>;
 				this.opts.save();
-			}),
-		);
+				this.render();
+			});
+		});
+
+		if (cfg.mode !== "analog") {
+			new Setting(containerEl).setName("24-hour time").addToggle((t) =>
+				t.setValue(cfg.use24Hour ?? false).onChange((v) => {
+					cfg.use24Hour = v;
+					this.opts.save();
+				}),
+			);
+		}
 		new Setting(containerEl).setName("Show seconds").addToggle((t) =>
 			t.setValue(cfg.showSeconds ?? false).onChange((v) => {
 				cfg.showSeconds = v;
@@ -457,8 +478,17 @@ export class CardSettingsModal extends Modal {
 			}),
 		);
 		new Setting(containerEl)
+			.setName("Playful greetings")
+			.setDesc("Cheeky, randomised greetings instead of the plain ones.")
+			.addToggle((t) =>
+				t.setValue(cfg.playfulGreetings ?? false).onChange((v) => {
+					cfg.playfulGreetings = v || undefined;
+					this.opts.save();
+				}),
+			);
+		new Setting(containerEl)
 			.setName("Greeting override")
-			.setDesc("Leave empty for the automatic morning/afternoon/evening greeting.")
+			.setDesc("Leave empty for the automatic greeting.")
 			.addText((t) =>
 				t.setValue(cfg.greetingText ?? "").onChange((v) => {
 					cfg.greetingText = v;
@@ -467,13 +497,29 @@ export class CardSettingsModal extends Modal {
 			);
 		new Setting(containerEl).setName("Date").addDropdown((d) => {
 			d.addOption("full", "Weekday, day month");
-			d.addOption("short", "Short");
+			d.addOption("long", "Weekday, day month year");
+			d.addOption("short", "Short (locale)");
+			d.addOption("iso", "ISO (2026-06-29)");
+			d.addOption("weekday", "Weekday only");
+			d.addOption("custom", "Custom format…");
 			d.addOption("none", "Hidden");
 			d.setValue(cfg.dateMode ?? "full").onChange((v) => {
-				cfg.dateMode = v as NonNullable<DashboardCard["clock"]>["dateMode"];
+				cfg.dateMode = v as NonNullable<ClockConfig["dateMode"]>;
 				this.opts.save();
+				this.render();
 			});
 		});
+		if (cfg.dateMode === "custom") {
+			new Setting(containerEl)
+				.setName("Custom date format")
+				.setDesc("A moment.js format, e.g. ddd D MMM or YYYY/MM/DD.")
+				.addText((t) =>
+					t.setPlaceholder("ddd D MMM").setValue(cfg.dateFormat ?? "").onChange((v) => {
+						cfg.dateFormat = v;
+						this.opts.save();
+					}),
+				);
+		}
 	}
 
 	private colorsSection(containerEl: HTMLElement): void {

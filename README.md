@@ -49,14 +49,16 @@ embed notes, images, bases, bookmarks and quick text.
 - **Embed** — embed a note (`.md`), image, canvas, or `.base` file. Rendered
   through Obsidian's own renderer, so anything Obsidian (or the Bases plugin)
   can embed, a card can show. Each embed has a **zoom** control to scale its
-  content up or down to fit the card, and Markdown notes can be made
-  **editable** in place — edits save straight back to the vault.
+  content up or down to fit the card. Markdown notes can be made **editable** —
+  shown rendered and switching to a raw editor on double-click, saving straight
+  back to the vault.
 - **Excalidraw & canvas cards** — dedicated templates for embedding an
   Excalidraw drawing or a `.canvas` file, with a friendly prompt when the
   required plugin isn't enabled.
 - **Daily note** — always shows *today's* daily note (resolved from the core
   Daily notes plugin's date format and folder), with a one-click prompt to
-  create it when it doesn't exist yet. Optionally editable in place.
+  create it when it doesn't exist yet and a hideable button to open it in the
+  editor. Optionally editable in place.
 - **Web page** — embed any `http(s)` URL in a sandboxed iframe.
 - **Live content** — embed and daily cards update automatically the moment
   their file is created, edited or deleted; web cards can auto-refresh on an
@@ -67,7 +69,9 @@ embed notes, images, bases, bookmarks and quick text.
 - **Links / launchpad** — a grid of tiles opening notes, URLs or commands.
 - **Commands** — tiles that run any command-palette command, with an adjustable
   **button size**.
-- **Clock & greeting** — a live time-of-day greeting, clock and date.
+- **Clock & greeting** — digital or **analogue** face, several date formats
+  (including a custom moment.js format), and a live greeting with an optional
+  **playful** (cheeky, randomised) mode.
 - **Text / jot-down** — a quick scratch field saved with the card, rendered as
   **Markdown** (double-click to edit).
 
@@ -179,6 +183,11 @@ into `<vault>/.obsidian/plugins/hearth/`.
   moment their file changes; editable notes sync without ever losing the cursor
 - [x] **Reorder list items** — move links, command tiles and favorites up/down
   from the card's settings
+- [x] **Live-mode editable embeds** — rendered Markdown by default, double-click
+  to edit the raw note
+- [x] **Open-note button** — a hideable button on the daily-note card
+- [x] **Analogue clock & richer dates** — analogue face, more date formats
+  (incl. custom), and optional playful greetings
 ### Planned
 
 Bigger ideas

@@ -415,6 +415,43 @@
 	opacity: 0.9;
 }
 
+/* A small sticky action bar (e.g. the daily-note "open" button) pinned to the
+ * top-right of a card body, staying visible while the content scrolls. */
+.hearth-card-actions-overlay {
+	position: sticky;
+	top: 0;
+	z-index: 4;
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: 2px;
+	pointer-events: none;
+}
+
+.hearth-open-btn {
+	pointer-events: auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px;
+	border-radius: 7px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+	color: var(--text-muted);
+	cursor: pointer;
+	opacity: 0.7;
+}
+
+.hearth-open-btn:hover {
+	opacity: 1;
+	color: var(--text-normal);
+	border-color: var(--interactive-accent);
+}
+
+.hearth-open-btn .svg-icon {
+	width: 16px;
+	height: 16px;
+}
+
 /* Destructive buttons (remove card, replace-on-import). Styled with a class
  * instead of the deprecated ButtonComponent.setWarning(). */
 .hearth-danger-btn {
@@ -648,6 +685,52 @@
 .hearth-clock-date {
 	font-size: 0.85rem;
 	color: var(--text-muted);
+}
+
+/* Analogue clock face */
+.hearth-analog {
+	width: 100%;
+	max-width: 220px;
+	aspect-ratio: 1;
+	margin-bottom: 4px;
+}
+
+.hearth-analog-face {
+	fill: none;
+	stroke: var(--background-modifier-border);
+	stroke-width: 2;
+}
+
+.hearth-analog-tick {
+	stroke: var(--text-faint);
+	stroke-width: 1;
+}
+
+.hearth-analog-tick-major {
+	stroke: var(--text-muted);
+	stroke-width: 2.4;
+}
+
+.hearth-analog-hour {
+	stroke: var(--text-normal);
+	stroke-width: 3.6;
+	stroke-linecap: round;
+}
+
+.hearth-analog-min {
+	stroke: var(--text-normal);
+	stroke-width: 2.4;
+	stroke-linecap: round;
+}
+
+.hearth-analog-sec {
+	stroke: var(--interactive-accent);
+	stroke-width: 1.2;
+	stroke-linecap: round;
+}
+
+.hearth-analog-pin {
+	fill: var(--interactive-accent);
 }
 
 /* ---- Toolbar -------------------------------------------------------- */

@@ -9,7 +9,7 @@ import {
 } from "obsidian";
 import type { HomeView } from "./view";
 import type { BookmarkItem } from "./obsidian-ext";
-import { CommandItem, DashboardCard, LinkItem } from "./types";
+import { ClockConfig, CommandItem, DashboardCard, LinkItem } from "./types";
 import { iconForFile, isExcalidraw } from "./filetypes";
 
 /** Community plugin id for Excalidraw (used to detect drawing support). */
@@ -155,57 +155,100 @@ async function renderMarkdownFile(
 	await MarkdownRenderer.render(view.app, stripFrontmatter(raw), host, file.path, component);
 }
 
-/** Edit an embedded Markdown note in place: load its text into a textarea and
- * write changes back to the vault (debounced). Stays in sync with external edits
- * without ever interrupting typing. */
+/**
+ * "Live mode" editable embed: shows the note rendered as Markdown and swaps to a
+ * raw editor on double-click (Obsidian doesn't expose a true Live Preview editor
+ * for arbitrary containers). Saves back to the vault and stays in sync with
+ * external edits without ever interrupting typing.
+ */
 function renderEditableEmbed(
 	view: HomeView,
 	file: TFile,
 	body: HTMLElement,
 	component: Component,
 ): void {
-	const area = body.createEl("textarea", {
-		cls: "hearth-text hearth-embed-edit",
+	const wrap = body.createDiv("hearth-jot");
+	const preview = wrap.createDiv("hearth-embed markdown-rendered hearth-jot-preview");
+	preview.setAttribute("title", "Double-click to edit");
+	const area = wrap.createEl("textarea", {
+		cls: "hearth-text hearth-embed-edit hearth-jot-edit",
 		attr: { placeholder: "Empty note…" },
 	});
-	// Disable until the file content has loaded so we never save a blank buffer
-	// over the note before its text arrives.
-	area.disabled = true;
-	void view.app.vault.read(file).then((content) => {
-		area.value = content;
-		area.disabled = false;
-	});
+	area.hide();
 
-	// True while our own save is writing, so the resulting modify event isn't
-	// mistaken for an external change.
+	// `saving` guards against reacting to our own writes; `editing` tracks whether
+	// the raw editor is open.
 	let saving = false;
-	const save = debounce(
-		() => {
-			// Re-resolve the file in case it was renamed/replaced while open.
-			const current = view.app.vault.getAbstractFileByPath(file.path);
-			if (current instanceof TFile) {
-				saving = true;
-				void view.app.vault.modify(current, area.value).finally(() => {
-					saving = false;
-				});
-			}
-		},
-		500,
-		true,
-	);
-	area.addEventListener("input", save);
+	let editing = false;
+	let previewChild: Component | null = null;
 
-	// Reflect external edits to the same note — but only when the user isn't
-	// typing here (so the cursor is never yanked) and the change isn't our own.
+	const renderPreview = () => {
+		if (previewChild) component.removeChild(previewChild);
+		previewChild = new Component();
+		component.addChild(previewChild);
+		preview.empty();
+		void view.app.vault.cachedRead(file).then((raw) => {
+			const md = stripFrontmatter(raw);
+			if (!md.trim()) {
+				preview.addClass("is-empty");
+				preview.setText("Empty note — double-click to edit");
+				return;
+			}
+			preview.removeClass("is-empty");
+			void MarkdownRenderer.render(view.app, md, preview, file.path, previewChild!);
+		});
+	};
+
+	const flush = () => {
+		const current = view.app.vault.getAbstractFileByPath(file.path);
+		if (current instanceof TFile) {
+			saving = true;
+			void view.app.vault.modify(current, area.value).finally(() => {
+				saving = false;
+			});
+		}
+	};
+
+	const enterEdit = () => {
+		void view.app.vault.read(file).then((content) => {
+			area.value = content;
+			editing = true;
+			preview.hide();
+			area.show();
+			area.focus();
+		});
+	};
+	const leaveEdit = () => {
+		flush();
+		editing = false;
+		area.hide();
+		preview.show();
+		renderPreview();
+	};
+
+	// Double-click (not single) so links in the preview stay clickable.
+	preview.addEventListener("dblclick", enterEdit);
+	area.addEventListener("input", debounce(flush, 500, true));
+	area.addEventListener("blur", leaveEdit);
+
+	// Reflect external edits when we aren't the one writing: re-render the preview,
+	// or (if editing but not focused) refresh the buffer without yanking the cursor.
 	component.registerEvent(
 		view.app.vault.on("modify", (changed) => {
 			if (changed.path !== file.path || saving) return;
-			if (area.ownerDocument.activeElement === area) return;
-			void view.app.vault.read(file).then((content) => {
-				area.value = content;
-			});
+			if (editing) {
+				if (area.ownerDocument.activeElement !== area) {
+					void view.app.vault.read(file).then((content) => {
+						area.value = content;
+					});
+				}
+			} else {
+				renderPreview();
+			}
 		}),
 	);
+
+	renderPreview();
 }
 
 // ---- Daily note (today) -------------------------------------------------
@@ -262,6 +305,19 @@ function renderDaily(
 			}
 		});
 		return;
+	}
+
+	// Optional button to open today's note in the editor (hideable).
+	if (card.showOpenButton !== false) {
+		const actions = body.createDiv("hearth-card-actions-overlay");
+		const open = actions.createEl("button", {
+			cls: "hearth-open-btn",
+			attr: { "aria-label": "Open today's note" },
+		});
+		setIcon(open, "square-pen");
+		open.addEventListener("click", () => {
+			void view.app.workspace.getLeaf(true).openFile(file);
+		});
 	}
 
 	if (card.editable) {
@@ -579,6 +635,100 @@ function runCommand(view: HomeView, cmd: CommandItem): void {
 
 // ---- Clock / greeting ---------------------------------------------------
 
+/** Time-of-day buckets used to pick a fitting greeting. */
+function greetingBucket(hour: number): number {
+	if (hour < 5) return 0; // late night
+	if (hour < 8) return 1; // early morning
+	if (hour < 12) return 2; // morning
+	if (hour < 17) return 3; // afternoon
+	if (hour < 22) return 4; // evening
+	return 5; // night
+}
+
+/** Playful, mildly cheeky greetings per bucket (opt-in). */
+const PLAYFUL_GREETINGS: string[][] = [
+	["Late night session?", "Burning the midnight oil?", "The vault never sleeps, huh?", "You should probably be asleep."],
+	["Working this early already?", "Up with the sun, are we?", "Coffee first, surely?", "Bold of you to be up."],
+	["Morning. Let's pretend we're productive.", "The notes missed you.", "Back at it.", "Another day, another vault."],
+	["Afternoon grind.", "Still going?", "Post-lunch productivity — ambitious.", "Halfway there, probably."],
+	["You again?", "Evening. Wrapping up, or just starting?", "One more note, then?", "The day's winding down. You aren't."],
+	["Late again?", "The day's over, the ideas aren't.", "Shouldn't you be resting?", "Burning the candle at both ends."],
+];
+
+function pickGreeting(hour: number, playful: boolean): string {
+	if (!playful) {
+		return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+	}
+	const pool = PLAYFUL_GREETINGS[greetingBucket(hour)];
+	return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function formatClockDate(now: Date, mode: NonNullable<ClockConfig["dateMode"]>, custom?: string): string {
+	switch (mode) {
+		case "short":
+			return now.toLocaleDateString(undefined, { dateStyle: "short" });
+		case "long":
+			return now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+		case "iso":
+			return moment(now).format("YYYY-MM-DD");
+		case "weekday":
+			return now.toLocaleDateString(undefined, { weekday: "long" });
+		case "custom":
+			return custom?.trim() ? moment(now).format(custom) : "";
+		case "full":
+		default:
+			return now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+	}
+}
+
+function svgEl(parent: Element, tag: string, attrs: Record<string, string>, cls?: string): SVGElement {
+	const el = parent.ownerDocument.createElementNS("http://www.w3.org/2000/svg", tag) as SVGElement;
+	for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+	if (cls) el.setAttribute("class", cls);
+	parent.appendChild(el);
+	return el;
+}
+
+/** Draw an analogue clock face and return a tick() to rotate its hands. */
+function renderAnalogClock(wrap: HTMLElement, cfg: ClockConfig): (now: Date) => void {
+	const svg = svgEl(wrap, "svg", { viewBox: "0 0 100 100" }, "hearth-analog");
+	svgEl(svg, "circle", { cx: "50", cy: "50", r: "48" }, "hearth-analog-face");
+	for (let i = 0; i < 12; i++) {
+		const a = (i / 12) * Math.PI * 2;
+		const major = i % 3 === 0;
+		const r1 = major ? 38 : 42;
+		svgEl(
+			svg,
+			"line",
+			{
+				x1: String(50 + Math.sin(a) * r1),
+				y1: String(50 - Math.cos(a) * r1),
+				x2: String(50 + Math.sin(a) * 46),
+				y2: String(50 - Math.cos(a) * 46),
+			},
+			major ? "hearth-analog-tick-major" : "hearth-analog-tick",
+		);
+	}
+	const hand = (cls: string, length: number) =>
+		svgEl(svg, "line", { x1: "50", y1: "50", x2: "50", y2: String(50 - length) }, cls);
+	const hourHand = hand("hearth-analog-hour", 26);
+	const minHand = hand("hearth-analog-min", 38);
+	const secHand = cfg.showSeconds ? hand("hearth-analog-sec", 42) : null;
+	svgEl(svg, "circle", { cx: "50", cy: "50", r: "2.5" }, "hearth-analog-pin");
+
+	const rotate = (el: SVGElement, deg: number) =>
+		el.setAttribute("transform", `rotate(${deg} 50 50)`);
+
+	return (now: Date) => {
+		const s = now.getSeconds();
+		const m = now.getMinutes();
+		const h = now.getHours() % 12;
+		rotate(hourHand, (h + m / 60) * 30);
+		rotate(minHand, (m + s / 60) * 6);
+		if (secHand) rotate(secHand, s * 6);
+	};
+}
+
 function renderClock(
 	view: HomeView,
 	card: DashboardCard,
@@ -588,40 +738,39 @@ function renderClock(
 	const cfg = card.clock ?? {};
 	const showGreeting = cfg.showGreeting !== false;
 	const dateMode = cfg.dateMode ?? "full";
+	const analog = cfg.mode === "analog";
 
 	const wrap = body.createDiv("hearth-clock");
 	const greetingEl = showGreeting ? wrap.createDiv("hearth-clock-greeting") : null;
-	const timeEl = wrap.createDiv("hearth-clock-time");
+
+	// Pick the greeting once per time bucket so playful ones don't flicker.
+	let bucket = -1;
+	const refreshGreeting = (hour: number) => {
+		if (!greetingEl) return;
+		const override = cfg.greetingText?.trim();
+		if (override) {
+			greetingEl.setText(override);
+			return;
+		}
+		if (greetingBucket(hour) === bucket) return;
+		bucket = greetingBucket(hour);
+		greetingEl.setText(pickGreeting(hour, cfg.playfulGreetings ?? false));
+	};
+
+	const tickAnalog = analog ? renderAnalogClock(wrap, cfg) : null;
+	const timeEl = analog ? null : wrap.createDiv("hearth-clock-time");
 	const dateEl = dateMode === "none" ? null : wrap.createDiv("hearth-clock-date");
 
-	const timeOpts: Intl.DateTimeFormatOptions = {
-		hour: "2-digit",
-		minute: "2-digit",
-	};
+	const timeOpts: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit" };
 	if (cfg.use24Hour) timeOpts.hour12 = false;
 	if (cfg.showSeconds) timeOpts.second = "2-digit";
 
 	const update = () => {
 		const now = new Date();
-		if (greetingEl) {
-			const hour = now.getHours();
-			const greeting =
-				cfg.greetingText?.trim() ||
-				(hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening");
-			greetingEl.setText(greeting);
-		}
-		timeEl.setText(now.toLocaleTimeString(undefined, timeOpts));
-		if (dateEl) {
-			dateEl.setText(
-				dateMode === "short"
-					? now.toLocaleDateString(undefined, { dateStyle: "short" })
-					: now.toLocaleDateString(undefined, {
-							weekday: "long",
-							day: "numeric",
-							month: "long",
-						}),
-			);
-		}
+		refreshGreeting(now.getHours());
+		if (tickAnalog) tickAnalog(now);
+		if (timeEl) timeEl.setText(now.toLocaleTimeString(undefined, timeOpts));
+		if (dateEl) dateEl.setText(formatClockDate(now, dateMode, cfg.dateFormat));
 	};
 
 	update();
