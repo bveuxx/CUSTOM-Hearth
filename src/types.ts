@@ -212,7 +212,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	showTitle: true,
 	// Empty => the Hearth crystal icon is shown as the brand mark.
 	logo: "",
-	searchPlaceholder: "Search the vault",
+	searchPlaceholder: "Search the vault, or #tag",
 	showNewNoteButton: true,
 
 	backgroundKind: "none",

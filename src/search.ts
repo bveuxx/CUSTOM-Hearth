@@ -1,4 +1,5 @@
 import {
+	getAllTags,
 	Platform,
 	prepareFuzzySearch,
 	setIcon,
@@ -17,6 +18,9 @@ import {
 interface SearchHit {
 	file: TAbstractFile;
 	score: number;
+	/** Set when this hit matched because of a tag, not its name/path — shown
+	 * as a badge so it's obvious why it's in the results. */
+	tag?: string;
 }
 
 const MAX_RESULTS = 40;
@@ -139,6 +143,11 @@ export class SearchSection {
 	}
 
 	private search(query: string): SearchHit[] {
+		// A leading "#" switches to tag search — deliberately a distinct mode
+		// (not silently mixed into name search) so it's always clear whether
+		// you're searching file names or tags.
+		if (query.startsWith("#")) return this.searchByTag(query.slice(1));
+
 		const filter = this.activeFilter;
 		const includeFolders = !filter || filter === "folders";
 		const includeFiles = filter !== "folders";
@@ -173,6 +182,25 @@ export class SearchSection {
 		return hits.slice(0, MAX_RESULTS);
 	}
 
+	/** Tag search (query has had its leading "#" stripped). Matches vault tags
+	 * themselves, not file names — an empty query after "#" browses every
+	 * tagged file. Ignores the file-type filter chips, which don't apply to
+	 * tags across file types. */
+	private searchByTag(raw: string): SearchHit[] {
+		const q = raw.trim().toLowerCase();
+		const hits: SearchHit[] = [];
+		for (const file of this.view.app.vault.getMarkdownFiles()) {
+			const cache = this.view.app.metadataCache.getFileCache(file);
+			if (!cache) continue;
+			const tags = getAllTags(cache);
+			if (!tags || tags.length === 0) continue;
+			const matched = q ? tags.find((t) => t.slice(1).toLowerCase().includes(q)) : tags[0];
+			if (matched) hits.push({ file, score: 0, tag: matched });
+		}
+		hits.sort((a, b) => a.file.name.localeCompare(b.file.name));
+		return hits.slice(0, MAX_RESULTS);
+	}
+
 	// ---- Results rendering ---------------------------------------------
 
 	private renderResults(hits: SearchHit[]): void {
@@ -188,15 +216,21 @@ export class SearchSection {
 
 		hits.forEach((hit) => {
 			const row = this.resultsEl.createDiv("hearth-result");
-			setIcon(row.createDiv("hearth-result-icon"), iconForFile(hit.file));
+			setIcon(row.createDiv("hearth-result-icon"), hit.tag ? "tag" : iconForFile(hit.file));
 
 			const text = row.createDiv("hearth-result-text");
 			const name =
 				hit.file instanceof TFile ? hit.file.basename : hit.file.name;
 			text.createDiv("hearth-result-name").setText(name || "/");
-			const parentPath = hit.file.parent?.path;
-			if (parentPath && parentPath !== "/") {
-				text.createDiv("hearth-result-path").setText(parentPath);
+			// Tag hits show which tag actually matched instead of the folder path
+			// — the point of the badge is to make the match reason visible.
+			if (hit.tag) {
+				text.createDiv({ cls: "hearth-result-tag", text: hit.tag });
+			} else {
+				const parentPath = hit.file.parent?.path;
+				if (parentPath && parentPath !== "/") {
+					text.createDiv("hearth-result-path").setText(parentPath);
+				}
 			}
 
 			const open = () => this.openFile(hit.file);

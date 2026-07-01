@@ -232,6 +232,13 @@
 	font-size: 0.78rem;
 }
 
+/* Shown on tag-search hits instead of the folder path, so it's visible which
+ * tag actually matched. */
+.hearth-result-tag {
+	color: var(--interactive-accent);
+	font-size: 0.78rem;
+}
+
 .hearth-search-empty {
 	padding: 12px;
 	text-align: center;
