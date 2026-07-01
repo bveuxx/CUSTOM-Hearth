@@ -1,7 +1,8 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type HearthPlugin from "./main";
 import { FILE_TYPE_GROUPS } from "./filetypes";
-import { BackgroundKind } from "./types";
+import { CommandPickerModal } from "./pickers";
+import { BackgroundKind, defaultMobileActionButtons, MobileActionButton } from "./types";
 import { exportLayout, importLayout } from "./layout";
 
 const BACKGROUND_LABELS: Record<BackgroundKind, string> = {
@@ -32,6 +33,7 @@ export class HomeSettingTab extends PluginSettingTab {
 		this.appearanceSection(containerEl);
 		this.backgroundSection(containerEl);
 		this.behaviourSection(containerEl);
+		this.mobileActionsSection(containerEl);
 		this.filtersSection(containerEl);
 		this.dashboardSection(containerEl);
 		this.layoutSection(containerEl);
@@ -220,6 +222,119 @@ export class HomeSettingTab extends PluginSettingTab {
 					await this.save();
 				}),
 			);
+	}
+
+	// ---- Mobile action bar ----------------------------------------------
+
+	private mobileActionsSection(containerEl: HTMLElement): void {
+		new Setting(containerEl)
+			.setName("Mobile action bar")
+			.setDesc(
+				"In Mobile mode (search only), this row of buttons replaces the " +
+					"“New note” button beside the search bar, appearing under the " +
+					"search field and filters instead. Any button can be pointed at " +
+					"any command.",
+			)
+			.setHeading();
+		const s = this.plugin.settings;
+
+		new Setting(containerEl)
+			.setName("Show action bar")
+			.addToggle((t) =>
+				t.setValue(s.showMobileActionBar).onChange(async (v) => {
+					s.showMobileActionBar = v;
+					await this.save();
+				}),
+			);
+
+		const buttons = s.mobileActionButtons;
+		buttons.forEach((btn, index) => {
+			const row = new Setting(containerEl).setClass("hearth-link-setting");
+			row.addText((t) =>
+				t.setPlaceholder("Label").setValue(btn.label).onChange(async (v) => {
+					btn.label = v;
+					await this.save();
+				}),
+			);
+			row.addText((t) =>
+				t.setPlaceholder("Icon").setValue(btn.icon).onChange(async (v) => {
+					btn.icon = v;
+					await this.save();
+				}),
+			);
+			row.addExtraButton((b) =>
+				b
+					.setIcon("terminal-square")
+					.setTooltip(btn.commandId ? `Command: ${btn.commandId}` : "Pick a command")
+					.onClick(() => {
+						new CommandPickerModal(this.app, (command) => {
+							btn.commandId = command.id;
+							if (!btn.label.trim()) btn.label = command.name;
+							void this.save();
+							this.display();
+						}).open();
+					}),
+			);
+			row.addExtraButton((b) =>
+				b
+					.setIcon("chevron-up")
+					.setTooltip("Move up")
+					.setDisabled(index === 0)
+					.onClick(() => this.moveMobileAction(buttons, index, index - 1)),
+			);
+			row.addExtraButton((b) =>
+				b
+					.setIcon("chevron-down")
+					.setTooltip("Move down")
+					.setDisabled(index === buttons.length - 1)
+					.onClick(() => this.moveMobileAction(buttons, index, index + 1)),
+			);
+			row.addExtraButton((b) =>
+				b
+					.setIcon("trash-2")
+					.setTooltip("Remove button")
+					.onClick(async () => {
+						buttons.splice(index, 1);
+						await this.save();
+						this.display();
+					}),
+			);
+		});
+
+		new Setting(containerEl)
+			.addButton((b) =>
+				b.setButtonText("Add button").onClick(() => {
+					new CommandPickerModal(this.app, (command) => {
+						buttons.push({
+							id: `action-${Date.now().toString(36)}`,
+							label: command.name,
+							icon: "terminal-square",
+							commandId: command.id,
+						});
+						void this.save();
+						this.display();
+					}).open();
+				}),
+			)
+			.addExtraButton((b) =>
+				b
+					.setIcon("rotate-ccw")
+					.setTooltip("Reset to defaults")
+					.onClick(async () => {
+						s.mobileActionButtons = defaultMobileActionButtons();
+						await this.save();
+						this.display();
+					}),
+			);
+	}
+
+	/** Move a mobile action button within the list, then persist and redraw. */
+	private moveMobileAction(arr: MobileActionButton[], from: number, to: number): void {
+		if (to < 0 || to >= arr.length) return;
+		const [item] = arr.splice(from, 1);
+		arr.splice(to, 0, item);
+		void this.save();
+		this.display();
 	}
 
 	// ---- Filters --------------------------------------------------------

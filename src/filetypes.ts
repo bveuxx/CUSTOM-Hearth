@@ -17,6 +17,9 @@ export const FOLDERS_GROUP_ID = "folders";
 export const EXCALIDRAW_GROUP_ID = "excalidraw";
 export const OTHER_GROUP_ID = "other";
 
+/** Community plugin id for Excalidraw (used to detect drawing support). */
+export const EXCALIDRAW_PLUGIN_ID = "obsidian-excalidraw-plugin";
+
 export const FILE_TYPE_GROUPS: FileTypeGroup[] = [
 	{ id: FOLDERS_GROUP_ID, label: "Folders", icon: "folder", extensions: [] },
 	{ id: "markdown", label: "Notes", icon: "file-text", extensions: ["md", "markdown"] },

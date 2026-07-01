@@ -10,10 +10,7 @@ import {
 import type { HomeView } from "./view";
 import type { BookmarkItem } from "./obsidian-ext";
 import { ClockConfig, CommandItem, DashboardCard, LinkItem } from "./types";
-import { iconForFile, isExcalidraw } from "./filetypes";
-
-/** Community plugin id for Excalidraw (used to detect drawing support). */
-const EXCALIDRAW_PLUGIN_ID = "obsidian-excalidraw-plugin";
+import { EXCALIDRAW_PLUGIN_ID, iconForFile, isExcalidraw } from "./filetypes";
 
 /** Render a card's body based on its kind. */
 export function renderCardBody(

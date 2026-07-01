@@ -42,6 +42,18 @@ export interface ClockConfig {
 	dateFormat?: string;
 }
 
+/** A single button in the mobile action bar (shown under the search bar and
+ * filters in Mobile mode). `commandId` is any registered Obsidian command id
+ * — Hearth's own defaults (new note, new drawing, record voice, open daily
+ * note) are registered as ordinary commands too, so any button can be
+ * replaced with any command from any plugin. */
+export interface MobileActionButton {
+	id: string;
+	label: string;
+	icon: string;
+	commandId: string;
+}
+
 /** A single tile inside a "links" (launchpad) card. */
 export interface LinkItem {
 	id: string;
@@ -162,6 +174,11 @@ export interface HomeSettings {
 	/** On mobile, show only the search field and hide the dashboard. Has no
 	 * effect on desktop, where the full dashboard is always shown. */
 	mobileSearchOnly: boolean;
+	/** In Mobile mode, show the customizable action button row under the
+	 * search bar and filters instead of the "New note" button beside search. */
+	showMobileActionBar: boolean;
+	/** Buttons shown in the mobile action bar. */
+	mobileActionButtons: MobileActionButton[];
 
 	// ---- Appearance (layout density) ----
 	/** Tighten card and top-of-page spacing to enlarge the usable area. */
@@ -206,6 +223,10 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	openOnStartup: true,
 	replaceNewTabs: true,
 	mobileSearchOnly: false,
+	showMobileActionBar: true,
+	// Backfilled by migrateSettings so a fresh install gets the defaults below
+	// and existing vaults aren't silently reset if the list is emptied.
+	mobileActionButtons: [],
 
 	compact: false,
 
@@ -232,6 +253,18 @@ function starterCards(): DashboardCard[] {
 		{ id: "card-bookmarks", kind: "bookmarks", title: "Bookmarks", x: 6, y: 2, w: 6, h: 2 },
 		{ id: "card-image", kind: "embed", title: "Embedded image", target: "", x: 6, y: 4, w: 3, h: 2 },
 		{ id: "card-favorites", kind: "favorites", title: "Favorites", x: 9, y: 4, w: 3, h: 2 },
+	];
+}
+
+/** The mobile action bar's default buttons. Each `commandId` is a command
+ * Hearth registers itself, so replacing one via the command picker works
+ * exactly like swapping in any other plugin's command. */
+export function defaultMobileActionButtons(): MobileActionButton[] {
+	return [
+		{ id: "action-new-note", label: "New note", icon: "plus", commandId: "hearth:new-note" },
+		{ id: "action-new-drawing", label: "New drawing", icon: "pen-tool", commandId: "hearth:new-drawing" },
+		{ id: "action-record-voice", label: "Record voice", icon: "mic", commandId: "hearth:record-voice" },
+		{ id: "action-daily-note", label: "Daily note", icon: "calendar", commandId: "hearth:open-daily-note" },
 	];
 }
 
@@ -332,6 +365,11 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 	}
 	if (typeof s.rowHeight !== "number" || s.rowHeight <= 0) s.rowHeight = 92;
 	if (!Array.isArray(s.pinnedCards)) s.pinnedCards = [];
+	// Seed the default buttons only if the field was never persisted, so an
+	// intentionally emptied list (all buttons removed) isn't reset on reload.
+	if (!Array.isArray(raw.mobileActionButtons)) {
+		s.mobileActionButtons = defaultMobileActionButtons();
+	}
 	// Drop the obsolete single-board field so it can't shadow the dashboards.
 	delete (s as unknown as { cards?: unknown }).cards;
 }

@@ -104,6 +104,12 @@ embed notes, images, bases, bookmarks and quick text.
 ### Mobile
 - **Mobile mode** — an optional search-only launcher: on phones and tablets the
   dashboard collapses to just the search field (desktop is unaffected).
+- **Mobile action bar** — in Mobile mode, the “New note” button moves out from
+  beside the search bar into a row of buttons under the search field and
+  filters, pinned to the bottom quarter of the screen. Ships with **New
+  note**, **New drawing** (Excalidraw), **Record voice** (core Audio
+  recorder) and **Open daily note**, but every button can be swapped for any
+  command from the same picker used by the Commands card.
 
 ## Usage
 - Hearth opens automatically on startup and replaces empty new tabs (both
@@ -188,6 +194,10 @@ into `<vault>/.obsidian/plugins/hearth/`.
 - [x] **Open-note button** — a hideable button on the daily-note card
 - [x] **Analogue clock & richer dates** — analogue face, more date formats
   (incl. custom), and optional playful greetings
+- [x] **Mobile action bar** — a customizable row of buttons (New note, New
+  drawing, Record voice, Open daily note by default) pinned to the bottom
+  quarter of the screen in Mobile mode, each button replaceable with any
+  command
 ### Planned
 
 Bigger ideas

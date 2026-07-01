@@ -874,6 +874,57 @@
 	gap: 20px;
 }
 
+/* ---- Mobile action bar (Mobile mode) --------------------------------- */
+
+/* Pinned to the bottom quarter of the screen, independent of the centred
+ * search/filters above it (a sibling of .hearth-inner inside .hearth-scroll,
+ * which is position: relative). */
+.hearth-mobile-actions {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	min-height: 25%;
+	display: flex;
+	flex-wrap: wrap;
+	align-content: center;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	padding: 12px 24px calc(env(safe-area-inset-bottom, 0px) + 12px);
+}
+
+.hearth-mobile-action {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	height: 48px;
+	padding: 0 16px;
+	border-radius: 14px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	font-size: 0.92rem;
+	white-space: nowrap;
+	transition: background 120ms ease, border-color 120ms ease;
+}
+
+.hearth-mobile-action:hover {
+	background: var(--background-modifier-hover);
+	border-color: var(--interactive-accent);
+}
+
+.hearth-mobile-action-icon {
+	display: flex;
+}
+
+/* Hide while the on-screen keyboard is up so it doesn't sit on top of it or
+ * cover the search results dropdown. */
+.hearth-view.hearth-kbd-open .hearth-mobile-actions {
+	display: none;
+}
+
 /* ---- Empty board (no cards): centre the search like a launcher ------ */
 
 /* Make the scroll a flex column so the inner can reliably fill its height. */

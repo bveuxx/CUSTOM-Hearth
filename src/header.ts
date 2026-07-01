@@ -1,12 +1,15 @@
-import { setIcon } from "obsidian";
+import { Platform, setIcon } from "obsidian";
 import type { HomeView } from "./view";
 import { SearchSection } from "./search";
 import { HEARTH_ICON_ID } from "./icon";
 
 /** Renders the title/logo, the search bar with the New-note button, and the
- * auto-detected filter row. */
+ * auto-detected filter row. In Mobile mode, the New-note button is left out
+ * here — it moves into the mobile action bar rendered below (see
+ * mobileactions.ts), along with the rest of that customizable button row. */
 export function renderHeader(view: HomeView, container: HTMLElement): void {
 	const s = view.plugin.settings;
+	const mobileOnly = Platform.isMobile && s.mobileSearchOnly;
 
 	if (s.showTitle) {
 		const titleRow = container.createDiv("hearth-title");
@@ -31,7 +34,7 @@ export function renderHeader(view: HomeView, container: HTMLElement): void {
 	const searchRow = searchWrap.createDiv("hearth-search");
 	const bar = search.renderBar(searchRow);
 
-	if (s.showNewNoteButton) {
+	if (s.showNewNoteButton && !mobileOnly) {
 		const btn = searchRow.createEl("button", {
 			cls: "hearth-newnote",
 			attr: { "aria-label": "Create new note" },

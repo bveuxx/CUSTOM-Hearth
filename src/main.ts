@@ -3,6 +3,10 @@ import { HomeView, VIEW_TYPE_HOME } from "./view";
 import { DEFAULT_SETTINGS, HomeSettings, migrateSettings } from "./types";
 import { HomeSettingTab } from "./settings";
 import { HEARTH_ICON_ID, HEARTH_ICON_SVG } from "./icon";
+import { EXCALIDRAW_PLUGIN_ID } from "./filetypes";
+
+/** Core "Audio recorder" plugin id, used by the "Record voice" mobile action. */
+const AUDIO_RECORDER_PLUGIN_ID = "audio-recorder";
 
 export default class HearthPlugin extends Plugin {
 	settings: HomeSettings;
@@ -28,6 +32,24 @@ export default class HearthPlugin extends Plugin {
 			id: "new-note",
 			name: "Create new note (default location)",
 			callback: () => this.createNewNote(),
+		});
+
+		this.addCommand({
+			id: "new-drawing",
+			name: "Create new Excalidraw drawing",
+			callback: () => this.createNewDrawing(),
+		});
+
+		this.addCommand({
+			id: "record-voice",
+			name: "Start/stop voice recording",
+			callback: () => this.recordVoice(),
+		});
+
+		this.addCommand({
+			id: "open-daily-note",
+			name: "Open today's daily note",
+			callback: () => this.openDailyNote(),
 		});
 
 		this.registerDashboardCommands();
@@ -134,6 +156,57 @@ export default class HearthPlugin extends Plugin {
 				new Notice("Hearth: could not create a new note.");
 				console.error("Hearth new note error", err);
 			}
+		}
+	}
+
+	/** Create a new Excalidraw drawing via the Excalidraw plugin's own "new
+	 * drawing" command (its id isn't part of any stable API, so it's matched
+	 * by prefix + name rather than hardcoded). */
+	createNewDrawing() {
+		if (!this.app.plugins.enabledPlugins.has(EXCALIDRAW_PLUGIN_ID)) {
+			new Notice("Hearth: enable the Excalidraw plugin to create drawings.");
+			return;
+		}
+		const cmd = this.app.commands
+			.listCommands()
+			.find((c) => c.id.startsWith(`${EXCALIDRAW_PLUGIN_ID}:`) && /new/i.test(c.name));
+		if (!cmd || !this.app.commands.executeCommandById(cmd.id)) {
+			new Notice('Hearth: couldn\'t find Excalidraw\'s "new drawing" command.');
+		}
+	}
+
+	/** Start/stop voice recording via the core Audio recorder plugin. */
+	recordVoice() {
+		const plugin = this.app.internalPlugins.getPluginById(AUDIO_RECORDER_PLUGIN_ID);
+		if (!plugin?.enabled) {
+			new Notice("Hearth: enable the core Audio recorder plugin.");
+			return;
+		}
+		const cmd = this.app.commands
+			.listCommands()
+			.find((c) => c.id.startsWith(`${AUDIO_RECORDER_PLUGIN_ID}:`));
+		if (!cmd || !this.app.commands.executeCommandById(cmd.id)) {
+			new Notice("Hearth: couldn't start voice recording.");
+		}
+	}
+
+	/** Open today's daily note via the core Daily notes plugin. */
+	openDailyNote() {
+		const plugin = this.app.internalPlugins.getPluginById("daily-notes");
+		if (!plugin?.enabled) {
+			new Notice("Hearth: enable the core Daily notes plugin.");
+			return;
+		}
+		if (!this.app.commands.executeCommandById("daily-notes")) {
+			new Notice("Hearth: couldn't open today's daily note.");
+		}
+	}
+
+	/** Run any command by id, surfacing a Notice if it no longer resolves (e.g.
+	 * the plugin providing it was disabled). Used by the mobile action bar. */
+	runCommandOrNotice(commandId: string) {
+		if (!commandId || !this.app.commands.executeCommandById(commandId)) {
+			new Notice(`Hearth: command not found: ${commandId}`);
 		}
 	}
 

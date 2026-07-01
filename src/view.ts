@@ -3,6 +3,7 @@ import type HearthPlugin from "./main";
 import { renderHeader } from "./header";
 import { renderDashboard } from "./dashboard";
 import { renderDashboardSwitcher } from "./dashboards";
+import { renderMobileActionBar } from "./mobileactions";
 import { applyBackground } from "./background";
 import { renderCards } from "./types";
 import { HEARTH_ICON_ID } from "./icon";
@@ -123,6 +124,11 @@ export class HomeView extends ItemView {
 		if (!mobileOnly) {
 			const dashboard = inner.createDiv("hearth-dashboard");
 			renderDashboard(this, dashboard, child);
+		} else if (this.plugin.settings.showMobileActionBar) {
+			// Pinned to the scroll area (not the flex flow shared with `inner`) so
+			// it sits in the bottom quarter of the screen regardless of how the
+			// centred header above it is sized.
+			renderMobileActionBar(this, scroll);
 		}
 	}
 }
