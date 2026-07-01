@@ -4,7 +4,7 @@ import {
 	getAllTags,
 	MarkdownRenderer,
 	MarkdownView,
-	moment,
+	moment as createMoment,
 	Notice,
 	setIcon,
 	TFile,
@@ -15,10 +15,32 @@ import type { BookmarkItem } from "./obsidian-ext";
 import { ClockConfig, CommandItem, DashboardCard, LinkItem, TasksConfig } from "./types";
 import { EXCALIDRAW_PLUGIN_ID, iconForFile, isExcalidraw } from "./filetypes";
 
-// moment is bundled with Obsidian, not a direct dependency — derive its
-// instance type from the "obsidian"-exported value instead of importing the
-// "moment" package directly.
-type Moment = ReturnType<typeof moment>;
+/**
+ * moment is bundled with Obsidian, not a direct dependency, so it's imported
+ * from "obsidian" rather than the "moment" package. Some toolchains resolve
+ * that export's type as `any` (no @types/moment in scope), which would make
+ * every call/member-access on it "unsafe" — asserting it to this minimal,
+ * explicitly-typed surface (the only bits of the Moment API this file uses)
+ * keeps every use provably non-`any` regardless of the toolchain.
+ */
+interface Moment {
+	format(fmt?: string): string;
+	clone(): Moment;
+	startOf(unit: string): Moment;
+	endOf(unit: string): Moment;
+	subtract(amount: number, unit: string): Moment;
+	add(amount: number, unit: string): Moment;
+	day(): number;
+	day(value: number): Moment;
+	date(): number;
+	month(): number;
+	diff(other: Moment, unit?: string): number;
+}
+interface MomentFn {
+	(input?: Date): Moment;
+	localeData(): { firstDayOfWeek(): number };
+}
+const moment: MomentFn = createMoment as unknown as MomentFn;
 
 /** Community plugin id for TaskNotes (used by "tasks" cards in TaskNotes mode). */
 const TASKNOTES_PLUGIN_ID = "tasknotes";
