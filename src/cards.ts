@@ -10,11 +10,15 @@ import {
 	TFile,
 	TFolder,
 } from "obsidian";
-import type { Moment } from "moment";
 import type { HomeView } from "./view";
 import type { BookmarkItem } from "./obsidian-ext";
 import { ClockConfig, CommandItem, DashboardCard, LinkItem, TasksConfig } from "./types";
 import { EXCALIDRAW_PLUGIN_ID, iconForFile, isExcalidraw } from "./filetypes";
+
+// moment is bundled with Obsidian, not a direct dependency — derive its
+// instance type from the "obsidian"-exported value instead of importing the
+// "moment" package directly.
+type Moment = ReturnType<typeof moment>;
 
 /** Community plugin id for TaskNotes (used by "tasks" cards in TaskNotes mode). */
 const TASKNOTES_PLUGIN_ID = "tasknotes";
@@ -389,7 +393,7 @@ function renderCalendar(view: HomeView, body: HTMLElement): void {
 	}
 
 	const wrap = body.createDiv("hearth-calendar");
-	let cursor = moment().startOf("month");
+	let cursor: Moment = moment().startOf("month");
 
 	const draw = () => {
 		wrap.empty();
@@ -450,7 +454,7 @@ function renderCalendarGrid(
 	const gridStart = monthStart.clone().subtract((monthStart.day() - startOfWeek + 7) % 7, "days");
 	const totalCells = Math.ceil((monthEnd.diff(gridStart, "days") + 1) / 7) * 7;
 
-	const today = moment().format("YYYY-MM-DD");
+	const today: string = moment().format("YYYY-MM-DD");
 	for (let i = 0; i < totalCells; i++) {
 		const day = gridStart.clone().add(i, "days");
 		const path = dailyNotePath(day, options);
@@ -528,7 +532,7 @@ function dailyNoteStreak(view: HomeView): number | null {
 	const options = dailyNotesOptions(view);
 	if (!options) return null;
 
-	let day = moment();
+	let day: Moment = moment();
 	if (!(view.app.vault.getAbstractFileByPath(dailyNotePath(day, options)) instanceof TFile)) {
 		day = day.clone().subtract(1, "day");
 	}
@@ -904,7 +908,7 @@ async function loadAndRenderTasks(
 		return;
 	}
 
-	const today = moment().format("YYYY-MM-DD");
+	const today: string = moment().format("YYYY-MM-DD");
 	for (const hit of hits) {
 		const row = listEl.createDiv("hearth-list-item hearth-task");
 		row.toggleClass("is-done", hit.done);
@@ -976,7 +980,7 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 		const fm = view.app.metadataCache.getFileCache(file)?.frontmatter;
 		if (!fm || !(statusField in fm)) continue;
 		const status = String(fm[statusField] ?? "");
-		const due = typeof fm[dueField] === "string" ? fm[dueField] : null;
+		const due: string | null = typeof fm[dueField] === "string" ? String(fm[dueField]) : null;
 		hits.push({
 			file,
 			line: -1,
@@ -1049,12 +1053,16 @@ function formatClockDate(now: Date, mode: NonNullable<ClockConfig["dateMode"]>, 
 			return now.toLocaleDateString(undefined, { dateStyle: "short" });
 		case "long":
 			return now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-		case "iso":
-			return moment(now).format("YYYY-MM-DD");
+		case "iso": {
+			const iso: string = moment(now).format("YYYY-MM-DD");
+			return iso;
+		}
 		case "weekday":
 			return now.toLocaleDateString(undefined, { weekday: "long" });
-		case "custom":
-			return custom?.trim() ? moment(now).format(custom) : "";
+		case "custom": {
+			const formatted: string = custom?.trim() ? moment(now).format(custom) : "";
+			return formatted;
+		}
 		case "full":
 		default:
 			return now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
@@ -1062,7 +1070,7 @@ function formatClockDate(now: Date, mode: NonNullable<ClockConfig["dateMode"]>, 
 }
 
 function svgEl(parent: Element, tag: string, attrs: Record<string, string>, cls?: string): SVGElement {
-	const el = parent.ownerDocument.createElementNS("http://www.w3.org/2000/svg", tag) as SVGElement;
+	const el = parent.ownerDocument.createElementNS("http://www.w3.org/2000/svg", tag);
 	for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
 	if (cls) el.setAttribute("class", cls);
 	parent.appendChild(el);
