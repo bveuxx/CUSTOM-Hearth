@@ -232,9 +232,9 @@
 	font-size: 0.78rem;
 }
 
-/* Shown on tag-search hits instead of the folder path, so it's visible which
- * tag actually matched. */
-.hearth-result-tag {
+/* Shown on tag/property-search hits instead of the folder path, so it's
+ * visible what actually matched. */
+.hearth-result-badge {
 	color: var(--interactive-accent);
 	font-size: 0.78rem;
 }

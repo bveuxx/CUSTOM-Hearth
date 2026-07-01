@@ -18,12 +18,27 @@ import {
 interface SearchHit {
 	file: TAbstractFile;
 	score: number;
-	/** Set when this hit matched because of a tag, not its name/path — shown
-	 * as a badge so it's obvious why it's in the results. */
-	tag?: string;
+	/** Set when this hit matched via a tag or frontmatter property, not its
+	 * name/path — shown instead of the folder path so it's obvious why it's
+	 * in the results, and picks the result's icon. */
+	badge?: { icon: string; label: string };
 }
 
+/** Property keys are matched as plain identifiers (letters/digits/_/-)
+ * followed by a colon — a shape real file names can't take (":" isn't a
+ * legal filename character on Windows/macOS), so it never collides with a
+ * name search. */
+const PROPERTY_QUERY = /^([a-zA-Z0-9_-]+)\s*:\s*(.*)$/;
+
 const MAX_RESULTS = 40;
+
+/** Stringify a frontmatter value for display/matching (arrays are handled by
+ * the caller, one element at a time). */
+function formatPropertyValue(v: unknown): string {
+	if (v == null) return "";
+	if (typeof v === "object") return JSON.stringify(v);
+	return String(v);
+}
 /** Recently opened-via-search files, kept in the vault's local storage (never
  * in settings/data.json) so it stays out of the settings UI and layout
  * export entirely — a quiet convenience, not a feature to configure. */
@@ -172,10 +187,12 @@ export class SearchSection {
 	}
 
 	private search(query: string): SearchHit[] {
-		// A leading "#" switches to tag search — deliberately a distinct mode
-		// (not silently mixed into name search) so it's always clear whether
-		// you're searching file names or tags.
+		// A leading "#" switches to tag search, and "key:value" switches to
+		// frontmatter property search — both deliberately distinct modes (not
+		// silently mixed into name search) so it's always clear what matched.
 		if (query.startsWith("#")) return this.searchByTag(query.slice(1));
+		const propertyQuery = PROPERTY_QUERY.exec(query);
+		if (propertyQuery) return this.searchByProperty(propertyQuery[1], propertyQuery[2]);
 
 		const filter = this.activeFilter;
 		const includeFolders = !filter || filter === "folders";
@@ -224,7 +241,31 @@ export class SearchSection {
 			const tags = getAllTags(cache);
 			if (!tags || tags.length === 0) continue;
 			const matched = q ? tags.find((t) => t.slice(1).toLowerCase().includes(q)) : tags[0];
-			if (matched) hits.push({ file, score: 0, tag: matched });
+			if (matched) hits.push({ file, score: 0, badge: { icon: "tag", label: matched } });
+		}
+		hits.sort((a, b) => a.file.name.localeCompare(b.file.name));
+		return hits.slice(0, MAX_RESULTS);
+	}
+
+	/** Frontmatter property search ("key" and "value" already split on the
+	 * first ":"). The key matches exactly (case-insensitive) — property names
+	 * are structured identifiers, not fuzzy text — and an empty value browses
+	 * every file that has the property set at all, mirroring tag search. */
+	private searchByProperty(key: string, rawValue: string): SearchHit[] {
+		const value = rawValue.trim().toLowerCase();
+		const hits: SearchHit[] = [];
+		for (const file of this.view.app.vault.getMarkdownFiles()) {
+			const fm = this.view.app.metadataCache.getFileCache(file)?.frontmatter;
+			if (!fm) continue;
+			const actualKey = Object.keys(fm).find((k) => k.toLowerCase() === key.toLowerCase());
+			if (!actualKey || fm[actualKey] == null) continue;
+
+			const values = Array.isArray(fm[actualKey]) ? fm[actualKey] : [fm[actualKey]];
+			const matched = value
+				? values.find((v: unknown) => formatPropertyValue(v).toLowerCase().includes(value))
+				: values[0];
+			if (matched === undefined) continue;
+			hits.push({ file, score: 0, badge: { icon: "list", label: `${actualKey}: ${formatPropertyValue(matched)}` } });
 		}
 		hits.sort((a, b) => a.file.name.localeCompare(b.file.name));
 		return hits.slice(0, MAX_RESULTS);
@@ -245,16 +286,16 @@ export class SearchSection {
 
 		hits.forEach((hit) => {
 			const row = this.resultsEl.createDiv("hearth-result");
-			setIcon(row.createDiv("hearth-result-icon"), hit.tag ? "tag" : iconForFile(hit.file));
+			setIcon(row.createDiv("hearth-result-icon"), hit.badge?.icon ?? iconForFile(hit.file));
 
 			const text = row.createDiv("hearth-result-text");
 			const name =
 				hit.file instanceof TFile ? hit.file.basename : hit.file.name;
 			text.createDiv("hearth-result-name").setText(name || "/");
-			// Tag hits show which tag actually matched instead of the folder path
-			// — the point of the badge is to make the match reason visible.
-			if (hit.tag) {
-				text.createDiv({ cls: "hearth-result-tag", text: hit.tag });
+			// Tag/property hits show what actually matched instead of the folder
+			// path — the point of the badge is to make the match reason visible.
+			if (hit.badge) {
+				text.createDiv({ cls: "hearth-result-badge", text: hit.badge.label });
 			} else {
 				const parentPath = hit.file.parent?.path;
 				if (parentPath && parentPath !== "/") {
