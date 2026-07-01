@@ -897,6 +897,40 @@
 	background: var(--text-normal);
 }
 
+/* Vault statistics card */
+.hearth-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+	gap: 10px;
+	height: 100%;
+	align-content: center;
+}
+
+.hearth-stat {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	text-align: center;
+}
+
+.hearth-stat-icon {
+	display: flex;
+	color: var(--text-muted);
+}
+
+.hearth-stat-value {
+	font-size: 1.3rem;
+	font-weight: 700;
+	color: var(--text-normal);
+}
+
+.hearth-stat-label {
+	font-size: 0.72rem;
+	color: var(--text-faint);
+}
+
 /* ---- Toolbar -------------------------------------------------------- */
 
 .hearth-toolbar {

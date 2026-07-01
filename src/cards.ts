@@ -1,12 +1,14 @@
 import {
 	Component,
 	debounce,
+	getAllTags,
 	MarkdownRenderer,
 	MarkdownView,
 	moment,
 	Notice,
 	setIcon,
 	TFile,
+	TFolder,
 } from "obsidian";
 import type { Moment } from "moment";
 import type { HomeView } from "./view";
@@ -60,6 +62,9 @@ export function renderCardBody(
 			break;
 		case "calendar":
 			renderCalendar(view, body);
+			break;
+		case "stats":
+			renderStats(view, body);
 			break;
 	}
 }
@@ -471,6 +476,70 @@ function renderCalendarGrid(
 			}
 		});
 	}
+}
+
+// ---- Vault statistics -----------------------------------------------------
+
+/** Cheap vault stats — everything here comes from the already-loaded vault
+ * index and metadata cache, never a file read, so it's fast even on large
+ * vaults. */
+function renderStats(view: HomeView, body: HTMLElement): void {
+	const vault = view.app.vault;
+	let notes = 0;
+	let attachments = 0;
+	let folders = 0;
+	for (const f of vault.getAllLoadedFiles()) {
+		if (f instanceof TFolder) {
+			if (f.path !== "/") folders++;
+		} else if (f instanceof TFile) {
+			if (f.extension.toLowerCase() === "md") notes++;
+			else attachments++;
+		}
+	}
+
+	const tags = new Set<string>();
+	for (const file of vault.getMarkdownFiles()) {
+		const cache = view.app.metadataCache.getFileCache(file);
+		if (!cache) continue;
+		for (const t of getAllTags(cache) ?? []) tags.add(t.toLowerCase());
+	}
+
+	const grid = body.createDiv("hearth-stats");
+	addStat(grid, "file-text", notes, "Notes");
+	addStat(grid, "paperclip", attachments, "Attachments");
+	addStat(grid, "folder", folders, "Folders");
+	addStat(grid, "tag", tags.size, "Tags");
+
+	const streak = dailyNoteStreak(view);
+	if (streak !== null) addStat(grid, "flame", streak, "Day streak");
+}
+
+function addStat(grid: HTMLElement, icon: string, value: number, label: string): void {
+	const cell = grid.createDiv("hearth-stat");
+	setIcon(cell.createDiv("hearth-stat-icon"), icon);
+	cell.createDiv({ cls: "hearth-stat-value", text: String(value) });
+	cell.createDiv({ cls: "hearth-stat-label", text: label });
+}
+
+/** Consecutive days with an existing daily note, counting back from today —
+ * or from yesterday if today's isn't written yet, so an otherwise-unbroken
+ * streak doesn't read as zero just because the day isn't over. */
+function dailyNoteStreak(view: HomeView): number | null {
+	const options = dailyNotesOptions(view);
+	if (!options) return null;
+
+	let day = moment();
+	if (!(view.app.vault.getAbstractFileByPath(dailyNotePath(day, options)) instanceof TFile)) {
+		day = day.clone().subtract(1, "day");
+	}
+
+	let streak = 0;
+	while (view.app.vault.getAbstractFileByPath(dailyNotePath(day, options)) instanceof TFile) {
+		streak++;
+		day = day.clone().subtract(1, "day");
+		if (streak > 3650) break;
+	}
+	return streak;
 }
 
 // ---- Web / iframe embed -------------------------------------------------
