@@ -798,6 +798,105 @@
 	fill: var(--interactive-accent);
 }
 
+/* Mini calendar card */
+.hearth-calendar {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	gap: 8px;
+}
+
+.hearth-calendar-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.hearth-calendar-nav {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	border-radius: 7px;
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.hearth-calendar-nav:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.hearth-calendar-label {
+	font-weight: 600;
+	font-size: 0.92rem;
+	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.hearth-calendar-grid {
+	display: grid;
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 2px;
+	flex: 1;
+}
+
+.hearth-calendar-dow {
+	text-align: center;
+	font-size: 0.7rem;
+	color: var(--text-faint);
+	padding-bottom: 4px;
+}
+
+.hearth-calendar-day {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 2px;
+	border-radius: 7px;
+	cursor: pointer;
+	min-height: 28px;
+}
+
+.hearth-calendar-day:hover {
+	background: var(--background-modifier-hover);
+}
+
+.hearth-calendar-daynum {
+	font-size: 0.82rem;
+	color: var(--text-normal);
+}
+
+.hearth-calendar-day.is-outside .hearth-calendar-daynum {
+	color: var(--text-faint);
+}
+
+.hearth-calendar-day.is-today .hearth-calendar-daynum {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+	border-radius: 999px;
+	width: 20px;
+	height: 20px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.hearth-calendar-dot {
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: var(--interactive-accent);
+}
+
+.hearth-calendar-day.is-today .hearth-calendar-dot {
+	background: var(--text-normal);
+}
+
 /* ---- Toolbar -------------------------------------------------------- */
 
 .hearth-toolbar {

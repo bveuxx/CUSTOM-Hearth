@@ -96,6 +96,12 @@ export const CARD_TEMPLATES: CardTemplate[] = [
 		build: () => ({ kind: "tasks", title: "Tasks", tasks: {}, w: 4, h: 4 }),
 	},
 	{
+		id: "calendar",
+		name: "Mini calendar",
+		icon: "calendar-days",
+		build: () => ({ kind: "calendar", title: "Calendar", w: 4, h: 4 }),
+	},
+	{
 		id: "text",
 		name: "Text / jot-down",
 		icon: "pencil",

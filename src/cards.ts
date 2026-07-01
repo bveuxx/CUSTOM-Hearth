@@ -8,6 +8,7 @@ import {
 	setIcon,
 	TFile,
 } from "obsidian";
+import type { Moment } from "moment";
 import type { HomeView } from "./view";
 import type { BookmarkItem } from "./obsidian-ext";
 import { ClockConfig, CommandItem, DashboardCard, LinkItem, TasksConfig } from "./types";
@@ -56,6 +57,9 @@ export function renderCardBody(
 			break;
 		case "tasks":
 			renderTasks(view, card, body);
+			break;
+		case "calendar":
+			renderCalendar(view, body);
 			break;
 	}
 }
@@ -273,12 +277,24 @@ interface DailyNotesOptions {
 	folder?: string;
 }
 
-/** Resolve today's daily-note path from the core Daily notes plugin settings. */
-function todaysDailyNotePath(options: DailyNotesOptions): string {
+/** The core Daily notes plugin's options, or null if it's disabled. Shared by
+ * every card that resolves a daily-note path (daily, calendar, stats). */
+function dailyNotesOptions(view: HomeView): DailyNotesOptions | null {
+	const plugin = view.app.internalPlugins.getPluginById("daily-notes");
+	if (!plugin?.enabled) return null;
+	return (plugin.instance as { options?: DailyNotesOptions } | undefined)?.options ?? {};
+}
+
+/** Resolve the daily-note path for an arbitrary date from the core Daily
+ * notes plugin settings. */
+function dailyNotePath(date: Moment, options: DailyNotesOptions): string {
 	const format = (options.format || "").trim() || "YYYY-MM-DD";
 	const folder = (options.folder || "").trim().replace(/^\/+|\/+$/g, "");
-	const stamp = moment().format(format);
-	return `${folder ? `${folder}/` : ""}${stamp}.md`;
+	return `${folder ? `${folder}/` : ""}${date.format(format)}.md`;
+}
+
+function todaysDailyNotePath(options: DailyNotesOptions): string {
+	return dailyNotePath(moment(), options);
 }
 
 /**
@@ -292,13 +308,12 @@ function renderDaily(
 	body: HTMLElement,
 	component: Component,
 ): void {
-	const plugin = view.app.internalPlugins.getPluginById("daily-notes");
-	if (!plugin?.enabled) {
+	const options = dailyNotesOptions(view);
+	if (!options) {
 		emptyState(body, "calendar", "Enable the core Daily notes plugin");
 		return;
 	}
 
-	const options = (plugin.instance as { options?: DailyNotesOptions } | undefined)?.options ?? {};
 	const path = todaysDailyNotePath(options);
 	const file = view.app.vault.getAbstractFileByPath(path);
 
@@ -347,13 +362,115 @@ function renderDaily(
 export function watchedCardPath(view: HomeView, card: DashboardCard): string | null {
 	if (card.kind === "embed") return card.target?.trim() || null;
 	if (card.kind === "daily") {
-		const plugin = view.app.internalPlugins.getPluginById("daily-notes");
-		if (!plugin?.enabled) return null;
-		const options =
-			(plugin.instance as { options?: DailyNotesOptions } | undefined)?.options ?? {};
+		const options = dailyNotesOptions(view);
+		if (!options) return null;
 		return todaysDailyNotePath(options);
 	}
 	return null;
+}
+
+// ---- Mini calendar -------------------------------------------------------
+
+/** A month grid resolved against the core Daily notes plugin's format/folder:
+ * dots mark days with an existing note, clicking one opens it, clicking
+ * today when it doesn't exist yet safely falls back to the core "Open
+ * today's daily note" command (template-aware). Other empty days are left
+ * alone rather than guessing at template handling for arbitrary dates. */
+function renderCalendar(view: HomeView, body: HTMLElement): void {
+	const options = dailyNotesOptions(view);
+	if (!options) {
+		emptyState(body, "calendar-days", "Enable the core Daily notes plugin");
+		return;
+	}
+
+	const wrap = body.createDiv("hearth-calendar");
+	let cursor = moment().startOf("month");
+
+	const draw = () => {
+		wrap.empty();
+		renderCalendarHead(wrap, cursor, {
+			onPrev: () => {
+				cursor = cursor.clone().subtract(1, "month");
+				draw();
+			},
+			onNext: () => {
+				cursor = cursor.clone().add(1, "month");
+				draw();
+			},
+			onToday: () => {
+				cursor = moment().startOf("month");
+				draw();
+			},
+		});
+		renderCalendarGrid(view, wrap, cursor, options);
+	};
+	draw();
+}
+
+function renderCalendarHead(
+	wrap: HTMLElement,
+	cursor: Moment,
+	handlers: { onPrev: () => void; onNext: () => void; onToday: () => void },
+): void {
+	const head = wrap.createDiv("hearth-calendar-head");
+	const prev = head.createEl("button", { cls: "hearth-calendar-nav", attr: { "aria-label": "Previous month" } });
+	setIcon(prev, "chevron-left");
+	prev.addEventListener("click", handlers.onPrev);
+
+	const label = head.createDiv({ cls: "hearth-calendar-label", text: cursor.format("MMMM YYYY") });
+	label.setAttribute("title", "Back to today");
+	label.addEventListener("click", handlers.onToday);
+
+	const next = head.createEl("button", { cls: "hearth-calendar-nav", attr: { "aria-label": "Next month" } });
+	setIcon(next, "chevron-right");
+	next.addEventListener("click", handlers.onNext);
+}
+
+function renderCalendarGrid(
+	view: HomeView,
+	wrap: HTMLElement,
+	cursor: Moment,
+	options: DailyNotesOptions,
+): void {
+	const grid = wrap.createDiv("hearth-calendar-grid");
+	const startOfWeek = moment.localeData().firstDayOfWeek();
+
+	for (let i = 0; i < 7; i++) {
+		const dow = (startOfWeek + i) % 7;
+		grid.createDiv({ cls: "hearth-calendar-dow", text: moment().day(dow).format("dd") });
+	}
+
+	const monthStart = cursor.clone().startOf("month");
+	const monthEnd = cursor.clone().endOf("month");
+	const gridStart = monthStart.clone().subtract((monthStart.day() - startOfWeek + 7) % 7, "days");
+	const totalCells = Math.ceil((monthEnd.diff(gridStart, "days") + 1) / 7) * 7;
+
+	const today = moment().format("YYYY-MM-DD");
+	for (let i = 0; i < totalCells; i++) {
+		const day = gridStart.clone().add(i, "days");
+		const path = dailyNotePath(day, options);
+		const file = view.app.vault.getAbstractFileByPath(path);
+		const isToday = day.format("YYYY-MM-DD") === today;
+
+		const cell = grid.createDiv("hearth-calendar-day");
+		cell.toggleClass("is-outside", day.month() !== cursor.month());
+		cell.toggleClass("is-today", isToday);
+		cell.toggleClass("has-note", file instanceof TFile);
+		cell.createDiv({ cls: "hearth-calendar-daynum", text: String(day.date()) });
+		if (file instanceof TFile) cell.createDiv("hearth-calendar-dot");
+
+		cell.addEventListener("click", () => {
+			if (file instanceof TFile) {
+				void view.app.workspace.getLeaf(true).openFile(file);
+			} else if (isToday) {
+				if (!view.app.commands.executeCommandById("daily-notes")) {
+					new Notice("Hearth: couldn't open today's daily note.");
+				}
+			} else {
+				new Notice(`Hearth: no daily note for ${day.format("MMM D, YYYY")} yet.`);
+			}
+		});
+	}
 }
 
 // ---- Web / iframe embed -------------------------------------------------
