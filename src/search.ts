@@ -177,7 +177,7 @@ export class SearchSection {
 	}
 
 	private getHistory(): string[] {
-		const raw = this.view.app.loadLocalStorage(HISTORY_KEY);
+		const raw: unknown = this.view.app.loadLocalStorage(HISTORY_KEY);
 		return Array.isArray(raw) ? raw.filter((p): p is string => typeof p === "string") : [];
 	}
 
@@ -260,9 +260,9 @@ export class SearchSection {
 			const actualKey = Object.keys(fm).find((k) => k.toLowerCase() === key.toLowerCase());
 			if (!actualKey || fm[actualKey] == null) continue;
 
-			const values = Array.isArray(fm[actualKey]) ? fm[actualKey] : [fm[actualKey]];
+			const values: unknown[] = Array.isArray(fm[actualKey]) ? fm[actualKey] : [fm[actualKey]];
 			const matched = value
-				? values.find((v: unknown) => formatPropertyValue(v).toLowerCase().includes(value))
+				? values.find((v) => formatPropertyValue(v).toLowerCase().includes(value))
 				: values[0];
 			if (matched === undefined) continue;
 			hits.push({ file, score: 0, badge: { icon: "list", label: `${actualKey}: ${formatPropertyValue(matched)}` } });
