@@ -24,6 +24,11 @@ interface SearchHit {
 }
 
 const MAX_RESULTS = 40;
+/** Recently opened-via-search files, kept in the vault's local storage (never
+ * in settings/data.json) so it stays out of the settings UI and layout
+ * export entirely — a quiet convenience, not a feature to configure. */
+const HISTORY_KEY = "hearth-search-history";
+const HISTORY_MAX = 6;
 
 /**
  * The search field + auto-detected file-type filter chips + results dropdown.
@@ -136,10 +141,34 @@ export class SearchSection {
 	private update(): void {
 		const query = this.inputEl.value.trim();
 		if (!query && !this.activeFilter) {
-			this.hide();
+			this.renderHistory();
 			return;
 		}
 		this.renderResults(this.search(query));
+	}
+
+	/** With nothing typed, quietly offer recently opened files instead of an
+	 * empty dropdown — reuses the exact same result row so it looks like an
+	 * ordinary result, not a distinct "history" feature. */
+	private renderHistory(): void {
+		const files = this.getHistory()
+			.map((p) => this.view.app.vault.getAbstractFileByPath(p))
+			.filter((f): f is TFile => f instanceof TFile);
+		if (files.length === 0) {
+			this.hide();
+			return;
+		}
+		this.renderResults(files.map((file) => ({ file, score: 0 })));
+	}
+
+	private getHistory(): string[] {
+		const raw = this.view.app.loadLocalStorage(HISTORY_KEY);
+		return Array.isArray(raw) ? raw.filter((p): p is string => typeof p === "string") : [];
+	}
+
+	private pushHistory(path: string): void {
+		const next = [path, ...this.getHistory().filter((p) => p !== path)].slice(0, HISTORY_MAX);
+		this.view.app.saveLocalStorage(HISTORY_KEY, next);
 	}
 
 	private search(query: string): SearchHit[] {
@@ -272,6 +301,7 @@ export class SearchSection {
 
 	private openFile(file: TAbstractFile): void {
 		if (file instanceof TFile) {
+			this.pushHistory(file.path);
 			void this.view.app.workspace.getLeaf(true).openFile(file);
 			this.hide();
 		} else if (file instanceof TFolder) {
