@@ -27,16 +27,20 @@ export function renderHeader(view: HomeView, container: HTMLElement, component: 
 
 	const search = new SearchSection(view);
 
-	// The search row holds the search column (bar + filters + results overlay)
-	// and the New-note button side by side. Filters live inside the search
-	// column so they span exactly the search field's width, not the button's.
-	const searchRow = container.createDiv("hearth-search");
-	const searchWrap = searchRow.createDiv("hearth-search-wrap");
+	// Layout: the New-note button sits beside a search column. The search column
+	// holds the bar (full width of the column), the filter chips (matching the
+	// bar's width exactly), and the results dropdown (overlaying from the
+	// column). The column is flex:1 so the bar keeps its full width; the button
+	// takes only what it needs. Click-outside dismissal is bound to the column,
+	// so clicking the title, the New-note button, or anywhere off the field
+	// closes the dropdown.
+	const searchWrap = container.createDiv("hearth-search-wrap");
 	const searchCol = searchWrap.createDiv("hearth-search-col");
-	const bar = search.renderBar(searchCol);
+	const searchRow = searchCol.createDiv("hearth-search");
+	const bar = search.renderBar(searchRow);
 
 	if (s.showNewNoteButton && !mobileOnly) {
-		const btn = searchRow.createEl("button", {
+		const btn = searchWrap.createEl("button", {
 			cls: "hearth-newnote",
 			attr: { "aria-label": "Create new note" },
 		});
@@ -45,13 +49,8 @@ export function renderHeader(view: HomeView, container: HTMLElement, component: 
 		btn.addEventListener("click", () => {
 			void view.plugin.createNewNote();
 		});
-		// Keep the New-note button aligned with the search bar width-wise.
 		void bar;
 	}
 
-	// Results dropdown overlays from the search column; filter chips render
-	// under the bar inside the same column (matching its width). Click-outside
-	// dismissal is bound to the search column, so clicking the title, the
-	// New-note button, or anywhere off the search field closes the dropdown.
 	search.renderResultsAndFilters(searchCol, searchCol, component);
 }

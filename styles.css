@@ -78,9 +78,8 @@
 }
 
 /* The search column holds the bar, the filters and the results overlay. It's
- * flex:1 so it matches the search field's width exactly (the New-note button
- * sits beside it, not inside it), and the filters therefore span only the
- * field's width, not the button's. */
+ * flex:1 so the bar keeps its full width (the New-note button sits beside it,
+ * not inside it); the filters therefore span only the bar's width. */
 .hearth-search-col {
 	position: relative;
 	flex: 1 1 auto;
@@ -913,29 +912,33 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	flex: 0 0 28px;
-	width: 28px;
-	height: 28px;
-	border-radius: 7px;
-	border: 1px solid var(--background-modifier-border);
-	background: var(--background-primary);
+	flex: 0 0 32px;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border-radius: 8px;
+	border: none;
+	background: transparent;
 	color: var(--text-normal);
 	cursor: pointer;
 }
 
 .hearth-calendar-nav:hover {
-	background: var(--interactive-accent);
-	color: var(--text-on-accent);
-	border-color: var(--interactive-accent);
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
 }
 
-/* Ensure the chevron glyphs render with a strong, high-contrast stroke so the
-   arrows are clearly visible (not faint) inside the compact nav buttons. */
-.hearth-calendar-nav .svg-icon {
-	width: 18px;
-	height: 18px;
-	stroke-width: 2.5px;
-	color: currentColor;
+/* Lucide chevron glyphs: size and stroke the actual <svg> element (Obsidian's
+   setIcon wraps it in a .svg-icon span, but the inner svg can keep its own
+   width/height; target both so the arrow is fully visible, not a faint dot). */
+.hearth-calendar-nav .svg-icon,
+.hearth-calendar-nav svg {
+	width: 20px;
+	height: 20px;
+	display: flex;
+}
+.hearth-calendar-nav svg {
+	stroke-width: 2px;
 }
 
 .hearth-calendar-label {
@@ -1841,27 +1844,40 @@
 
 .hearth-tile-resize {
 	position: absolute;
-	right: 2px;
-	bottom: 2px;
-	width: 16px;
-	height: 16px;
-	border-radius: 0 0 6px 0;
+	right: 0;
+	bottom: 0;
+	width: 20px;
+	height: 20px;
+	border-radius: 0 0 8px 0;
 	cursor: nwse-resize;
 	opacity: 0;
-	background:
-		linear-gradient(135deg, transparent 50%, var(--text-faint) 50%, var(--text-faint) 62%, transparent 62%, transparent 74%, var(--text-faint) 74%, var(--text-faint) 86%, transparent 86%);
+	/* A clear, high-contrast grip (accent-tinted) so it's obviously a resize
+	   handle, not a faint shimmer. */
+	background: linear-gradient(
+		135deg,
+		transparent 0%,
+		transparent 48%,
+		var(--interactive-accent) 50%,
+		transparent 52%,
+		transparent 68%,
+		var(--interactive-accent) 70%,
+		transparent 72%,
+		transparent 88%,
+		var(--interactive-accent) 90%,
+		transparent 92%
+	);
 	touch-action: none;
+	pointer-events: auto;
 }
 
-/* Only show the per-tile resize grip while the board is in arrange mode. The
-   grip is always visible (not hover-gated) because the card drag overlay sits
-   above the tile body and would otherwise swallow the hover, hiding the grip.
-   The grip itself sits above the drag overlay (z-index 5) so it stays
-   grabbable in arrange mode. */
+/* Always visible in arrange mode (the card drag overlay covers tiles and would
+   otherwise swallow the hover that used to reveal the grip). Sits above the
+   card drag overlay (z-index 5) so it stays grabbable. */
 .hearth-grid.is-arranging .hearth-tile-resize {
-	opacity: 0.8;
+	opacity: 0.9;
+	z-index: 20;
 }
 
-.hearth-grid.is-arranging .hearth-tile-resize {
-	z-index: 8;
+.hearth-grid.is-arranging .hearth-tile-resize:hover {
+	opacity: 1;
 }

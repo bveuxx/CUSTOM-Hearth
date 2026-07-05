@@ -108,23 +108,23 @@ export class SearchSection {
 	private detectGroups(): FileTypeGroup[] {
 		const present = new Set<string>();
 		let hasFolders = false;
-		let hasFiles = false;
+		let hasOther = false;
 		for (const f of this.view.app.vault.getAllLoadedFiles()) {
 			if (f instanceof TFolder) {
 				if (f.path !== "/") hasFolders = true;
 				continue;
 			}
-			hasFiles = true;
 			const g = groupForFile(f);
 			if (g) present.add(g.id);
+			// "Other" is the catch-all: only show it when there's at least one
+			// file that didn't match a more specific group.
+			if (!g || g.id === OTHER_GROUP_ID) hasOther = true;
 		}
 		const hidden = new Set(this.view.plugin.settings.hiddenFilters);
 		return FILE_TYPE_GROUPS.filter((g) => {
 			if (hidden.has(g.id)) return false;
 			if (g.id === "folders") return hasFolders;
-			// "Other" is a catch-all: show it whenever there are any non-folder
-			// files, so unmatched formats are always reachable as a filter.
-			if (g.id === OTHER_GROUP_ID) return hasFiles;
+			if (g.id === OTHER_GROUP_ID) return hasOther;
 			return present.has(g.id);
 		});
 	}
