@@ -12,7 +12,9 @@ export type CardKind =
 	| "clock"
 	| "tasks"
 	| "calendar"
-	| "stats";
+	| "stats"
+	| "search"
+	| "heatmap";
 
 /** A single command tile inside a "commands" card. */
 export interface CommandItem {
@@ -22,6 +24,8 @@ export interface CommandItem {
 	name: string;
 	/** Optional Lucide icon id; falls back to a generic command icon. */
 	icon?: string;
+	/** Optional per-tile pixel size, overriding the card's default tile size. */
+	size?: number;
 }
 
 /** Per-card configuration for a "tasks" card. */
@@ -39,6 +43,34 @@ export interface TasksConfig {
 	showCompleted?: boolean;
 	/** Max tasks shown, soonest/overdue due date first. Default 10. */
 	count?: number;
+	/** "list" (default) renders a flat list; "kanban" groups tasks into status
+	 * columns that tasks can be dragged between. */
+	layout?: "list" | "kanban";
+}
+
+/** Per-card configuration for a "calendar" card. */
+export interface CalendarConfig {
+	/** Show an ISO week-number column down the left edge. */
+	showWeekNumbers?: boolean;
+	/** Tint each day by how many notes were edited that day (a heatmap). */
+	heatmap?: boolean;
+}
+
+/** Per-card configuration for a "search" (saved search) card. */
+export interface SavedSearchConfig {
+	/** The query, using the same syntax as the top search bar (plain text,
+	 * a leading "#" for tags, or "key:value" for frontmatter). */
+	query?: string;
+	/** Max results shown. Default 12. */
+	count?: number;
+}
+
+/** Per-card configuration for a "heatmap" (activity) card. */
+export interface HeatmapConfig {
+	/** Which timestamp to count. Default "modified". */
+	metric?: "modified" | "created";
+	/** How many weeks back to show. Default 26. */
+	weeks?: number;
 }
 
 /** Per-card configuration for a "clock" card. All fields are optional; omitted
@@ -96,6 +128,10 @@ export interface DashboardCard {
 	target?: string;
 	/** kind === "web": the web page URL to embed in an iframe. */
 	url?: string;
+	/** kind === "web": allow the framed page same-origin access. Off by default
+	 * (the safer sandbox); enable only for sites you trust that need cookies or
+	 * local storage to render. */
+	sandboxTrusted?: boolean;
 	/** kind === "text": the jotted-down content. */
 	text?: string;
 	/** kind === "links": the launchpad tiles. */
@@ -108,6 +144,12 @@ export interface DashboardCard {
 	clock?: ClockConfig;
 	/** kind === "tasks": source, folder scope and display options. */
 	tasks?: TasksConfig;
+	/** kind === "calendar": week-number and heatmap display options. */
+	calendar?: CalendarConfig;
+	/** kind === "search": the saved query and result count. */
+	savedSearch?: SavedSearchConfig;
+	/** kind === "heatmap": metric and range. */
+	heatmap?: HeatmapConfig;
 
 	// ---- Live content ----
 	/** Auto-refresh interval in seconds for live content (embed / web). 0 or
@@ -172,6 +214,10 @@ export interface Dashboard {
 	gridColumns?: number;
 	rowHeight?: number;
 	background?: BackgroundConfig;
+	/** Override "fit to page" for this board (undefined = use global). */
+	fitToPage?: boolean;
+	/** Override the content max-width (px) for this board (undefined = global). */
+	maxWidth?: number;
 }
 
 export interface HomeSettings {
@@ -182,6 +228,8 @@ export interface HomeSettings {
 	logo: string;
 	searchPlaceholder: string;
 	showNewNoteButton: boolean;
+	/** Also search inside note bodies (full-text), not just names/tags/properties. */
+	searchContents: boolean;
 
 	// ---- Background ----
 	backgroundKind: BackgroundKind;
@@ -244,8 +292,9 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	showTitle: true,
 	// Empty => the Hearth crystal icon is shown as the brand mark.
 	logo: "",
-	searchPlaceholder: "Search the vault, #tag, or property:value",
+	searchPlaceholder: "Search or command",
 	showNewNoteButton: true,
+	searchContents: true,
 
 	backgroundKind: "none",
 	backgroundValue: "",
@@ -334,6 +383,16 @@ export function effectiveRowHeight(s: HomeSettings): number {
 	return activeDashboard(s).rowHeight ?? s.rowHeight;
 }
 
+/** Effective "fit to page" for the active board (per-dashboard override or global). */
+export function effectiveFitToPage(s: HomeSettings): boolean {
+	return activeDashboard(s).fitToPage ?? s.fitToPage;
+}
+
+/** Effective content max-width for the active board (per-dashboard override or global). */
+export function effectiveMaxWidth(s: HomeSettings): number {
+	return activeDashboard(s).maxWidth ?? s.maxWidth;
+}
+
 /** Remove a card from whichever list holds it (a board or the pinned set). */
 export function removeCard(s: HomeSettings, card: DashboardCard): void {
 	for (const d of s.dashboards) {
@@ -382,6 +441,31 @@ export function effectiveBackground(s: HomeSettings): BackgroundConfig {
 			blur: s.backgroundBlur,
 		}
 	);
+}
+
+/**
+ * Recursively backfill any keys missing from `target` using `defaults`, for
+ * plain objects only (arrays and primitives are left as loaded). A top-level
+ * Object.assign only backfills top-level keys; this also fills nested config
+ * objects (backgrounds, clocks…) added in newer versions, so loaded settings
+ * are never missing a nested default that the code assumes is present.
+ */
+export function fillMissingDefaults(
+	target: Record<string, unknown>,
+	defaults: Record<string, unknown>,
+): void {
+	for (const [key, dv] of Object.entries(defaults)) {
+		const tv = target[key];
+		if (tv === undefined) {
+			target[key] = Array.isArray(dv) ? [...dv] : isPlainObject(dv) ? { ...dv } : dv;
+		} else if (isPlainObject(dv) && isPlainObject(tv)) {
+			fillMissingDefaults(tv, dv);
+		}
+	}
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+	return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
 /**

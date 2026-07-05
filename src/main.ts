@@ -1,6 +1,6 @@
 import { addIcon, Plugin, TFolder, WorkspaceLeaf, Notice } from "obsidian";
 import { HomeView, VIEW_TYPE_HOME } from "./view";
-import { DEFAULT_SETTINGS, HomeSettings, migrateSettings } from "./types";
+import { DEFAULT_SETTINGS, fillMissingDefaults, HomeSettings, migrateSettings } from "./types";
 import { HomeSettingTab } from "./settings";
 import { HEARTH_ICON_ID, HEARTH_ICON_SVG } from "./icon";
 import { EXCALIDRAW_PLUGIN_ID } from "./filetypes";
@@ -213,6 +213,12 @@ export default class HearthPlugin extends Plugin {
 	async loadSettings() {
 		const raw = ((await this.loadData()) ?? {}) as Record<string, unknown>;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, raw);
+		// Backfill nested config defaults too, not just top-level keys, so an
+		// object persisted by an older version isn't missing a nested field.
+		fillMissingDefaults(
+			this.settings as unknown as Record<string, unknown>,
+			DEFAULT_SETTINGS as unknown as Record<string, unknown>,
+		);
 		migrateSettings(this.settings, raw);
 	}
 

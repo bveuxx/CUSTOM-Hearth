@@ -5,7 +5,7 @@ import { renderDashboard } from "./dashboard";
 import { renderDashboardSwitcher } from "./dashboards";
 import { renderMobileActionBar } from "./mobileactions";
 import { applyBackground } from "./background";
-import { renderCards } from "./types";
+import { effectiveFitToPage, effectiveMaxWidth, renderCards } from "./types";
 import { HEARTH_ICON_ID } from "./icon";
 
 export const VIEW_TYPE_HOME = "hearth-home-view";
@@ -111,15 +111,15 @@ export class HomeView extends ItemView {
 		applyBackground(this, root);
 
 		const scroll = root.createDiv("hearth-scroll");
-		scroll.toggleClass("hearth-fit", this.plugin.settings.fitToPage);
+		scroll.toggleClass("hearth-fit", effectiveFitToPage(this.plugin.settings));
 
 		const inner = scroll.createDiv("hearth-inner");
-		inner.style.maxWidth = `${this.plugin.settings.maxWidth}px`;
+		inner.style.maxWidth = `${effectiveMaxWidth(this.plugin.settings)}px`;
 
 		if (!mobileOnly) renderDashboardSwitcher(this, inner);
 
 		const header = inner.createDiv("hearth-header");
-		renderHeader(this, header);
+		renderHeader(this, header, child);
 
 		if (!mobileOnly) {
 			const dashboard = inner.createDiv("hearth-dashboard");

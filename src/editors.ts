@@ -1,6 +1,7 @@
 import { App, Modal, Setting } from "obsidian";
 import { CommandPickerModal, FilePickerModal } from "./pickers";
 import { CardKind, ClockConfig, DashboardCard, LinkItem, TasksConfig } from "./types";
+import { confirmAction } from "./ui";
 
 const CARD_KIND_LABELS: Record<CardKind, string> = {
 	embed: "Embed (note / image / base)",
@@ -16,6 +17,8 @@ const CARD_KIND_LABELS: Record<CardKind, string> = {
 	tasks: "Tasks",
 	calendar: "Mini calendar",
 	stats: "Vault statistics",
+	search: "Saved search",
+	heatmap: "Activity heatmap",
 };
 
 const LINK_TYPE_LABELS: Record<LinkItem["type"], string> = {
@@ -92,8 +95,15 @@ export class CardSettingsModal extends Modal {
 		new Setting(contentEl)
 			.addButton((b) => {
 				b.setButtonText("Remove card").onClick(() => {
-					this.opts.remove();
-					this.close();
+					confirmAction(this.app, {
+						title: "Remove card?",
+						message: `Remove "${this.card.title?.trim() || "this card"}" from the dashboard?`,
+						confirmText: "Remove",
+						onConfirm: () => {
+							this.opts.remove();
+							this.close();
+						},
+					});
 				});
 				b.buttonEl.addClass("hearth-danger-btn");
 			})

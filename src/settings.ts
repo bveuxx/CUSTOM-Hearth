@@ -4,6 +4,7 @@ import { FILE_TYPE_GROUPS } from "./filetypes";
 import { CommandPickerModal } from "./pickers";
 import { BackgroundKind, defaultMobileActionButtons, MobileActionButton } from "./types";
 import { exportLayout, importLayout } from "./layout";
+import { confirmAction } from "./ui";
 
 const BACKGROUND_LABELS: Record<BackgroundKind, string> = {
 	none: "None",
@@ -492,9 +493,9 @@ export class HomeSettingTab extends PluginSettingTab {
 		let pending = "";
 		new Setting(containerEl)
 			.setName("Import layout")
-			.setDesc("Paste a previously exported layout, then Import. This replaces your current cards.")
+			.setDesc("Paste a previously exported layout, then Import. This replaces your current dashboards.")
 			.addTextArea((t) => {
-				t.setPlaceholder('{ "hearthLayout": 1, "cards": [ … ] }').onChange(
+				t.setPlaceholder('{ "hearthLayout": 2, "dashboards": [ … ] }').onChange(
 					(v) => (pending = v),
 				);
 				t.inputEl.rows = 4;
@@ -502,22 +503,28 @@ export class HomeSettingTab extends PluginSettingTab {
 			})
 			.addButton((b) => {
 				b.buttonEl.addClass("hearth-danger-btn");
-				b
-					.setButtonText("Import")
-					.onClick(async () => {
-						if (!pending.trim()) {
-							new Notice("Hearth: paste a layout to import first.");
-							return;
-						}
-						const error = importLayout(s, pending);
-						if (error) {
-							new Notice(`Hearth: ${error}`);
-							return;
-						}
-						await this.save();
-						this.display();
-						new Notice("Hearth: layout imported.");
+				b.setButtonText("Import").onClick(() => {
+					if (!pending.trim()) {
+						new Notice("Hearth: paste a layout to import first.");
+						return;
+					}
+					confirmAction(this.app, {
+						title: "Import layout?",
+						message:
+							"This replaces your current dashboards, pinned cards and layout settings. This can't be undone.",
+						confirmText: "Import",
+						onConfirm: () => {
+							const error = importLayout(s, pending);
+							if (error) {
+								new Notice(`Hearth: ${error}`);
+								return;
+							}
+							void this.save();
+							this.display();
+							new Notice("Hearth: layout imported.");
+						},
 					});
+				});
 			});
 	}
 }

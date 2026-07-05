@@ -1,4 +1,6 @@
 import {
+	Component,
+	debounce,
 	getAllTags,
 	Platform,
 	prepareFuzzySearch,
@@ -66,6 +68,8 @@ export class SearchSection {
 		this.view = view;
 	}
 
+	private updateDebounced = debounce(() => this.update(), 140, false);
+
 	/** Renders the search bar (icon + input). The caller places the New-note
 	 * button beside the returned bar element. */
 	renderBar(parent: HTMLElement): HTMLElement {
@@ -82,7 +86,9 @@ export class SearchSection {
 			},
 		});
 
-		this.inputEl.addEventListener("input", () => this.update());
+		// Typing is debounced so large vaults aren't re-scanned on every keystroke;
+		// focus (which just offers recent files) stays instant.
+		this.inputEl.addEventListener("input", () => this.updateDebounced());
 		this.inputEl.addEventListener("focus", () => this.update());
 		this.inputEl.addEventListener("keydown", (e) => this.onKeyDown(e));
 
@@ -92,16 +98,22 @@ export class SearchSection {
 	/** Renders the results dropdown (as an overlay inside `overlayParent`, which
 	 * must be positioned) and the filter chip row (under `boundary`). `boundary`
 	 * wraps the whole search section and is the click-outside dismissal area. */
-	renderResultsAndFilters(overlayParent: HTMLElement, boundary: HTMLElement): void {
+	renderResultsAndFilters(
+		overlayParent: HTMLElement,
+		boundary: HTMLElement,
+		component: Component,
+	): void {
 		this.rootEl = boundary;
 		this.resultsEl = overlayParent.createDiv("hearth-search-results");
+		this.resultsEl.setAttribute("role", "listbox");
 		this.resultsEl.hide();
 		this.renderFilters(boundary);
 
 		// Close the dropdown when clicking outside the whole search section.
-		// Registered here (not in renderBar) so clicks on the filter chips —
-		// which live below the bar — count as inside and don't dismiss results.
-		this.view.registerDomEvent(this.view.containerEl.ownerDocument, "click", (e) => {
+		// Registered on the per-render component (not the long-lived view) so it's
+		// torn down on every re-render instead of accumulating a stale listener
+		// each time the view is rebuilt.
+		component.registerDomEvent(this.view.containerEl.ownerDocument, "click", (e) => {
 			if (!boundary.contains(e.target as Node)) this.hide();
 		});
 	}

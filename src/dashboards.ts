@@ -1,6 +1,7 @@
 import { Menu, Modal, Setting, setIcon } from "obsidian";
 import type { HomeView } from "./view";
 import { BackgroundConfig, BackgroundKind, Dashboard, newDashboardId } from "./types";
+import { confirmAction } from "./ui";
 
 /**
  * The top-left dashboard switcher: a button per dashboard (its emoji/icon or its
@@ -64,13 +65,20 @@ function showDashboardMenu(view: HomeView, dash: Dashboard, evt: MouseEvent): vo
 			// Always keep at least one dashboard around.
 			.setDisabled(s.dashboards.length <= 1)
 			.onClick(() => {
-				const i = s.dashboards.findIndex((d) => d.id === dash.id);
-				if (i >= 0) s.dashboards.splice(i, 1);
-				if (s.activeDashboardId === dash.id) {
-					s.activeDashboardId = s.dashboards[0].id;
-				}
-				void view.plugin.saveData(s);
-				view.render();
+				confirmAction(view.app, {
+					title: "Delete dashboard?",
+					message: `Delete "${dash.name}" and its ${dash.cards.length} card(s)? This can't be undone.`,
+					confirmText: "Delete",
+					onConfirm: () => {
+						const i = s.dashboards.findIndex((d) => d.id === dash.id);
+						if (i >= 0) s.dashboards.splice(i, 1);
+						if (s.activeDashboardId === dash.id) {
+							s.activeDashboardId = s.dashboards[0].id;
+						}
+						void view.plugin.saveData(s);
+						view.render();
+					},
+				});
 			}),
 	);
 

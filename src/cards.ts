@@ -588,11 +588,13 @@ function renderWeb(card: DashboardCard, body: HTMLElement): void {
 	frame.setAttribute("loading", "lazy");
 	frame.setAttribute("referrerpolicy", "no-referrer");
 	// Sandbox keeps embedded pages from reaching into the app while still
-	// letting normal sites run their scripts.
-	frame.setAttribute(
-		"sandbox",
-		"allow-scripts allow-same-origin allow-popups allow-forms",
-	);
+	// letting normal sites run their scripts. `allow-same-origin` together with
+	// `allow-scripts` is the well-known combination that can let framed content
+	// escape the sandbox, so it's opt-in per card ("trusted") rather than the
+	// default — most sites render fine without it.
+	const tokens = ["allow-scripts", "allow-popups", "allow-forms"];
+	if (card.sandboxTrusted) tokens.push("allow-same-origin");
+	frame.setAttribute("sandbox", tokens.join(" "));
 }
 
 // ---- Bookmarks (Obsidian core) -----------------------------------------
@@ -943,7 +945,10 @@ async function loadAndRenderTasks(
 			check.checked = hit.done;
 			check.addEventListener("click", (e) => e.stopPropagation());
 			check.addEventListener("change", () => {
-				void toggleCheckboxTask(view, hit).then(refresh);
+				void toggleCheckboxTask(view, hit).then((ok) => {
+					if (!ok) new Notice("Hearth: that task changed on disk — refreshed.");
+					refresh();
+				});
 			});
 		} else if (hit.status) {
 			row.createDiv({ cls: "hearth-task-status", text: hit.status });
@@ -1015,18 +1020,31 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 	return hits;
 }
 
+/** The checkbox marker at the start of a list item, capturing the state char so
+ * only that bracket is flipped (never a stray "[x]" elsewhere in the text). */
+const CHECKBOX_MARKER = /^(\s*[-*+]\s\[)([ xX])(\])/;
+
 /** Flip a checkbox task's `[ ]`/`[x]` in place. Only used for checkbox tasks —
  * TaskNotes status is left to TaskNotes' own UI since it may be a multi-step
- * workflow, not a plain open/done toggle. */
-async function toggleCheckboxTask(view: HomeView, hit: TaskHit): Promise<void> {
+ * workflow, not a plain open/done toggle. Re-validates the stored line against
+ * the current file (which may have changed since render) and bails with a
+ * refresh rather than flipping the wrong line. */
+async function toggleCheckboxTask(view: HomeView, hit: TaskHit): Promise<boolean> {
 	const content = await view.app.vault.read(hit.file);
 	const lines = content.split("\n");
 	const line = lines[hit.line];
-	if (line == null) return;
-	lines[hit.line] = hit.done
-		? line.replace(/\[[xX]\]/, "[ ]")
-		: line.replace(/\[ \]/, "[x]");
+	const match = line != null ? CHECKBOX_MARKER.exec(line) : null;
+	if (!match) return false; // line no longer a checkbox — file changed under us
+	// Confirm it's still the same task before flipping, comparing the text with
+	// any 📅 due date stripped (dates can shift without changing the task).
+	const strip = (t: string) => t.replace(/📅\s*\d{4}-\d{2}-\d{2}/, "").trim();
+	if (strip(line.slice(match[0].length)) !== strip(hit.text)) return false;
+	lines[hit.line] = line.replace(
+		CHECKBOX_MARKER,
+		(_m, pre: string, _state: string, post: string) => `${pre}${hit.done ? " " : "x"}${post}`,
+	);
 	await view.app.vault.modify(hit.file, lines.join("\n"));
+	return true;
 }
 
 async function openTask(view: HomeView, hit: TaskHit): Promise<void> {

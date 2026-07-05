@@ -1,4 +1,5 @@
 import { Component, debounce, Menu, setIcon, TAbstractFile } from "obsidian";
+import { confirmAction } from "./ui";
 import type { HomeView } from "./view";
 import { renderCardBody, watchedCardPath } from "./cards";
 import { CARD_TEMPLATES, cardFromTemplate } from "./templates";
@@ -43,17 +44,9 @@ export function renderDashboard(
 	grid.style.setProperty("--hearth-row-h", `${effectiveRowHeight(s)}px`);
 	grid.style.setProperty("--hearth-gap", `${GRID_GAP}px`);
 
-	if (cards.length === 0) {
-		const empty = grid.createDiv("hearth-grid-empty");
-		setIcon(empty.createDiv("hearth-card-empty-icon"), "layout-grid");
-		empty.createDiv({
-			cls: "hearth-card-empty-text",
-			text: view.arrangeMode
-				? "No cards yet — use “Add card” above"
-				: "No cards yet — hit Arrange, then Add card",
-		});
-		return;
-	}
+	// An empty board is left blank — no placeholder text or icon. The Arrange
+	// toolbar (with "Add card") is still available above.
+	if (cards.length === 0) return;
 
 	const commit = () => void view.plugin.saveData(s);
 
@@ -214,8 +207,15 @@ function renderCardControls(
 	setIcon(remove, "trash-2");
 	remove.addEventListener("pointerdown", (e) => e.stopPropagation());
 	remove.addEventListener("click", () => {
-		removeCard(view.plugin.settings, card);
-		persistAndRender(view);
+		confirmAction(view.app, {
+			title: "Remove card?",
+			message: `Remove "${card.title?.trim() || "this card"}" from the dashboard?`,
+			confirmText: "Remove",
+			onConfirm: () => {
+				removeCard(view.plugin.settings, card);
+				persistAndRender(view);
+			},
+		});
 	});
 }
 

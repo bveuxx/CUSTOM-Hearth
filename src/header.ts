@@ -1,4 +1,4 @@
-import { Platform, setIcon } from "obsidian";
+import { Component, Platform, setIcon } from "obsidian";
 import type { HomeView } from "./view";
 import { SearchSection } from "./search";
 import { HEARTH_ICON_ID } from "./icon";
@@ -7,7 +7,7 @@ import { HEARTH_ICON_ID } from "./icon";
  * auto-detected filter row. In Mobile mode, the New-note button is left out
  * here — it moves into the mobile action bar rendered below (see
  * mobileactions.ts), along with the rest of that customizable button row. */
-export function renderHeader(view: HomeView, container: HTMLElement): void {
+export function renderHeader(view: HomeView, container: HTMLElement, component: Component): void {
 	const s = view.plugin.settings;
 	const mobileOnly = Platform.isMobile && s.mobileSearchOnly;
 
@@ -49,5 +49,5 @@ export function renderHeader(view: HomeView, container: HTMLElement): void {
 	}
 
 	// Results dropdown overlays from the wrapper; filter chips render under it.
-	search.renderResultsAndFilters(searchWrap, container);
+	search.renderResultsAndFilters(searchWrap, container, component);
 }
