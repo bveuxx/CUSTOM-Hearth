@@ -1253,7 +1253,8 @@ function makeTileDraggable<T extends { id: string }>(
 	let startX = 0;
 	let startY = 0;
 	let moved = false;
-	const DRAG_THRESHOLD = 4;
+	let pointerId = -1;
+	const DRAG_THRESHOLD = 5;
 
 	tile.addEventListener("pointerdown", (e) => {
 		// Don't start a tile drag from the resize handle.
@@ -1263,20 +1264,23 @@ function makeTileDraggable<T extends { id: string }>(
 		startY = e.clientY;
 		dragging = true;
 		moved = false;
+		pointerId = e.pointerId;
+		tile.setPointerCapture(e.pointerId);
 	});
 
 	tile.addEventListener("pointermove", (e) => {
-		if (!dragging) return;
+		if (!dragging || e.pointerId !== pointerId) return;
 		const dx = e.clientX - startX;
 		const dy = e.clientY - startY;
 		if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+		e.preventDefault();
+		e.stopPropagation();
 		if (!moved) {
 			moved = true;
 			tile.addClass("is-tile-dragging");
-			e.preventDefault();
 		}
-		e.stopPropagation();
-		// Find the tile under the pointer (not the dragged one).
+		// Find the tile under the pointer (not the dragged one) by hiding the
+		// dragged tile from hit-testing for a moment.
 		tile.style.pointerEvents = "none";
 		const over = container.ownerDocument.elementFromPoint(e.clientX, e.clientY);
 		tile.style.pointerEvents = "";
@@ -1289,19 +1293,32 @@ function makeTileDraggable<T extends { id: string }>(
 			if (toIdx >= 0 && toIdx !== fromIdx) {
 				const [m] = items.splice(fromIdx, 1);
 				items.splice(toIdx, 0, m);
-				// Re-render the card to reflect the new order.
-				tile.style.pointerEvents = "";
+				// Persist + re-render once to reflect the new order. Don't keep
+				// dragging the old tile element (it's gone after render); the
+				// user can pick it up again from its new position.
+				dragging = false;
+				tile.removeClass("is-tile-dragging");
+				try {
+					tile.releasePointerCapture(pointerId);
+				} catch {
+					// already released
+				}
 				void view.plugin.saveData(view.plugin.settings);
 				view.render();
-				return;
 			}
 		}
 	});
 
-	const end = () => {
-		if (!dragging) return;
+	const end = (e: PointerEvent) => {
+		if (!dragging || e.pointerId !== pointerId) return;
 		dragging = false;
+		moved = false;
 		tile.removeClass("is-tile-dragging");
+		try {
+			tile.releasePointerCapture(e.pointerId);
+		} catch {
+			// already released
+		}
 	};
 	tile.addEventListener("pointerup", end);
 	tile.addEventListener("pointercancel", end);

@@ -27,13 +27,15 @@ export function renderHeader(view: HomeView, container: HTMLElement, component: 
 
 	const search = new SearchSection(view);
 
-	// Layout: the New-note button sits beside a search column. The search column
-	// holds the bar (full width of the column), the filter chips (matching the
-	// bar's width exactly), and the results dropdown (overlaying from the
-	// column). The column is flex:1 so the bar keeps its full width; the button
-	// takes only what it needs. Click-outside dismissal is bound to the column,
-	// so clicking the title, the New-note button, or anywhere off the field
-	// closes the dropdown.
+	// Layout:
+	//   searchWrap (flex row, align-items: flex-start)
+	//     ├─ searchCol (flex:1) — the bar's width
+	//     │     ├─ searchRow (the bar + (nothing else))
+	//     │     └─ filter chips + results dropdown (matching the bar's width)
+	//     └─ New-note button (beside the bar, top-aligned, flush)
+	// The button is a sibling of the column (not inside the bar's row) so the
+	// filters span only the bar's width; the button sits flush beside the bar,
+	// not pushed down among the filter chips.
 	const searchWrap = container.createDiv("hearth-search-wrap");
 	const searchCol = searchWrap.createDiv("hearth-search-col");
 	const searchRow = searchCol.createDiv("hearth-search");

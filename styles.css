@@ -67,13 +67,14 @@
 	z-index: 50;
 }
 
-/* The search row: search column (flex:1) + New-note button. */
+/* The search row: search column (flex:1) + New-note button. Top-aligned so the
+ * button sits flush beside the search bar, not pushed down among filters. */
 .hearth-search-wrap {
 	position: relative;
 	width: 100%;
 	max-width: 720px;
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	gap: 12px;
 }
 
@@ -773,9 +774,10 @@
 	align-items: center;
 	justify-content: center;
 	gap: 8px;
-	/* Default tile size (overridable per-tile via --hearth-tile-w/h). */
+	/* Default tile size (overridable per-tile via --hearth-tile-w/h). Height is
+	 * fixed (not min-height) so a tile's box is its declared size exactly. */
 	width: var(--hearth-tile, 90px);
-	min-height: var(--hearth-tile-h, calc(var(--hearth-tile, 90px) * 0.78));
+	height: var(--hearth-tile-h, calc(var(--hearth-tile, 90px) * 0.78));
 	padding: 14px 8px;
 	border-radius: 12px;
 	border: 1px solid var(--background-modifier-border);
@@ -785,26 +787,27 @@
 	transition: border-color 120ms ease, background 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
 
-/* Commands & links cards: tile size is driven by --hearth-tile (set per card),
- * scaling the default width and icon. Per-tile overrides use --hearth-tile-w
- * (width) and --hearth-tile-h (min height) so a tile can be resized
- * independently on each axis without affecting its neighbours. */
+/* Commands & links cards: per-tile width override via --hearth-tile-w. */
 .hearth-tiles-sized .hearth-link-tile {
 	width: var(--hearth-tile-w, var(--hearth-tile, 90px));
 }
 
-.hearth-tiles-sized .hearth-link-icon .svg-icon {
-	width: calc(var(--hearth-tile-h, var(--hearth-tile, 90px)) * 0.26);
-	height: calc(var(--hearth-tile-h, var(--hearth-tile, 90px)) * 0.26);
+/* Fixed icon size: the icon does NOT scale with tile height (that caused the
+ * 'resize changes icon' bug). Icons stay a constant, readable size regardless
+ * of tile dimensions. */
+.hearth-link-icon {
+	display: flex;
+	color: var(--text-muted);
 }
 
-/* In arrange mode, tile cards (links/commands) are self-contained widgets: the
- * card's drag overlay is disabled over them so each tile and its resize handle
- * is fully interactive. The card is still draggable from its header. */
-.hearth-grid.is-arranging .hearth-card.is-tile-card .hearth-card-overlay {
-	pointer-events: none;
+.hearth-link-icon .svg-icon {
+	width: 24px;
+	height: 24px;
 }
 
+/* In arrange mode, tile cards (links/commands) keep their drag overlay active
+ * so the card can still be dragged from empty areas of its body. Tiles and
+ * their resize handles sit above the overlay so they're interactive. */
 .hearth-grid.is-arranging .hearth-card.is-tile-card .hearth-link-tile {
 	position: relative;
 	z-index: 6;
@@ -828,16 +831,6 @@
 	border-color: var(--interactive-accent);
 	background: var(--background-modifier-hover);
 	transform: translateY(-1px);
-}
-
-.hearth-link-icon {
-	display: flex;
-	color: var(--text-muted);
-}
-
-.hearth-link-icon .svg-icon {
-	width: 22px;
-	height: 22px;
 }
 
 .hearth-link-label {
