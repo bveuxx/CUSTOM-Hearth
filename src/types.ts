@@ -68,13 +68,16 @@ export interface CalendarConfig {
 	heatmapMetric?: "modified" | "created";
 }
 
-/** Per-card configuration for a "search" (saved search) card. */
+/** Per-card configuration for a "search" (query) card. */
 export interface SavedSearchConfig {
 	/** The query, using the same syntax as the top search bar (plain text,
 	 * a leading "#" for tags, or "key:value" for frontmatter). */
 	query?: string;
 	/** Max results shown. Default 12. */
 	count?: number;
+	/** Display layout: "list" (default) renders a vertical list; "tiles"
+	 * renders results as a grid of icon tiles (like the links card). */
+	view?: "list" | "tiles";
 }
 
 /** Per-card configuration for a "heatmap" (activity) card. */
@@ -200,6 +203,9 @@ export interface DashboardCard {
 	accent?: string;
 	/** Optional background color/tint (CSS color) for the card body. */
 	background?: string;
+	/** Override the card surface opacity for this card (undefined = dashboard
+	 * / global). 0 = fully transparent, 1 = fully opaque. */
+	cardOpacity?: number;
 
 	// ---- Layout (legacy grid cell units) ----
 	// Kept as the seed for the free-form coordinates below: older layouts (and
@@ -221,8 +227,10 @@ export interface DashboardCard {
 	fh?: number;
 }
 
-/** Background mode for the home view. */
-export type BackgroundKind = "none" | "color" | "image" | "url";
+/** Background mode for the home view. "default" uses Hearth's bundled
+ * background (a curated image shipped with a release); the other kinds use the
+ * user's own value. */
+export type BackgroundKind = "none" | "default" | "color" | "image" | "url";
 
 /** A self-contained background configuration (used for per-dashboard overrides
  * as well as the global default). */
@@ -250,6 +258,8 @@ export interface Dashboard {
 	fitToPage?: boolean;
 	/** Override the content max-width (px) for this board (undefined = global). */
 	maxWidth?: number;
+	/** Override the card surface opacity for this board (undefined = global). */
+	cardOpacity?: number;
 }
 
 export interface HomeSettings {
@@ -332,9 +342,9 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	showNewNoteButton: true,
 	searchContents: true,
 
-	backgroundKind: "none",
+	backgroundKind: "default",
 	backgroundValue: "",
-	backgroundOpacity: 0.15,
+	backgroundOpacity: 0.4,
 	backgroundBlur: 0,
 
 	openOnStartup: true,
@@ -346,7 +356,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	mobileActionButtons: [],
 
 	compact: false,
-	cardOpacity: 1,
+	cardOpacity: 0.6,
 
 	hiddenFilters: [],
 
@@ -429,6 +439,20 @@ export function effectiveFitToPage(s: HomeSettings): boolean {
 /** Effective content max-width for the active board (per-dashboard override or global). */
 export function effectiveMaxWidth(s: HomeSettings): number {
 	return activeDashboard(s).maxWidth ?? s.maxWidth;
+}
+
+/** Effective card surface opacity for the active board (per-dashboard override
+ * or global). 0 = fully transparent, 1 = fully opaque. */
+export function effectiveCardOpacity(s: HomeSettings): number {
+	const v = activeDashboard(s).cardOpacity ?? s.cardOpacity;
+	return typeof v === "number" && !Number.isNaN(v) ? Math.max(0, Math.min(1, v)) : 1;
+}
+
+/** Resolve the per-card opacity override, falling back to the board/global
+ * value from effectiveCardOpacity. */
+export function resolveCardOpacity(s: HomeSettings, card: DashboardCard): number {
+	const v = card.cardOpacity ?? effectiveCardOpacity(s);
+	return typeof v === "number" && !Number.isNaN(v) ? Math.max(0, Math.min(1, v)) : 1;
 }
 
 /** Remove a card from whichever list holds it (a board or the pinned set). */
@@ -522,7 +546,13 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 		s.activeDashboardId = s.dashboards[0].id;
 	}
 	if (typeof s.rowHeight !== "number" || s.rowHeight <= 0) s.rowHeight = 92;
-	if (typeof s.cardOpacity !== "number") s.cardOpacity = 1;
+	if (typeof s.cardOpacity !== "number") s.cardOpacity = 0.6;
+	if (typeof s.backgroundOpacity !== "number") s.backgroundOpacity = 0.4;
+	// Migrate pre-1.4.1 "none" defaults to "default" so existing users see the
+	// bundled background unless they explicitly turned it off (kept as "none").
+	// Only kick in when the field is missing (very old installs); otherwise
+	// respect whatever the user chose.
+	if (typeof raw.backgroundKind !== "string") s.backgroundKind = "default";
 	if (!Array.isArray(s.pinnedCards)) s.pinnedCards = [];
 	// Seed the default buttons only if the field was never persisted, so an
 	// intentionally emptied list (all buttons removed) isn't reset on reload.

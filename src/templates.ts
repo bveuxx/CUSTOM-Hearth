@@ -109,9 +109,9 @@ export const CARD_TEMPLATES: CardTemplate[] = [
 	},
 	{
 		id: "search",
-		name: "Saved search",
+		name: "Query",
 		icon: "search",
-		build: () => ({ kind: "search", title: "Saved search", savedSearch: { query: "" }, w: 4, h: 4 }),
+		build: () => ({ kind: "search", title: "Query", savedSearch: { query: "" }, w: 4, h: 4 }),
 	},
 	{
 		id: "heatmap",

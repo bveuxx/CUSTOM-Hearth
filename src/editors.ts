@@ -17,7 +17,7 @@ const CARD_KIND_LABELS: Record<CardKind, string> = {
 	tasks: "Tasks",
 	calendar: "Mini calendar",
 	stats: "Vault statistics",
-	search: "Saved search",
+	search: "Query",
 	heatmap: "Activity heatmap",
 };
 
@@ -328,6 +328,15 @@ export class CardSettingsModal extends Modal {
 						this.opts.save();
 					}),
 			);
+		new Setting(containerEl).setName("Display").addDropdown((d) => {
+			d.addOption("list", "List");
+			d.addOption("tiles", "Tiles");
+			d.setValue(cfg.view ?? "list").onChange((v) => {
+				cfg.view = v === "list" ? undefined : (v as "tiles");
+				this.opts.save();
+				this.opts.rerender();
+			});
+		});
 		new Setting(containerEl)
 			.setName("Max results")
 			.addText((t) => {
@@ -816,6 +825,32 @@ export class CardSettingsModal extends Modal {
 				.onClick(() => {
 					card.background = undefined;
 					this.opts.save();
+					this.render();
+				}),
+		);
+
+		const opacityRow = new Setting(containerEl)
+			.setName("Card opacity")
+			.setDesc("Transparent card surface (overrides the dashboard default).");
+		opacityRow.addSlider((sl) =>
+			sl
+				.setLimits(0, 1, 0.05)
+				.setValue(card.cardOpacity ?? 1)
+				.setDynamicTooltip()
+				.onChange((v) => {
+					card.cardOpacity = v;
+					this.opts.save();
+					this.opts.rerender();
+				}),
+		);
+		opacityRow.addExtraButton((b) =>
+			b
+				.setIcon("rotate-ccw")
+				.setTooltip("Use dashboard default")
+				.onClick(() => {
+					card.cardOpacity = undefined;
+					this.opts.save();
+					this.opts.rerender();
 					this.render();
 				}),
 		);

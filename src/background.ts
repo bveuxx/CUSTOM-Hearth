@@ -3,13 +3,24 @@ import type { HomeView } from "./view";
 import { effectiveBackground } from "./types";
 
 /**
+ * URL of the bundled default background image. Ships as a release asset
+ * (assets/default-bg.png → attached to each GitHub release); the URL is stable
+ * across versions because releases are immutable. Update the tag suffix when
+ * shipping a new image with a release.
+ */
+const DEFAULT_BG_URL =
+	"https://github.com/ondreu/Hearth/releases/download/1.4.1-beta/default-bg.png";
+
+/**
  * Apply the optional, customizable background as a separate layer behind the
  * content so opacity/blur don't affect the foreground. Uses the active
  * dashboard's override when set, otherwise the global default.
  */
 export function applyBackground(view: HomeView, root: HTMLElement): void {
 	const bg = effectiveBackground(view.plugin.settings);
-	if (bg.kind === "none" || !bg.value) return;
+	if (bg.kind === "none") return;
+	// "default" uses the bundled Hearth background; no value field needed.
+	if (bg.kind !== "default" && !bg.value) return;
 
 	const layer = root.createDiv("hearth-bg");
 	layer.style.opacity = String(bg.opacity);
@@ -21,7 +32,9 @@ export function applyBackground(view: HomeView, root: HTMLElement): void {
 	}
 
 	let url: string | null = null;
-	if (bg.kind === "url") {
+	if (bg.kind === "default") {
+		url = DEFAULT_BG_URL;
+	} else if (bg.kind === "url") {
 		url = bg.value;
 	} else if (bg.kind === "image") {
 		const file = view.app.vault.getAbstractFileByPath(bg.value);

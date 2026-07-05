@@ -113,6 +113,7 @@ function showDashboardMenu(view: HomeView, dash: Dashboard, evt: MouseEvent): vo
 const BACKGROUND_OPTIONS: Record<string, string> = {
 	default: "Use global default",
 	none: "None",
+	hdefault: "Hearth default",
 	color: "Solid color",
 	image: "Vault image",
 	url: "Image URL",
@@ -193,6 +194,20 @@ class DashboardSettingsModal extends Modal {
 				});
 			});
 
+		this.overrideSlider(
+			contentEl,
+			"Card opacity",
+			dash.cardOpacity,
+			s.cardOpacity,
+			0,
+			1,
+			0.05,
+			(v) => {
+				dash.cardOpacity = v;
+				this.commit();
+			},
+		);
+
 		this.backgroundSection(contentEl);
 
 		new Setting(contentEl).addButton((b) =>
@@ -261,21 +276,23 @@ class DashboardSettingsModal extends Modal {
 
 		if (!bg || bg.kind === "none") return;
 
-		const desc =
-			bg.kind === "color"
-				? "A CSS color, e.g. #1e1e2e."
-				: bg.kind === "image"
-					? "A vault image path, e.g. Attachments/bg.png."
-					: "A direct image URL.";
-		new Setting(containerEl)
-			.setName("Background value")
-			.setDesc(desc)
-			.addText((t) =>
-				t.setValue(bg.value).onChange((v) => {
-					bg.value = v;
-					this.commit();
-				}),
-			);
+		if (bg.kind !== "default") {
+			const desc =
+				bg.kind === "color"
+					? "A CSS color, e.g. #1e1e2e."
+					: bg.kind === "image"
+						? "A vault image path, e.g. Attachments/bg.png."
+						: "A direct image URL.";
+			new Setting(containerEl)
+				.setName("Background value")
+				.setDesc(desc)
+				.addText((t) =>
+					t.setValue(bg.value).onChange((v) => {
+						bg.value = v;
+						this.commit();
+					}),
+				);
+		}
 
 		this.bgNumber(containerEl, "Opacity", bg, "opacity", 0, 1, 0.05);
 		this.bgNumber(containerEl, "Blur", bg, "blur", 0, 40, 1);

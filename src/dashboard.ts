@@ -7,11 +7,13 @@ import { CardSettingsModal } from "./editors";
 import {
 	activeCards,
 	DashboardCard,
+	effectiveCardOpacity,
 	effectiveColumns,
 	effectiveMaxWidth,
 	effectiveRowHeight,
 	removeCard,
 	renderCards,
+	resolveCardOpacity,
 	setCardPinned,
 } from "./types";
 import {
@@ -54,7 +56,8 @@ export function renderDashboard(
 
 	const grid = container.createDiv("hearth-grid");
 	grid.toggleClass("is-arranging", view.arrangeMode);
-	grid.style.setProperty("--card-opacity", String(s.cardOpacity ?? 1));
+	// Board-level default; per-card overrides are set in the render loop below.
+	grid.style.setProperty("--card-opacity", String(effectiveCardOpacity(s)));
 	grid.style.minHeight = `${layoutHeight(cards) + GRID_GAP}px`;
 
 	// An empty board is left blank — no placeholder text or icon. The Arrange
@@ -80,6 +83,9 @@ export function renderDashboard(
 			el.addClass("has-accent");
 		}
 		if (card.background) el.style.setProperty("--card-bg", card.background);
+		if (card.cardOpacity != null) {
+			el.style.setProperty("--card-opacity", String(card.cardOpacity));
+		}
 
 		const head = el.createDiv("hearth-card-head");
 		if (view.arrangeMode) {

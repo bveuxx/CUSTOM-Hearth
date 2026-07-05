@@ -7,6 +7,7 @@ import { exportLayout, importLayout } from "./layout";
 import { confirmAction } from "./ui";
 
 const BACKGROUND_LABELS: Record<BackgroundKind, string> = {
+	default: "Hearth default",
 	none: "None",
 	color: "Solid color",
 	image: "Vault image",
@@ -150,7 +151,8 @@ export class HomeSettingTab extends PluginSettingTab {
 				});
 			});
 
-		if (s.backgroundKind !== "none") {
+		// "default" and "none" have no value field; the others do.
+		if (s.backgroundKind !== "none" && s.backgroundKind !== "default") {
 			const desc =
 				s.backgroundKind === "color"
 					? "A CSS color, e.g. #1e1e2e or rgb(30,30,46)."
@@ -171,7 +173,10 @@ export class HomeSettingTab extends PluginSettingTab {
 					.querySelector("input")
 					?.setAttribute("list", "hearth-file-list");
 			}
+		}
 
+		// Opacity/blur apply to every background except "none".
+		if (s.backgroundKind !== "none") {
 			new Setting(containerEl)
 				.setName("Opacity")
 				.addSlider((sl) =>

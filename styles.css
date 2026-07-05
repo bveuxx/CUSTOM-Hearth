@@ -302,8 +302,15 @@
 .hearth-dashboard {
 	flex: 1;
 	min-height: 0;
-	/* Anchor the floating (at-rest) toolbar to the dashboard. */
+	/* Anchor the floating toolbar to the dashboard. */
 	position: relative;
+}
+
+/* In fit-to-page mode reserve space above the dashboard for the floating
+   toolbar (Arrange / Add card) so it isn't clipped, and clip the grid (not
+   the dashboard) so cards can't be dropped or rendered off-screen. */
+.hearth-fit .hearth-dashboard {
+	padding-top: 34px;
 }
 
 /* Free-form board: cards are absolutely positioned via inline left/top/width/
@@ -321,10 +328,6 @@
    spills below the fold and never let the inline min-height (sized to the
    cards' total footprint) push the grid past 100%, otherwise the overflow
    area stays interactive and cards can be dropped/inserted "off screen". */
-.hearth-fit .hearth-dashboard {
-	overflow: hidden;
-}
-
 .hearth-fit .hearth-grid {
 	min-height: 0 !important;
 	overflow: hidden;
@@ -1800,7 +1803,12 @@
 }
 
 /* Only show the per-tile resize grip while the board is in arrange mode, and
-   only on hover so it stays out of the way at rest. */
+   only on hover so it stays out of the way at rest. The grip sits above the
+   card drag overlay (z-index 5) so it can be grabbed in arrange mode. */
 .hearth-grid.is-arranging .hearth-link-tile:hover .hearth-tile-resize {
 	opacity: 0.7;
+}
+
+.hearth-grid.is-arranging .hearth-tile-resize {
+	z-index: 8;
 }

@@ -142,6 +142,8 @@ interface DragContext {
 	startWidth: number;
 	startHeight: number;
 	boardWidth: number;
+	/** Board height (fit-to-page clips to this); Infinity when scrolling. */
+	boardHeight: number;
 	mode: "move" | "resize";
 	/** For resize: which edges follow the pointer. */
 	dir: ResizeDir | null;
@@ -250,6 +252,7 @@ export function enableDragResize(
 		e.preventDefault();
 		e.stopPropagation();
 		const boardWidth = gridEl.clientWidth;
+		const boardHeight = gridEl.clientHeight;
 		const { xTargets, yTargets } = collectTargets(layout, card, boardWidth);
 		ctx = {
 			pointerId: e.pointerId,
@@ -260,6 +263,7 @@ export function enableDragResize(
 			startWidth: (card.fw ?? 0) * boardWidth,
 			startHeight: card.fh ?? MIN_H_PX,
 			boardWidth,
+			boardHeight,
 			mode,
 			dir,
 			xTargets,
@@ -277,6 +281,11 @@ export function enableDragResize(
 		if (ctx.mode === "move") {
 			let left = clamp(ctx.startLeft + dx, 0, ctx.boardWidth - ctx.startWidth);
 			let top = Math.max(0, ctx.startTop + dy);
+			// In fit-to-page mode keep the card fully inside the board so it
+			// can't be dragged (or dropped) off-screen.
+			if (ctx.boardHeight > 0) {
+				top = Math.min(top, ctx.boardHeight - ctx.startHeight);
+			}
 			// Snap left/centre/right edges to vertical guides.
 			const snapX = bestSnap(
 				[left, left + ctx.startWidth / 2, left + ctx.startWidth],
@@ -327,16 +336,19 @@ export function enableDragResize(
 				showGuide("x", null);
 			}
 
-			// North/south edges.
+			// North/south edges. In fit-to-page mode clamp so a card can't be
+			// resized past the bottom of the visible board.
+			const heightMax = ctx.boardHeight > 0 ? ctx.boardHeight - ctx.startTop : Number.MAX_SAFE_INTEGER;
 			if (dir.includes("s")) {
-				height = Math.max(MIN_H_PX, ctx.startHeight + dy);
+				height = Math.max(MIN_H_PX, Math.min(ctx.startHeight + dy, heightMax));
 				const snap = bestSnap([top + height], ctx.yTargets);
-				if (snap) height = Math.max(MIN_H_PX, height + snap.delta);
+				if (snap) height = Math.max(MIN_H_PX, Math.min(height + snap.delta, heightMax));
 				showGuide("y", snap ? snap.guide : null);
 			} else if (dir.includes("n")) {
-				top = clamp(ctx.startTop + dy, 0, bottom - MIN_H_PX);
+				const topMax = ctx.boardHeight > 0 ? ctx.boardHeight - MIN_H_PX : bottom - MIN_H_PX;
+				top = clamp(ctx.startTop + dy, 0, Math.min(bottom - MIN_H_PX, topMax));
 				const snap = bestSnap([top], ctx.yTargets);
-				if (snap) top = clamp(top + snap.delta, 0, bottom - MIN_H_PX);
+				if (snap) top = clamp(top + snap.delta, 0, Math.min(bottom - MIN_H_PX, topMax));
 				height = bottom - top;
 				showGuide("y", snap ? snap.guide : null);
 			} else {

@@ -231,6 +231,7 @@ function sanitizeSavedSearch(r: Record<string, unknown>): SavedSearchConfig {
 	const query = str(r.query);
 	if (query !== undefined) cfg.query = query;
 	if (typeof r.count === "number") cfg.count = r.count;
+	if (r.view === "list" || r.view === "tiles") cfg.view = r.view;
 	return cfg;
 }
 

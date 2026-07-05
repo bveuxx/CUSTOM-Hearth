@@ -103,7 +103,7 @@ export function renderCardBody(
 	}
 }
 
-// ---- Saved search --------------------------------------------------------
+// ---- Query (saved search) ----------------------------------------------
 
 /** A card that runs a saved query (same syntax as the top search bar) and lists
  * the matching files, refreshed on every render. */
@@ -115,29 +115,24 @@ function renderSavedSearch(view: HomeView, card: DashboardCard, body: HTMLElemen
 		return;
 	}
 	const limit = cfg.count && cfg.count > 0 ? cfg.count : 12;
-	const list = body.createDiv("hearth-list");
+	const useTiles = (cfg.view ?? "list") === "tiles";
 
-	const render = (hits: QueryHit[]) => {
-		list.empty();
-		if (hits.length === 0) {
-			emptyState(list, "search-x", "No matches");
+	const hits = runQuery(view.app, query, { limit });
+
+	const render = (all: QueryHit[]) => {
+		const list = all.slice(0, limit);
+		if (list.length === 0) {
+			emptyState(body, "search-x", "No matches");
 			return;
 		}
-		for (const hit of hits.slice(0, limit)) {
-			const row = list.createDiv("hearth-list-item");
-			setIcon(row.createDiv("hearth-list-icon"), hit.badge?.icon ?? iconForFile(hit.file));
-			const name = hit.file instanceof TFile ? hit.file.basename : hit.file.name;
-			row.createDiv({ cls: "hearth-list-label", text: name });
-			if (hit.badge) row.createDiv({ cls: "hearth-task-status", text: hit.badge.label });
-			const open = () => {
-				if (hit.file instanceof TFile) void view.app.workspace.getLeaf(true).openFile(hit.file);
-			};
-			row.addEventListener("click", open);
-			makeClickable(row, open, name);
+		body.empty();
+		if (useTiles) {
+			renderQueryTiles(view, body, list);
+		} else {
+			renderQueryList(view, body, list);
 		}
 	};
 
-	const hits = runQuery(view.app, query, { limit });
 	render(hits);
 	// Append full-text body matches when enabled (self-guards to name queries).
 	if (view.plugin.settings.searchContents) {
@@ -145,6 +140,39 @@ function renderSavedSearch(view: HomeView, card: DashboardCard, body: HTMLElemen
 		void searchFileContents(view.app, query, { exclude, limit }).then((extra) => {
 			if (extra.length) render([...hits, ...extra]);
 		});
+	}
+}
+
+function renderQueryList(view: HomeView, body: HTMLElement, list: QueryHit[]): void {
+	const el = body.createDiv("hearth-list");
+	for (const hit of list) {
+		const row = el.createDiv("hearth-list-item");
+		setIcon(row.createDiv("hearth-list-icon"), hit.badge?.icon ?? iconForFile(hit.file));
+		const name = hit.file instanceof TFile ? hit.file.basename : hit.file.name;
+		row.createDiv({ cls: "hearth-list-label", text: name });
+		if (hit.badge) row.createDiv({ cls: "hearth-task-status", text: hit.badge.label });
+		const open = () => {
+			if (hit.file instanceof TFile) void view.app.workspace.getLeaf(true).openFile(hit.file);
+		};
+		row.addEventListener("click", open);
+		makeClickable(row, open, name);
+	}
+}
+
+function renderQueryTiles(view: HomeView, body: HTMLElement, list: QueryHit[]): void {
+	const grid = body.createDiv("hearth-links hearth-tiles-sized");
+	const baseTile = 90;
+	grid.style.setProperty("--hearth-tile", `${baseTile}px`);
+	for (const hit of list) {
+		const tile = grid.createDiv("hearth-link-tile");
+		setIcon(tile.createDiv("hearth-link-icon"), hit.badge?.icon ?? iconForFile(hit.file));
+		const name = hit.file instanceof TFile ? hit.file.basename : hit.file.name;
+		tile.createDiv({ cls: "hearth-link-label", text: name });
+		const open = () => {
+			if (hit.file instanceof TFile) void view.app.workspace.getLeaf(true).openFile(hit.file);
+		};
+		tile.addEventListener("click", open);
+		makeClickable(tile, open, name);
 	}
 }
 
