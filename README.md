@@ -21,6 +21,8 @@ cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
 
 ![Simple](assets/1.png)
 
+![Cards](assets/6.png)
+
 ---
 
 ## Table of contents
