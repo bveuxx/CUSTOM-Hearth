@@ -1,13 +1,11 @@
 # Hearth
 
-![assets/banner.png](assets/banner.png)
+![banner](assets/3.png)
 
 A beautiful, customizable **home screen for Obsidian** — search, dashboard, and
 launcher in one. Hearth turns your vault into a welcoming front page with a fast
 fuzzy search, quick file-type filters, and a fully arrangeable grid of live
 cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B7K822EW68)
 
 > **v1.4** — free-form dashboard with magnetic alignment, per-card colors and
 > opacity, multiple switchable boards with per-board overrides, pinned cards,
@@ -17,15 +15,9 @@ cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
 
 ## Screenshots
 
-![Dashboard](assets/dashboardfull.png)
+![Dashboard](assets/4.png)
 
-![Simple](assets/dashboardsimple.png)
-
-![Empty](assets/dashboardwall.png)
-
-![Switch](assets/dashboardswitch.png)
-
-<img src="assets/mobiledashboard.png" alt="Mobile mode" width="280" />
+![Simple](assets/1.png)
 
 ---
 
