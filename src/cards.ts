@@ -1509,12 +1509,20 @@ function recurrenceLabel(rule: string | undefined): string | null {
 	return `Repeats every ${plural}`;
 }
 
-/** Format a due date for display. For recurring tasks, append a ↻ symbol so
- * the date isn't mistaken for a one-off and the user knows it's the next
- * occurrence. */
+/** The date used for display/sorting — `due` wins, but recurring tasks use
+ * `scheduled` (the next occurrence) since they have no fixed due date. */
+function effectiveDate(hit: TaskHit): string | null {
+	return hit.due ?? hit.scheduled ?? null;
+}
+
+/** Format a due/next-occurrence date for display. Recurring tasks append a ↻
+ * symbol so the date isn't mistaken for a one-off and the user knows it's the
+ * next occurrence. The raw datetime is normalized to YYYY-MM-DD. */
 function formatDueLabel(hit: TaskHit): string | null {
-	if (!hit.due) return null;
-	return hit.recurrence ? `${hit.due} ↻` : hit.due;
+	const raw = hit.recurrence ? hit.due ?? hit.scheduled : hit.due;
+	if (!raw) return hit.recurrence ? "↻" : null;
+	const date = raw.slice(0, 10);
+	return hit.recurrence ? `${date} ↻` : date;
 }
 
 /** Map a raw priority value to a coarse level for coloring the indicator. */
@@ -1644,7 +1652,8 @@ function renderTaskRow(
 	const dueLabel = formatDueLabel(hit);
 	if (dueLabel) {
 		const due = row.createDiv({ cls: "hearth-task-due", text: dueLabel });
-		due.toggleClass("is-overdue", !hit.done && hit.due! < today);
+		const ed = effectiveDate(hit);
+		due.toggleClass("is-overdue", !hit.done && !!ed && ed.slice(0, 10) < today);
 		if (hit.recurrence) {
 			due.addClass("is-recurring");
 			due.setAttribute("title", recurrenceLabel(hit.recurrence) ?? "Recurring");
@@ -1856,7 +1865,8 @@ function renderTaskKanban(
 			const dueLabel = formatDueLabel(hit);
 			if (dueLabel) {
 				const due = meta.createDiv({ cls: "hearth-task-due", text: dueLabel });
-				due.toggleClass("is-overdue", !hit.done && hit.due! < today);
+				const ed = effectiveDate(hit);
+				due.toggleClass("is-overdue", !hit.done && !!ed && ed.slice(0, 10) < today);
 				if (hit.recurrence) {
 					due.addClass("is-recurring");
 					due.setAttribute("title", recurrenceLabel(hit.recurrence) ?? "Recurring");
