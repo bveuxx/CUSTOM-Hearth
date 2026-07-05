@@ -35,6 +35,7 @@ export const FILE_TYPE_GROUPS: FileTypeGroup[] = [
 	{ id: "documents", label: "Documents", icon: "file-text", extensions: ["doc", "docx", "odt", "rtf", "txt", "pages"] },
 	{ id: "spreadsheets", label: "Sheets", icon: "file-spreadsheet", extensions: ["xls", "xlsx", "ods", "csv", "tsv", "numbers", "usheet"] },
 	{ id: "presentations", label: "Slides", icon: "presentation", extensions: ["ppt", "pptx", "odp", "key"] },
+	{ id: "3d", label: "3D", icon: "box", extensions: ["step", "stp", "stl", "obj", "fbx", "gltf", "glb", "3mf", "ply", "blend", "dae", "iges", "igs", "jt", "x_t", "x_b", "sldprt", "sldasm", "ipt", "iam", "prt", "asm", "c4d", "max", "ma", "mb"] },
 	// Catch-all for any file not matched by a more specific group above.
 	{ id: OTHER_GROUP_ID, label: "Other", icon: "file", extensions: [] },
 ];

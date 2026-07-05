@@ -6,6 +6,7 @@ import { CARD_TEMPLATES, cardFromTemplate } from "./templates";
 import { CardSettingsModal } from "./editors";
 import {
 	activeCards,
+	cloneCard,
 	DashboardCard,
 	effectiveCardOpacity,
 	effectiveColumns,
@@ -268,6 +269,15 @@ function openCardSettings(view: HomeView, card: DashboardCard): void {
 		remove: () => {
 			removeCard(s, card);
 			persistAndRender(view);
+		},
+		otherDashboards: s.dashboards
+			.filter((d) => d.id !== s.activeDashboardId)
+			.map((d) => ({ id: d.id, name: d.name })),
+		copyToDashboard: (targetId) => {
+			const target = s.dashboards.find((d) => d.id === targetId);
+			if (!target) return;
+			target.cards.push(cloneCard(card));
+			void view.plugin.saveData(s);
 		},
 	}).open();
 }

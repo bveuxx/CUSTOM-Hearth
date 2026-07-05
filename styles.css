@@ -260,9 +260,10 @@
 .hearth-filters {
 	display: flex;
 	flex-wrap: wrap;
-	/* Left-align the chips and match the search field's width/position so the
-	 * first filter lines up with the left edge of the search box. */
-	justify-content: flex-start;
+	/* Spread the chips from the first to the last edge of the row so they span
+	 * the whole search width and stay evenly distributed. Sizes are unchanged;
+	 * only the spacing between them is. */
+	justify-content: space-between;
 	gap: 8px;
 	width: 100%;
 	max-width: 720px;
@@ -302,26 +303,44 @@
 .hearth-dashboard {
 	flex: 1;
 	min-height: 0;
-	/* Anchor the floating toolbar to the dashboard. */
+	/* Stack the toolbar (in flow) above the grid so the Arrange/Add card actions
+	 * always stay visible — they no longer float above the board where they can
+	 * be clipped by the fit-to-page scroll container. */
+	display: flex;
+	flex-direction: column;
+	/* Anchor any absolutely-positioned children (e.g. alignment guides). */
 	position: relative;
 }
 
-/* In fit-to-page mode reserve space above the dashboard for the floating
-   toolbar (Arrange / Add card) so it isn't clipped, and clip the grid (not
-   the dashboard) so cards can't be dropped or rendered off-screen. */
-.hearth-fit .hearth-dashboard {
-	padding-top: 34px;
+/* The toolbar is a normal flex child: it reserves its own row so it can never
+ * be pushed off-screen, and toggling arrange mode only swaps its buttons
+ * without shifting the board vertically. */
+.hearth-toolbar {
+	position: relative;
+	right: auto;
+	bottom: auto;
+	margin: 0 0 8px 0;
+	z-index: 3;
 }
 
 /* Free-form board: cards are absolutely positioned via inline left/top/width/
-   height (fractions of the board width horizontally, pixels vertically). */
+   height (fractions of the board width horizontally, pixels vertically). The
+   grid is a flex child of the dashboard so it fills the space left by the
+   toolbar; its inline min-height (the cards' total footprint) still grows it
+   in scroll mode. */
 .hearth-grid {
 	position: relative;
 	width: 100%;
+	flex: 1 1 auto;
+	min-height: 0;
 }
 
 .hearth-fit .hearth-grid {
-	height: 100%;
+	/* Fill whatever height the dashboard has left after the in-flow toolbar.
+	 * Don't use height:100% — that ignores the toolbar row and overflows by its
+	 * height, clipping the bottom row of cards (and the arrange button area). */
+	flex: 1 1 auto;
+	height: auto;
 }
 
 /* In fit-to-page mode the board is locked to one screen: clip anything that
@@ -877,26 +896,29 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	flex: 0 0 26px;
-	width: 26px;
-	height: 26px;
+	flex: 0 0 28px;
+	width: 28px;
+	height: 28px;
 	border-radius: 7px;
-	border: none;
-	background: transparent;
-	color: var(--text-muted);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-normal);
 	cursor: pointer;
 }
 
 .hearth-calendar-nav:hover {
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
+	border-color: var(--interactive-accent);
 }
 
 /* Ensure the chevron glyphs actually render at a visible size inside the
-   compact nav buttons. */
+   compact nav buttons. Use normal text colour and a thicker stroke so the
+   arrows are clearly readable, not faint. */
 .hearth-calendar-nav .svg-icon {
-	width: 16px;
-	height: 16px;
+	width: 18px;
+	height: 18px;
+	stroke-width: 2.5px;
 }
 
 .hearth-calendar-label {
@@ -1013,22 +1035,13 @@
 
 /* ---- Toolbar -------------------------------------------------------- */
 
+/* Layout only — positioning (in-flow, never floating) is set alongside the
+ * .hearth-dashboard rule above so the toolbar can't be clipped by fit-to-page
+ * overflow. */
 .hearth-toolbar {
 	display: flex;
 	justify-content: flex-end;
 	gap: 8px;
-}
-
-/* The toolbar always floats above the grid (anchored to the dashboard) so
- * toggling arrange mode never shifts the board vertically — the Add card / Done
- * arranging actions simply appear on the same row the compact Arrange toggle
- * occupied at rest. */
-.hearth-toolbar {
-	position: absolute;
-	right: 0;
-	bottom: 100%;
-	margin: 0 0 4px 0;
-	z-index: 3;
 }
 
 .hearth-tool-btn {
@@ -1110,6 +1123,13 @@
 .hearth-dash-btn:hover {
 	color: var(--text-normal);
 	border-color: var(--interactive-accent);
+}
+
+/* Lucide icon buttons: size the glyph to match the numeric/emoji buttons. */
+.hearth-dash-btn .svg-icon,
+.hearth-dash-btn svg {
+	width: 16px;
+	height: 16px;
 }
 
 .hearth-dash-btn.is-active {
@@ -1288,12 +1308,24 @@
 	touch-action: none;
 }
 
-/* The editable header must sit above the drag overlay so its field and
- * action buttons stay interactive; cards are still dragged from the body. */
+/* The editable header floats over the card's top edge in arrange mode instead
+ * of reserving a flex row, so the card body keeps exactly the same size it has
+ * outside arrange mode — the live preview stays faithful and resizing isn't
+ * thrown off by the toolbar's own height. It sits above the drag overlay so its
+ * field and action buttons stay interactive; cards are still dragged from the
+ * body. */
 .hearth-grid.is-arranging .hearth-card-head.is-editing {
-	position: relative;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
 	z-index: 7;
 	gap: 8px;
+	padding: 6px 10px;
+	background: color-mix(in srgb, var(--background-primary) 88%, transparent);
+	backdrop-filter: blur(6px);
+	border-bottom: 1px solid var(--background-modifier-border);
+	border-radius: 14px 14px 0 0;
 }
 
 .hearth-card-title-input {
@@ -1518,7 +1550,9 @@
 	transition: opacity 140ms ease, background 140ms ease, border-color 140ms ease;
 }
 
-.hearth-tasks-head:hover .hearth-task-add,
+/* Reveal the "new task" button whenever the whole card is hovered (not just
+ * the button's own tiny corner), so it's discoverable anywhere over the card. */
+.hearth-card:hover .hearth-task-add,
 .hearth-task-add:focus-visible {
 	opacity: 1;
 }

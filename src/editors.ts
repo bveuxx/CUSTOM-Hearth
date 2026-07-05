@@ -1,4 +1,4 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Menu, Modal, Notice, Setting } from "obsidian";
 import { CommandPickerModal, FilePickerModal } from "./pickers";
 import { CardKind, ClockConfig, DashboardCard, LinkItem, TasksConfig } from "./types";
 import { confirmAction } from "./ui";
@@ -40,6 +40,10 @@ export interface CardSettingsOptions {
 	rerender: () => void;
 	/** Remove this card from the dashboard. */
 	remove: () => void;
+	/** Other dashboards this card can be copied to (id + name). */
+	otherDashboards: { id: string; name: string }[];
+	/** Copy this card onto the end of another dashboard. */
+	copyToDashboard: (targetId: string) => void;
 }
 
 /**
@@ -89,6 +93,7 @@ export class CardSettingsModal extends Modal {
 		this.colorsSection(contentEl);
 		this.sizeSection(contentEl);
 		this.pinSection(contentEl);
+		this.copySection(contentEl);
 
 		new Setting(contentEl)
 			.addButton((b) => {
@@ -901,6 +906,32 @@ export class CardSettingsModal extends Modal {
 					this.opts.save();
 				}),
 			);
+	}
+
+	/** Copy this card (with its current content and settings) onto the end of
+	 * another dashboard. The original stays in place. */
+	private copySection(containerEl: HTMLElement): void {
+		const targets = this.opts.otherDashboards;
+		if (targets.length === 0) return;
+		const row = new Setting(containerEl)
+			.setName("Copy to dashboard")
+			.setDesc("Add a duplicate of this card to the end of another dashboard.");
+		let dropdown: { getValue(): string } | null = null;
+		row.addDropdown((d) => {
+			for (const t of targets) d.addOption(t.id, t.name);
+			dropdown = d;
+		});
+		row.addButton((b) =>
+			b
+				.setButtonText("Copy")
+				.setTooltip("Copy this card to the selected dashboard")
+				.onClick(() => {
+					const id = dropdown?.getValue();
+					if (!id) return;
+					this.opts.copyToDashboard(id);
+					new Notice("Card copied to the dashboard.");
+				}),
+		);
 	}
 
 	onClose(): void {

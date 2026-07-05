@@ -249,6 +249,9 @@ export interface Dashboard {
 	/** Optional emoji/short text shown on the switcher button instead of its
 	 * 1-based number. */
 	icon?: string;
+	/** Optional Lucide icon id shown on the switcher button instead of the
+	 * emoji/number (takes precedence over `icon`). */
+	iconLucide?: string;
 	cards: DashboardCard[];
 	/** Optional overrides; when omitted the global setting is used. */
 	gridColumns?: number;
@@ -404,6 +407,23 @@ export function defaultMobileActionButtons(): MobileActionButton[] {
 /** Generate a unique dashboard id. */
 export function newDashboardId(): string {
 	return `dash-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4)}`;
+}
+
+/** Deep-clone a card with a fresh id, so the copy can be added to a dashboard
+ * (or a different one) without colliding with the original. */
+export function cloneCard(card: DashboardCard): DashboardCard {
+	const copy: DashboardCard = {
+		...card,
+		id: `card-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e4)}`,
+	};
+	if (card.links) copy.links = card.links.map((l) => ({ ...l }));
+	if (card.commands) copy.commands = card.commands.map((c) => ({ ...c }));
+	if (card.tasks) copy.tasks = { ...card.tasks, folders: card.tasks.folders ? [...card.tasks.folders] : undefined, kanbanOrder: card.tasks.kanbanOrder ? [...card.tasks.kanbanOrder] : undefined, kanbanHidden: card.tasks.kanbanHidden ? [...card.tasks.kanbanHidden] : undefined };
+	if (card.calendar) copy.calendar = { ...card.calendar };
+	if (card.savedSearch) copy.savedSearch = { ...card.savedSearch };
+	if (card.heatmap) copy.heatmap = { ...card.heatmap };
+	if (card.clock) copy.clock = { ...card.clock };
+	return copy;
 }
 
 /** The dashboard currently selected (falls back to the first one). */

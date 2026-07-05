@@ -1,6 +1,6 @@
 import { Menu, Modal, Setting, setIcon } from "obsidian";
 import type { HomeView } from "./view";
-import { BackgroundConfig, BackgroundKind, Dashboard, newDashboardId } from "./types";
+import { BackgroundConfig, BackgroundKind, Dashboard, newDashboardId, cloneCard } from "./types";
 import { confirmAction } from "./ui";
 
 /**
@@ -13,11 +13,16 @@ export function renderDashboardSwitcher(view: HomeView, container: HTMLElement):
 	const bar = container.createDiv("hearth-dash-switcher");
 
 	s.dashboards.forEach((d, i) => {
+		const lucide = d.iconLucide?.trim();
 		const icon = d.icon?.trim();
 		const btn = bar.createEl("button", {
 			cls: "hearth-dash-btn",
-			text: icon || String(i + 1),
 		});
+		if (lucide) {
+			setIcon(btn, lucide);
+		} else {
+			btn.setText(icon || String(i + 1));
+		}
 		const active = d.id === s.activeDashboardId;
 		btn.toggleClass("is-active", active);
 		if (active) btn.setAttribute("aria-current", "true");
@@ -81,6 +86,32 @@ function showDashboardMenu(view: HomeView, dash: Dashboard, evt: MouseEvent): vo
 			.setTitle("Dashboard settings…")
 			.setIcon("settings-2")
 			.onClick(() => new DashboardSettingsModal(view, dash).open()),
+	);
+
+	menu.addItem((item) =>
+		item
+			.setTitle("Duplicate")
+			.setIcon("copy")
+			.onClick(() => {
+				const copy: Dashboard = {
+					id: newDashboardId(),
+					name: `${dash.name} copy`,
+					cards: dash.cards.map((c) => cloneCard(c)),
+				};
+				if (dash.icon) copy.icon = dash.icon;
+				if (dash.iconLucide) copy.iconLucide = dash.iconLucide;
+				if (dash.gridColumns != null) copy.gridColumns = dash.gridColumns;
+				if (dash.rowHeight != null) copy.rowHeight = dash.rowHeight;
+				if (dash.fitToPage != null) copy.fitToPage = dash.fitToPage;
+				if (dash.maxWidth != null) copy.maxWidth = dash.maxWidth;
+				if (dash.cardOpacity != null) copy.cardOpacity = dash.cardOpacity;
+				if (dash.background) copy.background = { ...dash.background };
+				const i = s.dashboards.findIndex((d) => d.id === dash.id);
+				s.dashboards.splice(i + 1, 0, copy);
+				s.activeDashboardId = copy.id;
+				void view.plugin.saveData(s);
+				view.render();
+			}),
 	);
 
 	menu.addItem((item) =>
@@ -164,6 +195,21 @@ class DashboardSettingsModal extends Modal {
 					dash.icon = v.trim() || undefined;
 					this.commit();
 				}),
+			);
+
+		new Setting(contentEl)
+			.setName("Switcher Lucide icon")
+			.setDesc(
+				"A Lucide icon id (e.g. “home”, “star”, “layout-dashboard”). Takes precedence over the emoji above.",
+			)
+			.addText((t) =>
+				t
+					.setPlaceholder("home")
+					.setValue(dash.iconLucide ?? "")
+					.onChange((v) => {
+						dash.iconLucide = v.trim() || undefined;
+						this.commit();
+					}),
 			);
 
 		this.overrideSlider(

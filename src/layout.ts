@@ -140,6 +140,7 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 	if (typeof r.showOpenButton === "boolean") card.showOpenButton = r.showOpenButton;
 	if (typeof r.sandboxTrusted === "boolean") card.sandboxTrusted = r.sandboxTrusted;
 	if (typeof r.pinned === "boolean") card.pinned = r.pinned;
+	if (typeof r.cardOpacity === "number") card.cardOpacity = r.cardOpacity;
 	if (Array.isArray(r.links)) {
 		card.links = r.links.map(sanitizeLink).filter((l): l is LinkItem => l !== null);
 	}
@@ -268,6 +269,8 @@ function sanitizeDashboard(raw: unknown, s: HomeSettings, index: number): Dashbo
 	};
 	const icon = str(r.icon);
 	if (icon !== undefined && icon.trim()) dash.icon = icon;
+	const iconLucide = str(r.iconLucide);
+	if (iconLucide !== undefined && iconLucide.trim()) dash.iconLucide = iconLucide;
 	if (typeof r.gridColumns === "number") {
 		dash.gridColumns = clampNum(r.gridColumns, RANGE.gridColumns.min, RANGE.gridColumns.max, s.gridColumns);
 	}
