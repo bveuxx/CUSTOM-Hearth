@@ -825,7 +825,7 @@ export class CardSettingsModal extends Modal {
 		const card = this.card;
 		const row = new Setting(containerEl)
 			.setName("Size")
-			.setDesc("Width (% of the board) and height (pixels). Or just drag the card's corner.");
+			.setDesc("Width (% of the board) and height (pixels). Or just drag any edge or corner of the card.");
 
 		row.addText((t) => {
 			t.setValue(String(Math.round((card.fw ?? 0.25) * 100))).onChange((v) => {

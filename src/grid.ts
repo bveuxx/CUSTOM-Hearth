@@ -129,6 +129,10 @@ export interface GridLayout {
 	elements: Map<DashboardCard, HTMLElement>;
 }
 
+/** Which edge(s) a resize drag moves. Compass directions; corners combine two. */
+type ResizeDir = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
+const RESIZE_DIRS: ResizeDir[] = ["n", "s", "e", "w", "ne", "nw", "se", "sw"];
+
 interface DragContext {
 	pointerId: number;
 	startClientX: number;
@@ -139,6 +143,8 @@ interface DragContext {
 	startHeight: number;
 	boardWidth: number;
 	mode: "move" | "resize";
+	/** For resize: which edges follow the pointer. */
+	dir: ResizeDir | null;
 	// Candidate snap lines (px, board-relative) collected from siblings + board.
 	xTargets: number[];
 	yTargets: number[];
@@ -209,7 +215,12 @@ export function enableDragResize(
 	onCommit: () => void,
 ): void {
 	const overlay = cardEl.createDiv("hearth-card-overlay");
-	const handle = cardEl.createDiv("hearth-resize-handle");
+	// One resize grip per edge and corner, so the card can be resized from any
+	// side, not just the bottom-right.
+	const handles = RESIZE_DIRS.map((dir) => ({
+		dir,
+		el: cardEl.createDiv(`hearth-resize-handle is-${dir}`),
+	}));
 
 	let ctx: DragContext | null = null;
 	let guideX: HTMLElement | null = null;
@@ -235,7 +246,7 @@ export function enableDragResize(
 		}
 	};
 
-	const begin = (e: PointerEvent, mode: "move" | "resize") => {
+	const begin = (e: PointerEvent, mode: "move" | "resize", dir: ResizeDir | null) => {
 		e.preventDefault();
 		e.stopPropagation();
 		const boardWidth = gridEl.clientWidth;
@@ -250,6 +261,7 @@ export function enableDragResize(
 			startHeight: card.fh ?? MIN_H_PX,
 			boardWidth,
 			mode,
+			dir,
 			xTargets,
 			yTargets,
 		};
@@ -291,27 +303,49 @@ export function enableDragResize(
 			cardEl.style.width = `${ctx.startWidth}px`;
 			cardEl.style.top = `${top}px`;
 		} else {
-			let width = Math.max(MIN_W_PX, ctx.startWidth + dx);
-			let height = Math.max(MIN_H_PX, ctx.startHeight + dy);
-			width = Math.min(width, ctx.boardWidth - ctx.startLeft);
-			// The right edge snaps horizontally; the bottom edge snaps vertically.
-			const snapX = bestSnap([ctx.startLeft + width], ctx.xTargets);
-			if (snapX) {
-				width = clamp(width + snapX.delta, MIN_W_PX, ctx.boardWidth - ctx.startLeft);
-				showGuide("x", snapX.guide);
+			const dir = ctx.dir ?? "se";
+			const right = ctx.startLeft + ctx.startWidth;
+			const bottom = ctx.startTop + ctx.startHeight;
+			let left = ctx.startLeft;
+			let top = ctx.startTop;
+			let width = ctx.startWidth;
+			let height = ctx.startHeight;
+
+			// East/west edges — one stays anchored while the other follows.
+			if (dir.includes("e")) {
+				width = clamp(ctx.startWidth + dx, MIN_W_PX, ctx.boardWidth - ctx.startLeft);
+				const snap = bestSnap([left + width], ctx.xTargets);
+				if (snap) width = clamp(width + snap.delta, MIN_W_PX, ctx.boardWidth - left);
+				showGuide("x", snap ? snap.guide : null);
+			} else if (dir.includes("w")) {
+				left = clamp(ctx.startLeft + dx, 0, right - MIN_W_PX);
+				const snap = bestSnap([left], ctx.xTargets);
+				if (snap) left = clamp(left + snap.delta, 0, right - MIN_W_PX);
+				width = right - left;
+				showGuide("x", snap ? snap.guide : null);
 			} else {
 				showGuide("x", null);
 			}
-			const snapY = bestSnap([ctx.startTop + height], ctx.yTargets);
-			if (snapY) {
-				height = Math.max(MIN_H_PX, height + snapY.delta);
-				showGuide("y", snapY.guide);
+
+			// North/south edges.
+			if (dir.includes("s")) {
+				height = Math.max(MIN_H_PX, ctx.startHeight + dy);
+				const snap = bestSnap([top + height], ctx.yTargets);
+				if (snap) height = Math.max(MIN_H_PX, height + snap.delta);
+				showGuide("y", snap ? snap.guide : null);
+			} else if (dir.includes("n")) {
+				top = clamp(ctx.startTop + dy, 0, bottom - MIN_H_PX);
+				const snap = bestSnap([top], ctx.yTargets);
+				if (snap) top = clamp(top + snap.delta, 0, bottom - MIN_H_PX);
+				height = bottom - top;
+				showGuide("y", snap ? snap.guide : null);
 			} else {
 				showGuide("y", null);
 			}
-			cardEl.style.left = `${ctx.startLeft}px`;
+
+			cardEl.style.left = `${left}px`;
 			cardEl.style.width = `${width}px`;
-			cardEl.style.top = `${ctx.startTop}px`;
+			cardEl.style.top = `${top}px`;
 			cardEl.style.height = `${height}px`;
 		}
 		updateBoardHeight(gridEl);
@@ -336,14 +370,16 @@ export function enableDragResize(
 		onCommit();
 	};
 
-	component.registerDomEvent(overlay, "pointerdown", (e) => begin(e, "move"));
-	component.registerDomEvent(handle, "pointerdown", (e) => begin(e, "resize"));
+	component.registerDomEvent(overlay, "pointerdown", (e) => begin(e, "move", null));
 	component.registerDomEvent(overlay, "pointermove", move);
-	component.registerDomEvent(handle, "pointermove", move);
 	component.registerDomEvent(overlay, "pointerup", end);
-	component.registerDomEvent(handle, "pointerup", end);
 	component.registerDomEvent(overlay, "pointercancel", end);
-	component.registerDomEvent(handle, "pointercancel", end);
+	for (const { dir, el } of handles) {
+		component.registerDomEvent(el, "pointerdown", (e) => begin(e, "resize", dir));
+		component.registerDomEvent(el, "pointermove", move);
+		component.registerDomEvent(el, "pointerup", end);
+		component.registerDomEvent(el, "pointercancel", end);
+	}
 }
 
 /** Grow the board so it always contains its lowest card (plus breathing room). */

@@ -1324,16 +1324,52 @@
 	z-index: 20;
 }
 
+/* Resize grips: one per edge and corner so a card can be resized from any
+   side. Edge grips are thin strips along each side; corner grips sit on top of
+   them. Resizing must not also scroll/swipe the page on touch devices. */
 .hearth-resize-handle {
 	position: absolute;
-	right: 0;
-	bottom: 0;
-	width: 18px;
-	height: 18px;
 	z-index: 6;
-	cursor: nwse-resize;
-	/* Resizing must not also scroll/swipe the page on touch devices. */
 	touch-action: none;
+}
+
+/* Edges */
+.hearth-resize-handle.is-n,
+.hearth-resize-handle.is-s {
+	left: 8px;
+	right: 8px;
+	height: 8px;
+	cursor: ns-resize;
+}
+.hearth-resize-handle.is-n { top: 0; }
+.hearth-resize-handle.is-s { bottom: 0; }
+
+.hearth-resize-handle.is-e,
+.hearth-resize-handle.is-w {
+	top: 8px;
+	bottom: 8px;
+	width: 8px;
+	cursor: ew-resize;
+}
+.hearth-resize-handle.is-e { right: 0; }
+.hearth-resize-handle.is-w { left: 0; }
+
+/* Corners (sit above the edge strips) */
+.hearth-resize-handle.is-ne,
+.hearth-resize-handle.is-nw,
+.hearth-resize-handle.is-se,
+.hearth-resize-handle.is-sw {
+	width: 16px;
+	height: 16px;
+	z-index: 7;
+}
+.hearth-resize-handle.is-nw { top: 0; left: 0; cursor: nwse-resize; }
+.hearth-resize-handle.is-se { bottom: 0; right: 0; cursor: nwse-resize; }
+.hearth-resize-handle.is-ne { top: 0; right: 0; cursor: nesw-resize; }
+.hearth-resize-handle.is-sw { bottom: 0; left: 0; cursor: nesw-resize; }
+
+/* Keep the familiar visible grip in the bottom-right corner as an affordance. */
+.hearth-resize-handle.is-se {
 	background:
 		linear-gradient(
 			135deg,
@@ -1346,11 +1382,18 @@
 	border-bottom-right-radius: 12px;
 }
 
-/* Bigger, easier-to-grab resize target on touch devices. */
+/* Bigger, easier-to-grab resize targets on touch devices. */
 @media (pointer: coarse) {
-	.hearth-resize-handle {
-		width: 30px;
-		height: 30px;
+	.hearth-resize-handle.is-n,
+	.hearth-resize-handle.is-s { height: 14px; }
+	.hearth-resize-handle.is-e,
+	.hearth-resize-handle.is-w { width: 14px; }
+	.hearth-resize-handle.is-ne,
+	.hearth-resize-handle.is-nw,
+	.hearth-resize-handle.is-se,
+	.hearth-resize-handle.is-sw {
+		width: 26px;
+		height: 26px;
 	}
 }
 

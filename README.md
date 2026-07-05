@@ -119,9 +119,10 @@ embed notes, images, bases, bookmarks and quick text.
 
 ### Arranging the dashboard
 - **Drag & resize** — hit **Arrange** to move cards (drag anywhere) and resize
-  them (corner handle). Placement is fully free-form (no grid): cards can sit and
-  be sized anywhere, with **magnetic alignment** — edges and centres snap to
-  neighbouring cards and the board, showing guide lines, so layouts stay clean.
+  them from **any edge or corner**. Placement is fully free-form (no grid): cards
+  can sit and be sized anywhere, with **magnetic alignment** — edges and centres
+  snap to neighbouring cards and the board, showing guide lines, so layouts stay
+  clean.
 - **On-board management** — in arrange mode each card header is editable:
   rename inline, swap the embedded file via a fuzzy picker, or remove the card.
   **Add card** (toolbar) drops in a new card from the library.
