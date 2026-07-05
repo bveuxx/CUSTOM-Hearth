@@ -309,8 +309,8 @@
 .hearth-grid {
 	display: grid;
 	grid-template-columns: repeat(var(--hearth-cols, 12), minmax(0, 1fr));
-	grid-auto-rows: 92px;
-	gap: 16px;
+	grid-auto-rows: var(--hearth-row-h, 92px);
+	gap: var(--hearth-gap, 16px);
 }
 
 .hearth-fit .hearth-grid {
