@@ -18,13 +18,38 @@ export function renderDashboardSwitcher(view: HomeView, container: HTMLElement):
 			cls: "hearth-dash-btn",
 			text: icon || String(i + 1),
 		});
-		btn.toggleClass("is-active", d.id === s.activeDashboardId);
+		const active = d.id === s.activeDashboardId;
+		btn.toggleClass("is-active", active);
+		if (active) btn.setAttribute("aria-current", "true");
 		btn.setAttribute("aria-label", d.name);
 		btn.setAttribute("title", d.name);
 		btn.addEventListener("click", () => view.plugin.setActiveDashboard(d.id));
 		btn.addEventListener("contextmenu", (e) => {
 			e.preventDefault();
 			showDashboardMenu(view, d, e);
+		});
+
+		// Drag to reorder the boards in the switcher.
+		btn.setAttribute("draggable", "true");
+		btn.addEventListener("dragstart", (e) => {
+			e.dataTransfer?.setData("text/plain", String(i));
+			btn.addClass("is-dragging");
+		});
+		btn.addEventListener("dragend", () => btn.removeClass("is-dragging"));
+		btn.addEventListener("dragover", (e) => {
+			e.preventDefault();
+			btn.addClass("is-drop-target");
+		});
+		btn.addEventListener("dragleave", () => btn.removeClass("is-drop-target"));
+		btn.addEventListener("drop", (e) => {
+			e.preventDefault();
+			btn.removeClass("is-drop-target");
+			const from = parseInt(e.dataTransfer?.getData("text/plain") ?? "", 10);
+			if (Number.isNaN(from) || from === i) return;
+			const [moved] = s.dashboards.splice(from, 1);
+			s.dashboards.splice(i, 0, moved);
+			void view.plugin.saveData(s);
+			view.render();
 		});
 	});
 
@@ -167,6 +192,34 @@ class DashboardSettingsModal extends Modal {
 				this.commit();
 			},
 		);
+
+		this.overrideSlider(
+			contentEl,
+			"Content width",
+			dash.maxWidth,
+			s.maxWidth,
+			700,
+			1600,
+			20,
+			(v) => {
+				dash.maxWidth = v;
+				this.commit();
+			},
+		);
+
+		new Setting(contentEl)
+			.setName("Fit to page")
+			.setDesc("Override scrolling for this board.")
+			.addDropdown((d) => {
+				d.addOption("default", `Use global default (${s.fitToPage ? "fit" : "scroll"})`);
+				d.addOption("fit", "Fit to one page");
+				d.addOption("scroll", "Allow scrolling");
+				d.setValue(dash.fitToPage === undefined ? "default" : dash.fitToPage ? "fit" : "scroll");
+				d.onChange((v) => {
+					dash.fitToPage = v === "default" ? undefined : v === "fit";
+					this.commit();
+				});
+			});
 
 		this.backgroundSection(contentEl);
 

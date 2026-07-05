@@ -9,13 +9,14 @@ embed notes, images, bases, bookmarks and quick text.
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B7K822EW68)
 
-> Status: **v0.10** — the top section and a fully arrangeable card dashboard
+> Status: **v0.14** — the top section and a fully arrangeable card dashboard
 > (drag, resize, collision-aware packing, on-board card management, templates,
 > per-card colors, web embeds, live auto-refreshing, zoomable and editable
 > embeds, Excalidraw and canvas cards, multiple switchable dashboards with
 > per-board overrides, pinned cards, a search-only mobile mode with a
-> customizable action bar, tag/frontmatter search, Tasks/calendar/stats cards,
-> layout import/export) are in. See [Roadmap](#roadmap) for what's next.
+> customizable action bar, tag/frontmatter/full-text search, command mode,
+> Tasks/calendar/stats/saved-search/heatmap cards, Kanban tasks, layout
+> import/export) are in. See [Roadmap](#roadmap) for what's next.
 
 ## Screenshots
 
@@ -40,9 +41,12 @@ embed notes, images, bases, bookmarks and quick text.
 - **Vault search** — fuzzy search across your whole vault (the `.obsidian`
   config folder is ignored automatically). Keyboard friendly: `↑`/`↓` to move,
   `Enter` to open, `Esc` to dismiss. A leading `#` switches to **tag search**;
-  `key:value` (or bare `key:`) switches to **frontmatter property search** —
-  both distinct, transparent modes that show exactly what matched. An empty,
-  focused search field quietly offers your recently opened files.
+  `key:value` (or bare `key:`) switches to **frontmatter property search**; a
+  leading `>` switches to **command mode** (run any command) — all distinct,
+  transparent modes that show exactly what matched. With **Search note
+  contents** on (default), plain queries also match note *bodies* and show a
+  snippet. Matched characters are highlighted. An empty, focused search field
+  quietly offers your recently opened files.
 - **Auto-detected filters** — file-type filter chips are generated from what
   actually lives in your vault, grouped sensibly (Notes, Images, Videos,
   Sheets, Slides, Documents, Folders, Canvas, Bases…), each with a fitting
@@ -71,6 +75,13 @@ embed notes, images, bases, bookmarks and quick text.
   plugin's format/folder, with a dot on days that already have a note.
 - **Vault statistics** — notes, attachments, folders, unique tags and your
   daily-note streak, read entirely from the in-memory vault index.
+- **Saved search** — a card that runs a stored query (the same syntax as the
+  search bar) and lists the matching files, refreshed live.
+- **Activity heatmap** — a GitHub-style contribution grid tinted by how many
+  notes were edited (or created) each day.
+- **Kanban tasks** — the Tasks card can render as a Kanban board grouped by
+  status; drag cards between columns to change checkbox state or TaskNotes
+  status.
 - **Daily note** — always shows *today's* daily note (resolved from the core
   Daily notes plugin's date format and folder), with a one-click prompt to
   create it when it doesn't exist yet and a hideable button to open it in the
@@ -227,11 +238,29 @@ into `<vault>/.obsidian/plugins/hearth/`.
 - [x] **Mini calendar card** — a month grid of daily notes
 - [x] **Vault statistics card** — notes/attachments/folders/tags counts and a
   daily-note streak
+- [x] **Full-text search** — an optional toggle to also match note *bodies*,
+  not just names/tags/properties, with a snippet showing what matched
+- [x] **Command mode** — a leading `>` in the search bar runs any command
+- [x] **Match highlighting** — matched characters are highlighted in results
+- [x] **Saved-search card** — a card that lists the results of a stored query
+- [x] **Activity heatmap card** — a GitHub-style contribution grid of edits
+- [x] **Kanban tasks** — a per-card Kanban layout that groups tasks into status
+  columns and lets you drag them between (writes checkbox state / TaskNotes
+  status back to the file)
+- [x] **Calendar week numbers & heatmap** — optional ISO week column and an
+  edit-count tint; clicking an empty day creates that day's note
+- [x] **Per-command tile size** — size command tiles individually
+- [x] **Reorder dashboards** — drag the switcher buttons to reorder boards
+- [x] **Per-board fit-to-page / max-width overrides**
+- [x] **Web framing fallback** — an "open in browser" button and a message when
+  a site refuses to be embedded
+- [x] **Accessibility** — result list, filter chips, cards, calendar days and
+  switcher buttons are keyboard-operable with proper roles
+
 ### Planned
 
 Bigger ideas
-- [ ] Reorder dashboards in the switcher (drag the buttons)
-- [ ] Per-board fit-to-page / max-width overrides
+- [ ] Drag tasks between days on the calendar
 
 ## License
 MIT © ondreu

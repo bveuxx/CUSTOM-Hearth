@@ -877,7 +877,9 @@ function renderBookmarks(view: HomeView, body: HTMLElement): void {
 			setIcon(iconEl, icon);
 		}
 		row.createDiv({ cls: "hearth-list-label", text: label });
-		row.addEventListener("click", () => openBookmark(view, item));
+		const open = () => openBookmark(view, item);
+		row.addEventListener("click", open);
+		makeClickable(row, open, label);
 	}
 }
 
@@ -928,9 +930,9 @@ function renderFavorites(view: HomeView, body: HTMLElement): void {
 		if (file instanceof TFile) {
 			setIcon(card.createDiv("hearth-fav-icon"), iconForFile(file));
 			card.createDiv({ cls: "hearth-fav-name", text: file.basename });
-			card.addEventListener("click", () => {
-				void view.app.workspace.getLeaf(true).openFile(file);
-			});
+			const open = () => void view.app.workspace.getLeaf(true).openFile(file);
+			card.addEventListener("click", open);
+			makeClickable(card, open, file.basename);
 		} else {
 			card.addClass("is-missing");
 			setIcon(card.createDiv("hearth-fav-icon"), "file-x");
@@ -1024,9 +1026,9 @@ function renderRecent(view: HomeView, card: DashboardCard, body: HTMLElement): v
 		const row = list.createDiv("hearth-list-item");
 		setIcon(row.createDiv("hearth-list-icon"), iconForFile(file));
 		row.createDiv({ cls: "hearth-list-label", text: file.basename });
-		row.addEventListener("click", () => {
-			void view.app.workspace.getLeaf(true).openFile(file);
-		});
+		const open = () => void view.app.workspace.getLeaf(true).openFile(file);
+		row.addEventListener("click", open);
+		makeClickable(row, open, file.basename);
 	}
 }
 
@@ -1044,7 +1046,9 @@ function renderLinks(view: HomeView, card: DashboardCard, body: HTMLElement): vo
 		const tile = grid.createDiv("hearth-link-tile");
 		setIcon(tile.createDiv("hearth-link-icon"), link.icon || "link");
 		tile.createDiv({ cls: "hearth-link-label", text: link.label || link.target });
-		tile.addEventListener("click", () => openLink(view, link));
+		const open = () => openLink(view, link);
+		tile.addEventListener("click", open);
+		makeClickable(tile, open, link.label || link.target);
 	}
 }
 

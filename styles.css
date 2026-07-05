@@ -1541,3 +1541,13 @@
 	padding: 16px;
 	background: var(--background-primary);
 }
+
+/* ---- Dashboard switcher: drag-to-reorder ---------------------------- */
+.hearth-dash-btn.is-dragging {
+	opacity: 0.5;
+}
+
+.hearth-dash-btn.is-drop-target {
+	outline: 2px dashed var(--interactive-accent);
+	outline-offset: 1px;
+}
