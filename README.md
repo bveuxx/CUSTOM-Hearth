@@ -9,7 +9,7 @@ embed notes, images, bases, bookmarks and quick text.
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B7K822EW68)
 
-> Status: **v0.14** — the top section and a fully arrangeable card dashboard
+> Status: **v1.0** — the top section and a fully arrangeable card dashboard
 > (drag, resize, collision-aware packing, on-board card management, templates,
 > per-card colors, web embeds, live auto-refreshing, zoomable and editable
 > embeds, Excalidraw and canvas cards, multiple switchable dashboards with
