@@ -384,49 +384,61 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	maxWidth: 1600,
 };
 
-/** The cards a brand-new vault starts with. Layout tuned for a fit-to-page
- * board at 12 columns / 92px rows: a wide clock/greeting across the top, a
- * daily note and mini calendar on the second row, recent files and vault stats
- * on the third. Free-form coordinates (fx/fy/fw/fh) are seeded directly so the
- * cards land where intended on first render without depending on the grid
- * conversion. */
+/** The cards a brand-new vault starts with. Coordinates and sizes are taken
+ * directly from a hand-tuned fit-to-page layout so cards land correctly on
+ * first render without depending on the grid conversion. */
 function starterCards(): DashboardCard[] {
 	return [
 		{
 			id: "card-clock",
 			kind: "clock",
 			title: "",
-			x: 0, y: 0, w: 12, h: 2,
-			fx: 0, fw: 1, fy: 0, fh: 160,
+			x: 0, y: 0, w: 12, h: 3,
+			fx: 0,
+			fw: 0.2845744680851064,
+			fy: 0,
+			fh: 145,
 		},
 		{
 			id: "card-daily",
 			kind: "daily",
 			title: "Today",
-			x: 0, y: 2, w: 7, h: 5,
-			fx: 0, fw: 0.58, fy: 172, fh: 380,
+			x: 0, y: 3, w: 7, h: 6,
+			fx: 0.6309840425531915,
+			fw: 0.3690159574468085,
+			fy: 0,
+			fh: 512,
 		},
 		{
 			id: "card-calendar",
 			kind: "calendar",
 			title: "Calendar",
-			x: 7, y: 2, w: 5, h: 5,
-			fx: 0.6, fw: 0.4, fy: 172, fh: 380,
+			x: 7, y: 3, w: 5, h: 6,
+			fx: 0,
+			fw: 0.2845744680851064,
+			fy: 159,
+			fh: 353,
 		},
 		{
 			id: "card-recent",
 			kind: "recent",
 			title: "Recent",
-			x: 0, y: 7, w: 7, h: 4,
+			x: 0, y: 9, w: 7, h: 4,
 			count: 8,
-			fx: 0, fw: 0.58, fy: 564, fh: 260,
+			fx: 0.29521276595744683,
+			fw: 0.32513297872340424,
+			fy: 143,
+			fh: 369,
 		},
 		{
 			id: "card-stats",
 			kind: "stats",
 			title: "Vault",
-			x: 7, y: 7, w: 5, h: 4,
-			fx: 0.6, fw: 0.4, fy: 564, fh: 260,
+			x: 7, y: 9, w: 5, h: 4,
+			fx: 0.29521276595744683,
+			fw: 0.32513297872340424,
+			fy: 0,
+			fh: 133,
 		},
 	];
 }

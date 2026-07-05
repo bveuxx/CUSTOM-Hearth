@@ -1135,9 +1135,10 @@ function renderLinks(view: HomeView, card: DashboardCard, body: HTMLElement): vo
 	}
 }
 
-/** Apply a per-tile pixel size: sets the tile's own width/height directly.
- * Width is a fixed pixel value (not a grid column span), so resizing one tile
- * never reflows the other tiles on its row — only that tile changes. */
+/** Apply a per-tile size: converts pixel width/height into grid column/row
+ * spans (relative to the base cell size). Each tile is placed on the grid
+ * spanning N columns × M rows, so it can independently span multiple rows
+ * without its row's height being governed by the tallest tile. */
 function applyTileSize(
 	tile: HTMLElement,
 	sizeW: number | undefined,
@@ -1148,8 +1149,12 @@ function applyTileSize(
 	// Migrate a legacy single `size` into independent width/height on read.
 	const w = sizeW ?? legacySize;
 	const h = sizeH ?? legacySize;
-	if (w && w > 0) tile.style.setProperty("--hearth-tile-w", `${w}px`);
-	if (h && h > 0) tile.style.setProperty("--hearth-tile-h", `${h}px`);
+	// Column span: how many base cells wide. Row span: how many base rows tall.
+	const rowH = Math.round(baseTile * 0.78);
+	const cs = w && w > 0 ? Math.max(1, Math.round(w / baseTile)) : 1;
+	const rs = h && h > 0 ? Math.max(1, Math.round(h / rowH)) : 1;
+	tile.style.setProperty("--hearth-tile-cs", String(cs));
+	tile.style.setProperty("--hearth-tile-rs", String(rs));
 }
 
 /** Fine grid (px) that tile sizes snap to, so tiles align like Android widgets. */
@@ -1212,8 +1217,12 @@ function makeTileResizable(
 		setW(w === baseTile ? undefined : w);
 		setH(h === Math.round(baseTile * 0.78) ? undefined : h);
 		setLegacy(undefined);
-		tile.style.setProperty("--hearth-tile-w", `${w}px`);
-		tile.style.setProperty("--hearth-tile-h", `${h}px`);
+		// Convert live pixel size to grid spans so the tile grows by whole cells.
+		const rowH = Math.round(baseTile * 0.78);
+		const cs = Math.max(1, Math.round(w / baseTile));
+		const rs = Math.max(1, Math.round(h / rowH));
+		tile.style.setProperty("--hearth-tile-cs", String(cs));
+		tile.style.setProperty("--hearth-tile-rs", String(rs));
 	});
 
 	const end = (e: PointerEvent) => {
