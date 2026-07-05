@@ -1426,6 +1426,10 @@ interface TaskHit {
 	scheduled: string | null;
 	/** File creation time (epoch ms), the final sort tiebreaker. */
 	created: number;
+	/** TaskNotes recurrence rule (e.g. "FREQ=WEEKLY;INTERVAL=1" or an RRULE).
+	 * When present the task is recurring; shown as a ↻ badge next to the due
+	 * date so the date isn't mistaken for a one-off. */
+	recurrence?: string;
 	/** Raw TaskNotes status value, shown as a badge instead of a checkbox
 	 * since it may not be a simple open/done binary. */
 	status?: string;
@@ -1480,6 +1484,37 @@ function renderTaskNotesAddButton(view: HomeView, container: HTMLElement): void 
 			new Notice("Hearth: couldn't run TaskNotes: Create new task.");
 		}
 	});
+}
+
+/** A short, human-readable label for a recurrence rule (e.g. "FREQ=WEEKLY;
+ * INTERVAL=2" → "Repeats weekly"). Returns null if the rule is empty or
+ * unparseable. */
+function recurrenceLabel(rule: string | undefined): string | null {
+	if (!rule) return null;
+	const r = rule.replace(/^RRULE:/i, "");
+	const freq = /FREQ=([A-Z]+)/i.exec(r)?.[1]?.toLowerCase();
+	if (!freq) return "Repeats";
+	const interval = parseInt(/INTERVAL=(\d+)/i.exec(r)?.[1] ?? "1", 10);
+	const unit =
+		freq === "daily"
+			? "day"
+			: freq === "weekly"
+				? "week"
+				: freq === "monthly"
+					? "month"
+					: freq === "yearly"
+						? "year"
+						: freq;
+	const plural = interval > 1 ? `${interval} ${unit}s` : unit;
+	return `Repeats every ${plural}`;
+}
+
+/** Format a due date for display. For recurring tasks, append a ↻ symbol so
+ * the date isn't mistaken for a one-off and the user knows it's the next
+ * occurrence. */
+function formatDueLabel(hit: TaskHit): string | null {
+	if (!hit.due) return null;
+	return hit.recurrence ? `${hit.due} ↻` : hit.due;
 }
 
 /** Map a raw priority value to a coarse level for coloring the indicator. */
@@ -1606,9 +1641,14 @@ function renderTaskRow(
 
 	row.createDiv({ cls: "hearth-list-label hearth-task-text", text: hit.text || hit.file.basename });
 	if (hit.priority) renderPriority(row, hit.priority);
-	if (hit.due) {
-		const due = row.createDiv({ cls: "hearth-task-due", text: hit.due });
-		due.toggleClass("is-overdue", !hit.done && hit.due < today);
+	const dueLabel = formatDueLabel(hit);
+	if (dueLabel) {
+		const due = row.createDiv({ cls: "hearth-task-due", text: dueLabel });
+		due.toggleClass("is-overdue", !hit.done && hit.due! < today);
+		if (hit.recurrence) {
+			due.addClass("is-recurring");
+			due.setAttribute("title", recurrenceLabel(hit.recurrence) ?? "Recurring");
+		}
 	}
 
 	const open = () => void openTask(view, hit);
@@ -1813,9 +1853,14 @@ function renderTaskKanban(
 			cardEl.createDiv({ cls: "hearth-kanban-card-text", text: hit.text || hit.file.basename });
 			const meta = cardEl.createDiv("hearth-kanban-card-meta");
 			if (hit.priority) renderPriority(meta, hit.priority);
-			if (hit.due) {
-				const due = meta.createDiv({ cls: "hearth-task-due", text: hit.due });
-				due.toggleClass("is-overdue", !hit.done && hit.due < today);
+			const dueLabel = formatDueLabel(hit);
+			if (dueLabel) {
+				const due = meta.createDiv({ cls: "hearth-task-due", text: dueLabel });
+				due.toggleClass("is-overdue", !hit.done && hit.due! < today);
+				if (hit.recurrence) {
+					due.addClass("is-recurring");
+					due.setAttribute("title", recurrenceLabel(hit.recurrence) ?? "Recurring");
+				}
 			}
 			const open = () => void openTask(view, hit);
 			cardEl.addEventListener("click", open);
@@ -1846,6 +1891,7 @@ async function collectCheckboxTasks(view: HomeView, cfg: TasksConfig): Promise<T
 			due: dueMatch ? dueMatch[1] : null,
 			scheduled: null,
 			created: file.stat.ctime,
+			recurrence: undefined,
 		});
 		});
 	}
@@ -1878,6 +1924,11 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 		const scheduled: string | null = typeof scheduledRaw === "string" ? scheduledRaw : null;
 		const priorityRaw = fm[priorityField];
 		const priority = priorityRaw == null || priorityRaw === "" ? undefined : String(priorityRaw);
+		// TaskNotes stores the recurrence rule in a "recurrence" frontmatter
+		// field (an RRULE like "FREQ=WEEKLY;INTERVAL=1" or "RRULE:FREQ=DAILY").
+		const recurrenceRaw = fm["recurrence"];
+		const recurrence =
+			recurrenceRaw == null || recurrenceRaw === "" ? undefined : String(recurrenceRaw);
 		hits.push({
 			file,
 			line: -1,
@@ -1886,6 +1937,7 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 			due,
 			scheduled,
 			created: file.stat.ctime,
+			recurrence,
 			status,
 			priority,
 		});

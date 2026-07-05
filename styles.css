@@ -674,6 +674,13 @@
 	color: var(--text-error);
 }
 
+/* Recurring tasks: a subtle accent tint + title with the recurrence rule so
+   hovering reveals the schedule (e.g. "Repeats every week"). */
+.hearth-task-due.is-recurring {
+	color: var(--interactive-accent);
+	font-weight: 600;
+}
+
 .hearth-task-status {
 	flex-shrink: 0;
 	padding: 1px 8px;
