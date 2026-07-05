@@ -189,11 +189,24 @@ export interface DashboardCard {
 	/** Optional background color/tint (CSS color) for the card body. */
 	background?: string;
 
-	// ---- Layout (grid cell units) ----
+	// ---- Layout (legacy grid cell units) ----
+	// Kept as the seed for the free-form coordinates below: older layouts (and
+	// freshly added cards, which are packed on a reference grid) store their
+	// placement here, and it is converted to fx/fy/fw/fh once on first render.
 	x: number;
 	y: number;
 	w: number;
 	h: number;
+
+	// ---- Layout (free-form) ----
+	// The live layout is continuous, not grid-locked. Horizontal position/size
+	// are fractions of the board width (0..1) so the board stays responsive when
+	// the pane is resized; vertical position/size are absolute pixels. Undefined
+	// until derived from the grid units above.
+	fx?: number;
+	fy?: number;
+	fw?: number;
+	fh?: number;
 }
 
 /** Background mode for the home view. */

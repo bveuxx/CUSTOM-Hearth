@@ -28,8 +28,6 @@ const LINK_TYPE_LABELS: Record<LinkItem["type"], string> = {
 };
 
 export interface CardSettingsOptions {
-	/** Number of grid columns, used to clamp the card width. */
-	gridColumns: number;
 	/** The global favorites list (shared by all favorites cards). */
 	favorites: string[];
 	/** Whether this card is currently pinned to all dashboards. */
@@ -827,29 +825,32 @@ export class CardSettingsModal extends Modal {
 		const card = this.card;
 		const row = new Setting(containerEl)
 			.setName("Size")
-			.setDesc("Width (columns) and height (rows) on the grid.");
+			.setDesc("Width (% of the board) and height (pixels). Or just drag the card's corner.");
 
 		row.addText((t) => {
-			t.setValue(String(card.w)).onChange((v) => {
+			t.setValue(String(Math.round((card.fw ?? 0.25) * 100))).onChange((v) => {
 				const n = parseInt(v, 10);
 				if (Number.isNaN(n)) return;
-				card.w = Math.max(1, Math.min(n, this.opts.gridColumns));
+				const fw = Math.max(2, Math.min(n, 100)) / 100;
+				card.fw = fw;
+				// Keep the card inside the board when it grows past the right edge.
+				card.fx = Math.max(0, Math.min(card.fx ?? 0, 1 - fw));
 				this.opts.save();
 			});
 			t.inputEl.type = "number";
 			t.inputEl.addClass("hearth-count-input");
-			t.inputEl.setAttribute("aria-label", "Width in columns");
+			t.inputEl.setAttribute("aria-label", "Width in percent of the board");
 		});
 		row.addText((t) => {
-			t.setValue(String(card.h)).onChange((v) => {
+			t.setValue(String(Math.round(card.fh ?? 184))).onChange((v) => {
 				const n = parseInt(v, 10);
 				if (Number.isNaN(n)) return;
-				card.h = Math.max(1, n);
+				card.fh = Math.max(56, n);
 				this.opts.save();
 			});
 			t.inputEl.type = "number";
 			t.inputEl.addClass("hearth-count-input");
-			t.inputEl.setAttribute("aria-label", "Height in rows");
+			t.inputEl.setAttribute("aria-label", "Height in pixels");
 		});
 	}
 

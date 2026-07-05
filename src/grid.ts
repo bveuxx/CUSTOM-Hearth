@@ -1,15 +1,25 @@
 import { Component } from "obsidian";
 import type { HomeView } from "./view";
-import { DashboardCard, effectiveRowHeight } from "./types";
+import { DashboardCard } from "./types";
 
-/** Grid metrics — kept in sync with styles.css via inline CSS variables. */
+/** Seed metrics used to convert legacy grid layouts (and freshly packed cards)
+ * into free-form coordinates. Once converted, the live layout is continuous. */
 export const ROW_HEIGHT = 92;
 export const GRID_GAP = 16;
 export const MIN_W = 2;
 export const MIN_H = 1;
 
+/** Minimum card footprint on the free-form board, in pixels. */
+export const MIN_W_PX = 120;
+export const MIN_H_PX = 56;
+
+/** How close (px) an edge/centre must come to a guide before it snaps. */
+const SNAP_THRESHOLD = 8;
+
 /** Assign coordinates to any cards missing them (e.g. settings saved by an
- * older version). Simple left-to-right shelf packing by current order. */
+ * older version, or freshly added cards that carry x/y = -1). Simple
+ * left-to-right shelf packing by current order — this only seeds the free-form
+ * coordinates derived in ensureFreeform. */
 export function ensureLayout(cards: DashboardCard[], columns: number): boolean {
 	let changed = false;
 	// Track the lowest free row per column.
@@ -51,126 +61,143 @@ function findSlot(colBottom: number[], columns: number, w: number): { x: number;
 	return best;
 }
 
-export function applyCardPosition(el: HTMLElement, card: DashboardCard, columns: number): void {
-	const w = clamp(card.w, MIN_W, columns);
-	const x = clamp(card.x, 0, columns - w);
-	el.style.gridColumn = `${x + 1} / span ${w}`;
-	el.style.gridRow = `${card.y + 1} / span ${Math.max(card.h, MIN_H)}`;
+/** Derive free-form coordinates (fractional horizontal, pixel vertical) from the
+ * legacy grid units for any card that hasn't got them yet. Runs once per card;
+ * afterwards the drag engine owns fx/fy/fw/fh directly. */
+export function ensureFreeform(
+	cards: DashboardCard[],
+	columns: number,
+	rowHeight: number,
+	gap: number,
+	boardWidth: number,
+): boolean {
+	let changed = false;
+	// Reconstruct the old CSS grid (repeat(columns, 1fr) with `gap`) at a
+	// representative board width so migrated cards keep their familiar spacing.
+	const colW = Math.max(1, (boardWidth - (columns - 1) * gap) / columns);
+	for (const card of cards) {
+		if (
+			typeof card.fx === "number" &&
+			typeof card.fy === "number" &&
+			typeof card.fw === "number" &&
+			typeof card.fh === "number"
+		) {
+			continue;
+		}
+		const w = clamp(card.w || MIN_W, MIN_W, columns);
+		const h = Math.max(card.h || MIN_H, MIN_H);
+		const x = clamp(card.x < 0 ? 0 : card.x, 0, columns - w);
+		const y = Math.max(0, card.y < 0 ? 0 : card.y);
+		const leftPx = x * (colW + gap);
+		const widthPx = w * colW + (w - 1) * gap;
+		card.fx = clamp(leftPx / boardWidth, 0, 1);
+		card.fw = clamp(widthPx / boardWidth, 0.02, 1);
+		card.fy = y * (rowHeight + gap);
+		card.fh = h * rowHeight + (h - 1) * gap;
+		changed = true;
+	}
+	return changed;
+}
+
+/** Position a card on the free-form board. Horizontal uses percentages so the
+ * board reflows with the pane; vertical uses pixels. */
+export function applyCardPosition(el: HTMLElement, card: DashboardCard): void {
+	const fx = clamp(card.fx ?? 0, 0, 1);
+	const fw = clamp(card.fw ?? 0.25, 0.02, 1);
+	el.style.left = `${clamp(fx, 0, 1 - fw) * 100}%`;
+	el.style.width = `${fw * 100}%`;
+	el.style.top = `${Math.max(0, card.fy ?? 0)}px`;
+	el.style.height = `${Math.max(MIN_H_PX, card.fh ?? MIN_H_PX)}px`;
+}
+
+/** Total pixel height the board needs to show every card. */
+export function layoutHeight(cards: DashboardCard[]): number {
+	let bottom = 0;
+	for (const card of cards) {
+		bottom = Math.max(bottom, (card.fy ?? 0) + (card.fh ?? 0));
+	}
+	return bottom;
 }
 
 function clamp(n: number, min: number, max: number): number {
 	return Math.max(min, Math.min(max, n));
 }
 
-/** Shared layout state passed to the drag engine so it can push neighbouring
- * cards out of the way while one is being dragged or resized. */
+/** Shared layout state passed to the drag engine. */
 export interface GridLayout {
 	cards: DashboardCard[];
 	elements: Map<DashboardCard, HTMLElement>;
-	columns: number;
-}
-
-interface Rect {
-	x: number;
-	y: number;
-	w: number;
-	h: number;
-}
-
-function overlaps(a: Rect, b: Rect): boolean {
-	return (
-		a.x < b.x + b.w &&
-		a.x + a.w > b.x &&
-		a.y < b.y + b.h &&
-		a.y + a.h > b.y
-	);
-}
-
-/**
- * Resolve overlaps by pushing colliding cards downward, cascading the push so
- * chains of cards shift together. The `active` card stays put — everything
- * yields to it. Other cards start from `origins` each pass so they spring back
- * to where they were once the active card no longer overlaps them.
- */
-function resolveCollisions(
-	layout: GridLayout,
-	active: DashboardCard,
-	origins: Map<DashboardCard, Rect>,
-): void {
-	for (const card of layout.cards) {
-		if (card === active) continue;
-		const origin = origins.get(card);
-		if (origin) {
-			card.x = origin.x;
-			card.y = origin.y;
-		}
-	}
-
-	// Breadth-first cascade: whenever a card overlaps a settled one, drop it
-	// just below and re-check anything it now overlaps.
-	const queue: DashboardCard[] = [active];
-	let guard = layout.cards.length * layout.cards.length + 1;
-	while (queue.length && guard-- > 0) {
-		const cur = queue.shift()!;
-		for (const other of layout.cards) {
-			if (other === cur || other === active) continue;
-			if (overlaps(cur, other)) {
-				other.y = cur.y + Math.max(cur.h, MIN_H);
-				queue.push(other);
-			}
-		}
-	}
-}
-
-/** Pull every card up as far as it will go without overlapping another, in
- * reading order. Keeps the board tidy after a drag settles. */
-export function compactLayout(cards: DashboardCard[], columns: number): boolean {
-	const ordered = [...cards].sort((a, b) => a.y - b.y || a.x - b.x);
-	const placed: Rect[] = [];
-	let changed = false;
-
-	for (const card of ordered) {
-		const w = clamp(card.w, MIN_W, columns);
-		const h = Math.max(card.h, MIN_H);
-		const x = clamp(card.x, 0, columns - w);
-		let y = card.y;
-		// Slide up while the cell above is clear.
-		while (y > 0 && !placed.some((p) => overlaps({ x, y: y - 1, w, h }, p))) {
-			y--;
-		}
-		if (x !== card.x || y !== card.y) {
-			card.x = x;
-			card.y = y;
-			changed = true;
-		}
-		placed.push({ x, y, w, h });
-	}
-	return changed;
-}
-
-function applyAll(layout: GridLayout): void {
-	for (const card of layout.cards) {
-		const el = layout.elements.get(card);
-		if (el) applyCardPosition(el, card, layout.columns);
-	}
 }
 
 interface DragContext {
 	pointerId: number;
 	startClientX: number;
 	startClientY: number;
-	startX: number;
-	startY: number;
-	startW: number;
-	startH: number;
-	cellW: number;
+	startLeft: number;
+	startTop: number;
+	startWidth: number;
+	startHeight: number;
+	boardWidth: number;
 	mode: "move" | "resize";
+	// Candidate snap lines (px, board-relative) collected from siblings + board.
+	xTargets: number[];
+	yTargets: number[];
+}
+
+/** Collect the vertical (x) and horizontal (y) guide positions a dragged card
+ * can snap to: the board's own edges/centre plus every other card's edges,
+ * centres and a one-gap offset for tidy adjacency. */
+function collectTargets(
+	layout: GridLayout,
+	active: DashboardCard,
+	boardWidth: number,
+): { xTargets: number[]; yTargets: number[] } {
+	const xs = new Set<number>([0, boardWidth / 2, boardWidth]);
+	const ys = new Set<number>([0]);
+	for (const card of layout.cards) {
+		if (card === active) continue;
+		const left = (card.fx ?? 0) * boardWidth;
+		const width = (card.fw ?? 0) * boardWidth;
+		const top = card.fy ?? 0;
+		const height = card.fh ?? 0;
+		xs.add(left);
+		xs.add(left + width / 2);
+		xs.add(left + width);
+		xs.add(left - GRID_GAP);
+		xs.add(left + width + GRID_GAP);
+		ys.add(top);
+		ys.add(top + height / 2);
+		ys.add(top + height);
+		ys.add(top - GRID_GAP);
+		ys.add(top + height + GRID_GAP);
+	}
+	return { xTargets: [...xs], yTargets: [...ys] };
+}
+
+/** Find the smallest snap adjustment for a set of moving edges against the
+ * candidate guide lines. Returns the delta to apply and the guide that won. */
+function bestSnap(
+	edges: number[],
+	targets: number[],
+): { delta: number; guide: number } | null {
+	let best: { delta: number; guide: number } | null = null;
+	for (const edge of edges) {
+		for (const target of targets) {
+			const diff = target - edge;
+			if (Math.abs(diff) <= SNAP_THRESHOLD) {
+				if (!best || Math.abs(diff) < Math.abs(best.delta)) {
+					best = { delta: diff, guide: target };
+				}
+			}
+		}
+	}
+	return best;
 }
 
 /**
  * Make a card draggable (move) and resizable while the dashboard is in arrange
- * mode. Snaps to grid cells, pushes neighbouring cards out of the way to avoid
- * overlaps, and persists on release.
+ * mode. Movement is fully continuous; while dragging, edges and centres snap
+ * magnetically to neighbouring cards and the board, with alignment guides shown.
  */
 export function enableDragResize(
 	view: HomeView,
@@ -181,71 +208,131 @@ export function enableDragResize(
 	component: Component,
 	onCommit: () => void,
 ): void {
-	const columns = layout.columns;
-	const rowHeight = effectiveRowHeight(view.plugin.settings) || ROW_HEIGHT;
 	const overlay = cardEl.createDiv("hearth-card-overlay");
 	const handle = cardEl.createDiv("hearth-resize-handle");
 
 	let ctx: DragContext | null = null;
-	// Where every card sat when the drag started, so neighbours can spring back.
-	let origins: Map<DashboardCard, Rect> | null = null;
+	let guideX: HTMLElement | null = null;
+	let guideY: HTMLElement | null = null;
 
-	const cellStep = () => {
-		const totalGap = GRID_GAP * (columns - 1);
-		const cellW = (gridEl.clientWidth - totalGap) / columns;
-		return { cellW, stepX: cellW + GRID_GAP, stepY: rowHeight + GRID_GAP };
+	const showGuide = (axis: "x" | "y", pos: number | null) => {
+		if (axis === "x") {
+			if (pos == null) {
+				guideX?.remove();
+				guideX = null;
+				return;
+			}
+			if (!guideX) guideX = gridEl.createDiv("hearth-align-guide is-vertical");
+			guideX.style.left = `${pos}px`;
+		} else {
+			if (pos == null) {
+				guideY?.remove();
+				guideY = null;
+				return;
+			}
+			if (!guideY) guideY = gridEl.createDiv("hearth-align-guide is-horizontal");
+			guideY.style.top = `${pos}px`;
+		}
 	};
 
 	const begin = (e: PointerEvent, mode: "move" | "resize") => {
 		e.preventDefault();
 		e.stopPropagation();
-		const { cellW } = cellStep();
+		const boardWidth = gridEl.clientWidth;
+		const { xTargets, yTargets } = collectTargets(layout, card, boardWidth);
 		ctx = {
 			pointerId: e.pointerId,
 			startClientX: e.clientX,
 			startClientY: e.clientY,
-			startX: card.x,
-			startY: card.y,
-			startW: card.w,
-			startH: card.h,
-			cellW,
+			startLeft: (card.fx ?? 0) * boardWidth,
+			startTop: card.fy ?? 0,
+			startWidth: (card.fw ?? 0) * boardWidth,
+			startHeight: card.fh ?? MIN_H_PX,
+			boardWidth,
 			mode,
+			xTargets,
+			yTargets,
 		};
-		origins = new Map();
-		for (const c of layout.cards) {
-			origins.set(c, { x: c.x, y: c.y, w: c.w, h: c.h });
-		}
 		(e.target as HTMLElement).setPointerCapture(e.pointerId);
 		cardEl.addClass(mode === "move" ? "is-moving" : "is-resizing");
 	};
 
 	const move = (e: PointerEvent) => {
-		if (!ctx || !origins || e.pointerId !== ctx.pointerId) return;
-		const { stepX, stepY } = cellStep();
-		const dCol = Math.round((e.clientX - ctx.startClientX) / stepX);
-		const dRow = Math.round((e.clientY - ctx.startClientY) / stepY);
+		if (!ctx || e.pointerId !== ctx.pointerId) return;
+		const dx = e.clientX - ctx.startClientX;
+		const dy = e.clientY - ctx.startClientY;
 
 		if (ctx.mode === "move") {
-			const w = clamp(card.w, MIN_W, columns);
-			card.x = clamp(ctx.startX + dCol, 0, columns - w);
-			card.y = Math.max(0, ctx.startY + dRow);
+			let left = clamp(ctx.startLeft + dx, 0, ctx.boardWidth - ctx.startWidth);
+			let top = Math.max(0, ctx.startTop + dy);
+			// Snap left/centre/right edges to vertical guides.
+			const snapX = bestSnap(
+				[left, left + ctx.startWidth / 2, left + ctx.startWidth],
+				ctx.xTargets,
+			);
+			if (snapX) {
+				left = clamp(left + snapX.delta, 0, ctx.boardWidth - ctx.startWidth);
+				showGuide("x", snapX.guide);
+			} else {
+				showGuide("x", null);
+			}
+			// Snap top/middle/bottom edges to horizontal guides.
+			const snapY = bestSnap(
+				[top, top + ctx.startHeight / 2, top + ctx.startHeight],
+				ctx.yTargets,
+			);
+			if (snapY) {
+				top = Math.max(0, top + snapY.delta);
+				showGuide("y", snapY.guide);
+			} else {
+				showGuide("y", null);
+			}
+			cardEl.style.left = `${left}px`;
+			cardEl.style.width = `${ctx.startWidth}px`;
+			cardEl.style.top = `${top}px`;
 		} else {
-			card.w = clamp(ctx.startW + dCol, MIN_W, columns - card.x);
-			card.h = Math.max(MIN_H, ctx.startH + dRow);
+			let width = Math.max(MIN_W_PX, ctx.startWidth + dx);
+			let height = Math.max(MIN_H_PX, ctx.startHeight + dy);
+			width = Math.min(width, ctx.boardWidth - ctx.startLeft);
+			// The right edge snaps horizontally; the bottom edge snaps vertically.
+			const snapX = bestSnap([ctx.startLeft + width], ctx.xTargets);
+			if (snapX) {
+				width = clamp(width + snapX.delta, MIN_W_PX, ctx.boardWidth - ctx.startLeft);
+				showGuide("x", snapX.guide);
+			} else {
+				showGuide("x", null);
+			}
+			const snapY = bestSnap([ctx.startTop + height], ctx.yTargets);
+			if (snapY) {
+				height = Math.max(MIN_H_PX, height + snapY.delta);
+				showGuide("y", snapY.guide);
+			} else {
+				showGuide("y", null);
+			}
+			cardEl.style.left = `${ctx.startLeft}px`;
+			cardEl.style.width = `${width}px`;
+			cardEl.style.top = `${ctx.startTop}px`;
+			cardEl.style.height = `${height}px`;
 		}
-		resolveCollisions(layout, card, origins);
-		applyAll(layout);
+		updateBoardHeight(gridEl);
 	};
 
 	const end = (e: PointerEvent) => {
 		if (!ctx || e.pointerId !== ctx.pointerId) return;
+		const w = ctx.boardWidth || 1;
+		// Persist the live pixel geometry back into the fractional/pixel model.
+		card.fx = clamp(cardEl.offsetLeft / w, 0, 1);
+		card.fw = clamp(cardEl.offsetWidth / w, MIN_W_PX / w, 1);
+		card.fy = Math.max(0, cardEl.offsetTop);
+		card.fh = Math.max(MIN_H_PX, cardEl.offsetHeight);
 		cardEl.removeClass("is-moving");
 		cardEl.removeClass("is-resizing");
+		showGuide("x", null);
+		showGuide("y", null);
 		ctx = null;
-		origins = null;
-		// Tidy up: pull cards back up into any gaps the drag opened.
-		compactLayout(layout.cards, columns);
-		applyAll(layout);
+		// Normalise back to the responsive percentage form.
+		applyCardPosition(cardEl, card);
+		updateBoardHeight(gridEl);
 		onCommit();
 	};
 
@@ -257,4 +344,15 @@ export function enableDragResize(
 	component.registerDomEvent(handle, "pointerup", end);
 	component.registerDomEvent(overlay, "pointercancel", end);
 	component.registerDomEvent(handle, "pointercancel", end);
+}
+
+/** Grow the board so it always contains its lowest card (plus breathing room). */
+export function updateBoardHeight(gridEl: HTMLElement): void {
+	let bottom = 0;
+	for (const child of Array.from(gridEl.children)) {
+		const el = child as HTMLElement;
+		if (!el.classList.contains("hearth-card")) continue;
+		bottom = Math.max(bottom, el.offsetTop + el.offsetHeight);
+	}
+	gridEl.style.minHeight = `${bottom + GRID_GAP}px`;
 }

@@ -9,8 +9,8 @@ embed notes, images, bases, bookmarks and quick text.
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B7K822EW68)
 
-> Status: **v1.1** — the top section and a fully arrangeable card dashboard
-> (drag, resize, collision-aware packing, on-board card management, templates,
+> Status: **v1.2** — the top section and a fully arrangeable card dashboard
+> (free-form drag & resize with magnetic alignment, on-board card management, templates,
 > per-card colors, web embeds, live auto-refreshing, zoomable and editable
 > embeds, Excalidraw and canvas cards, multiple switchable dashboards with
 > per-board overrides, pinned cards, a search-only mobile mode with a
@@ -109,8 +109,8 @@ embed notes, images, bases, bookmarks and quick text.
   adds new ones. Give a board an **emoji/icon** to label its button instead of a
   number. Right-click a button for **dashboard settings** (name, icon,
   overrides) or to **delete** it.
-- **Per-dashboard overrides** — each board can override the global **grid
-  columns**, **row height** and **background**, or fall back to the defaults.
+- **Per-dashboard overrides** — each board can override the global **content
+  width** and **background**, or fall back to the defaults.
 - **Pinned cards** — pin any card to show it on *every* dashboard, sharing one
   definition and position across boards.
 - **Keyboard shortcuts** — commands to jump to a dashboard by position
@@ -119,8 +119,9 @@ embed notes, images, bases, bookmarks and quick text.
 
 ### Arranging the dashboard
 - **Drag & resize** — hit **Arrange** to move cards (drag anywhere) and resize
-  them (corner handle); everything snaps to the grid and is saved. Cards push
-  each other out of the way as you drag and compact upward when you let go.
+  them (corner handle). Placement is fully free-form (no grid): cards can sit and
+  be sized anywhere, with **magnetic alignment** — edges and centres snap to
+  neighbouring cards and the board, showing guide lines, so layouts stay clean.
 - **On-board management** — in arrange mode each card header is editable:
   rename inline, swap the embedded file via a fuzzy picker, or remove the card.
   **Add card** (toolbar) drops in a new card from the library.
@@ -159,6 +160,9 @@ To test in a vault, symlink or copy `main.js`, `manifest.json` and `styles.css`
 into `<vault>/.obsidian/plugins/hearth/`.
 
 ## Roadmap
+- [x] **Continuous free-form layout** — cards are placed and sized freely
+  (no fixed columns or row height) with smooth dragging and **magnetic
+  alignment** to neighbouring cards and the board, guide lines included
 - [x] Drag & resize cards on a free-form grid (custom lightweight engine)
 - [x] More card types (recent, links/launchpad, commands, clock)
 - [x] Per-card backgrounds and accent colors

@@ -167,34 +167,6 @@ class DashboardSettingsModal extends Modal {
 
 		this.overrideSlider(
 			contentEl,
-			"Grid columns",
-			dash.gridColumns,
-			s.gridColumns,
-			4,
-			16,
-			1,
-			(v) => {
-				dash.gridColumns = v;
-				this.commit();
-			},
-		);
-
-		this.overrideSlider(
-			contentEl,
-			"Row height",
-			dash.rowHeight,
-			s.rowHeight,
-			32,
-			160,
-			4,
-			(v) => {
-				dash.rowHeight = v;
-				this.commit();
-			},
-		);
-
-		this.overrideSlider(
-			contentEl,
 			"Content width",
 			dash.maxWidth,
 			s.maxWidth,

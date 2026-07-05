@@ -8,6 +8,7 @@ import {
 	activeCards,
 	DashboardCard,
 	effectiveColumns,
+	effectiveMaxWidth,
 	effectiveRowHeight,
 	removeCard,
 	renderCards,
@@ -16,9 +17,12 @@ import {
 import {
 	applyCardPosition,
 	enableDragResize,
+	ensureFreeform,
 	ensureLayout,
 	GridLayout,
 	GRID_GAP,
+	layoutHeight,
+	ROW_HEIGHT,
 } from "./grid";
 
 /** Renders the dashboard toolbar and the positioned grid of cards. In arrange
@@ -32,17 +36,25 @@ export function renderDashboard(
 	const s = view.plugin.settings;
 	const cards = renderCards(s);
 	const columns = effectiveColumns(s);
+	const rowHeight = effectiveRowHeight(s);
 
-	// Persist any coordinates we had to backfill for older cards.
-	if (ensureLayout(cards, columns)) void view.plugin.saveData(s);
+	// Seed placement for new/older cards on the reference grid, then convert to
+	// the continuous free-form coordinates the board actually renders with.
+	const seeded = ensureLayout(cards, columns);
+	const freed = ensureFreeform(
+		cards,
+		columns,
+		rowHeight || ROW_HEIGHT,
+		GRID_GAP,
+		effectiveMaxWidth(s),
+	);
+	if (seeded || freed) void view.plugin.saveData(s);
 
 	renderToolbar(view, container);
 
 	const grid = container.createDiv("hearth-grid");
 	grid.toggleClass("is-arranging", view.arrangeMode);
-	grid.style.setProperty("--hearth-cols", String(columns));
-	grid.style.setProperty("--hearth-row-h", `${effectiveRowHeight(s)}px`);
-	grid.style.setProperty("--hearth-gap", `${GRID_GAP}px`);
+	grid.style.minHeight = `${layoutHeight(cards) + GRID_GAP}px`;
 
 	// An empty board is left blank — no placeholder text or icon. The Arrange
 	// toolbar (with "Add card") is still available above.
@@ -50,17 +62,16 @@ export function renderDashboard(
 
 	const commit = () => void view.plugin.saveData(s);
 
-	// Shared layout state lets the drag engine push neighbouring cards aside.
+	// Shared layout state for the drag engine (magnetic alignment to siblings).
 	const gridLayout: GridLayout = {
 		cards,
 		elements: new Map(),
-		columns,
 	};
 
 	for (const card of cards) {
 		const el = grid.createDiv("hearth-card");
 		gridLayout.elements.set(card, el);
-		applyCardPosition(el, card, columns);
+		applyCardPosition(el, card);
 
 		if (card.pinned) el.addClass("is-pinned");
 		if (card.accent) {
@@ -242,7 +253,6 @@ function renderCardControls(
 function openCardSettings(view: HomeView, card: DashboardCard): void {
 	const s = view.plugin.settings;
 	new CardSettingsModal(view.app, card, {
-		gridColumns: effectiveColumns(s),
 		favorites: s.favorites,
 		isPinned: s.pinnedCards.includes(card),
 		setPinned: (pinned) => setCardPinned(s, card, pinned),
