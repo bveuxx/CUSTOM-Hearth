@@ -9,7 +9,7 @@ embed notes, images, bases, bookmarks and quick text.
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B7K822EW68)
 
-> Status: **v1.2** — the top section and a fully arrangeable card dashboard
+> Status: **v1.3** — the top section and a fully arrangeable card dashboard
 > (free-form drag & resize with magnetic alignment, on-board card management, templates,
 > per-card colors, web embeds, live auto-refreshing, zoomable and editable
 > embeds, Excalidraw and canvas cards, multiple switchable dashboards with
@@ -161,6 +161,10 @@ To test in a vault, symlink or copy `main.js`, `manifest.json` and `styles.css`
 into `<vault>/.obsidian/plugins/hearth/`.
 
 ## Roadmap
+- [x] **Resizable link/launchpad tiles** — drag any tile's corner to resize it,
+  just like command tiles
+- [x] **TaskNotes quick-add** — a **+** button on tasks cards (TaskNotes source)
+  runs *TaskNotes: Create new task*
 - [x] **Continuous free-form layout** — cards are placed and sized freely
   (no fixed columns or row height) with smooth dragging and **magnetic
   alignment** to neighbouring cards and the board, guide lines included

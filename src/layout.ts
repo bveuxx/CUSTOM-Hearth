@@ -94,13 +94,15 @@ function sanitizeLink(raw: unknown): LinkItem | null {
 	if (!raw || typeof raw !== "object") return null;
 	const r = raw as Record<string, unknown>;
 	const type = r.type === "url" || r.type === "command" ? r.type : "note";
-	return {
+	const link: LinkItem = {
 		id: str(r.id) ?? `link-${Math.random().toString(36).slice(2)}`,
 		label: str(r.label) ?? "",
 		icon: str(r.icon) ?? "link",
 		target: str(r.target) ?? "",
 		type,
 	};
+	if (typeof r.size === "number") link.size = r.size;
+	return link;
 }
 
 function sanitizeCard(raw: unknown, index: number): DashboardCard | null {

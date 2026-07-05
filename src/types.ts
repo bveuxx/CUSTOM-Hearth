@@ -122,6 +122,8 @@ export interface LinkItem {
 	/** Vault path, URL, or command id depending on type. */
 	target: string;
 	type: "note" | "url" | "command";
+	/** Optional per-tile pixel size, overriding the card's default tile size. */
+	size?: number;
 }
 
 export interface DashboardCard {

@@ -726,17 +726,17 @@
 	transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
 }
 
-/* Commands card: tile size is driven by --hearth-tile (set per card), scaling
- * the column width, tile height and icon together. */
-.hearth-commands-grid {
+/* Commands & links cards: tile size is driven by --hearth-tile (set per card),
+ * scaling the column width, tile height and icon together. */
+.hearth-tiles-sized {
 	grid-template-columns: repeat(auto-fill, minmax(var(--hearth-tile, 90px), 1fr));
 }
 
-.hearth-commands-grid .hearth-link-tile {
+.hearth-tiles-sized .hearth-link-tile {
 	min-height: calc(var(--hearth-tile, 90px) * 0.78);
 }
 
-.hearth-commands-grid .hearth-link-icon .svg-icon {
+.hearth-tiles-sized .hearth-link-icon .svg-icon {
 	width: calc(var(--hearth-tile, 90px) * 0.26);
 	height: calc(var(--hearth-tile, 90px) * 0.26);
 }
@@ -858,6 +858,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	flex: 0 0 26px;
 	width: 26px;
 	height: 26px;
 	border-radius: 7px;
@@ -870,6 +871,13 @@
 .hearth-calendar-nav:hover {
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
+}
+
+/* Ensure the chevron glyphs actually render at a visible size inside the
+   compact nav buttons. */
+.hearth-calendar-nav .svg-icon {
+	width: 16px;
+	height: 16px;
 }
 
 .hearth-calendar-label {
@@ -915,6 +923,17 @@
 
 .hearth-calendar-day.is-outside .hearth-calendar-daynum {
 	color: var(--text-faint);
+}
+
+/* Over a heavy heatmap tint the faint number becomes unreadable (worst on
+   outside/preview days). Restore a normal-weight colour and add a halo in the
+   card background colour so the digit stays legible at any tint. */
+.hearth-calendar-day.has-heat .hearth-calendar-daynum {
+	color: var(--text-normal);
+	font-weight: 600;
+	text-shadow:
+		0 0 2px var(--background-primary),
+		0 0 3px var(--background-primary);
 }
 
 .hearth-calendar-day.is-today .hearth-calendar-daynum {
@@ -1368,20 +1387,6 @@
 .hearth-resize-handle.is-ne { top: 0; right: 0; cursor: nesw-resize; }
 .hearth-resize-handle.is-sw { bottom: 0; left: 0; cursor: nesw-resize; }
 
-/* Keep the familiar visible grip in the bottom-right corner as an affordance. */
-.hearth-resize-handle.is-se {
-	background:
-		linear-gradient(
-			135deg,
-			transparent 0 50%,
-			var(--interactive-accent) 50% 60%,
-			transparent 60% 70%,
-			var(--interactive-accent) 70% 80%,
-			transparent 80%
-		);
-	border-bottom-right-radius: 12px;
-}
-
 /* Bigger, easier-to-grab resize targets on touch devices. */
 @media (pointer: coarse) {
 	.hearth-resize-handle.is-n,
@@ -1450,6 +1455,54 @@
  * comma-separated on some Obsidian versions and would break slash-alpha). */
 .hearth-calendar-day.has-heat {
 	background-color: hsla(var(--accent-h), var(--accent-s), var(--accent-l), calc(var(--heat, 0) * 0.22));
+}
+
+/* ---- Tasks: TaskNotes quick-add button ------------------------------ */
+.hearth-tasks-wrap {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+/* Let the list/kanban take the remaining height under the add-button row. */
+.hearth-tasks-wrap > .hearth-list,
+.hearth-tasks-wrap > .hearth-kanban {
+	flex: 1;
+	min-height: 0;
+}
+
+.hearth-tasks-head {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: 6px;
+}
+
+.hearth-task-add {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border-radius: 7px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	cursor: pointer;
+	opacity: 0.85;
+}
+
+.hearth-task-add:hover {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+	border-color: var(--interactive-accent);
+	opacity: 1;
+}
+
+.hearth-task-add .svg-icon {
+	width: 15px;
+	height: 15px;
 }
 
 /* ---- Kanban board --------------------------------------------------- */
@@ -1694,8 +1747,8 @@
 	border-radius: 8px;
 }
 
-/* ---- Command tile resize handle ------------------------------------- */
-.hearth-commands-grid .hearth-link-tile {
+/* ---- Tile resize handle (commands & links) -------------------------- */
+.hearth-tiles-sized .hearth-link-tile {
 	position: relative;
 }
 

@@ -1073,15 +1073,81 @@ function renderLinks(view: HomeView, card: DashboardCard, body: HTMLElement): vo
 		return;
 	}
 
-	const grid = body.createDiv("hearth-links");
+	const grid = body.createDiv("hearth-links hearth-tiles-sized");
+	const baseTile = card.tileSize && card.tileSize > 0 ? card.tileSize : 90;
+	grid.style.setProperty("--hearth-tile", `${baseTile}px`);
 	for (const link of links) {
 		const tile = grid.createDiv("hearth-link-tile");
+		applyTileSize(tile, link.size, baseTile);
 		setIcon(tile.createDiv("hearth-link-icon"), link.icon || "link");
 		tile.createDiv({ cls: "hearth-link-label", text: link.label || link.target });
 		const open = () => openLink(view, link);
 		tile.addEventListener("click", open);
 		makeClickable(tile, open, link.label || link.target);
+
+		// Drag the corner handle to resize this individual tile.
+		makeTileResizable(view, tile, baseTile, () => link.size, (v) => {
+			link.size = v;
+		});
 	}
+}
+
+/** Apply a per-tile pixel size: sets the tile's own --hearth-tile and, when
+ * larger than the base, makes it span proportionally more grid columns. */
+function applyTileSize(tile: HTMLElement, size: number | undefined, baseTile: number): void {
+	if (size && size > 0) {
+		tile.style.setProperty("--hearth-tile", `${size}px`);
+		const span = Math.max(1, Math.round(size / baseTile));
+		if (span > 1) tile.style.gridColumn = `span ${span}`;
+	}
+}
+
+/** Attach a drag-to-resize corner handle to a tile. `get`/`set` read and write
+ * the stored per-tile size (undefined = fall back to the card's base size). */
+function makeTileResizable(
+	view: HomeView,
+	tile: HTMLElement,
+	baseTile: number,
+	get: () => number | undefined,
+	set: (size: number | undefined) => void,
+): void {
+	const handle = tile.createDiv("hearth-tile-resize");
+	handle.setAttribute("aria-hidden", "true");
+	let resizing = false;
+	let startPx = 0;
+	let startX = 0;
+	let startY = 0;
+	handle.addEventListener("click", (e) => e.stopPropagation());
+	handle.addEventListener("pointerdown", (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		resizing = true;
+		startPx = get() && get()! > 0 ? get()! : baseTile;
+		startX = e.clientX;
+		startY = e.clientY;
+		handle.setPointerCapture(e.pointerId);
+	});
+	handle.addEventListener("pointermove", (e) => {
+		if (!resizing) return;
+		const delta = Math.max(e.clientX - startX, e.clientY - startY);
+		const size = Math.max(50, Math.min(360, Math.round((startPx + delta) / 5) * 5));
+		set(size === baseTile ? undefined : size);
+		tile.style.setProperty("--hearth-tile", `${size}px`);
+		const span = Math.max(1, Math.round(size / baseTile));
+		tile.style.gridColumn = span > 1 ? `span ${span}` : "";
+	});
+	const endResize = (e: PointerEvent) => {
+		if (!resizing) return;
+		resizing = false;
+		try {
+			handle.releasePointerCapture(e.pointerId);
+		} catch {
+			// pointer already released
+		}
+		void view.plugin.saveData(view.plugin.settings);
+	};
+	handle.addEventListener("pointerup", endResize);
+	handle.addEventListener("pointercancel", endResize);
 }
 
 function openLink(view: HomeView, link: LinkItem): void {
@@ -1110,7 +1176,7 @@ function renderCommands(view: HomeView, card: DashboardCard, body: HTMLElement):
 		return;
 	}
 
-	const grid = body.createDiv("hearth-links hearth-commands-grid");
+	const grid = body.createDiv("hearth-links hearth-tiles-sized");
 	const baseTile = card.tileSize && card.tileSize > 0 ? card.tileSize : 90;
 	grid.style.setProperty("--hearth-tile", `${baseTile}px`);
 	for (const cmd of commands) {
@@ -1118,11 +1184,7 @@ function renderCommands(view: HomeView, card: DashboardCard, body: HTMLElement):
 		// A per-tile size overrides the card default: it drives the tile's own
 		// height/icon (via --hearth-tile) and, when larger than the base, makes
 		// the tile span proportionally more grid columns so it's wider too.
-		if (cmd.size && cmd.size > 0) {
-			tile.style.setProperty("--hearth-tile", `${cmd.size}px`);
-			const span = Math.max(1, Math.round(cmd.size / baseTile));
-			if (span > 1) tile.style.gridColumn = `span ${span}`;
-		}
+		applyTileSize(tile, cmd.size, baseTile);
 		setIcon(tile.createDiv("hearth-link-icon"), cmd.icon || "terminal-square");
 		tile.createDiv({ cls: "hearth-link-label", text: cmd.name || cmd.id });
 		const run = () => runCommand(view, cmd);
@@ -1130,43 +1192,9 @@ function renderCommands(view: HomeView, card: DashboardCard, body: HTMLElement):
 		makeClickable(tile, run, cmd.name || cmd.id);
 
 		// Drag the corner handle to resize this individual tile.
-		const handle = tile.createDiv("hearth-tile-resize");
-		handle.setAttribute("aria-hidden", "true");
-		let resizing = false;
-		let startPx = 0;
-		let startX = 0;
-		let startY = 0;
-		handle.addEventListener("click", (e) => e.stopPropagation());
-		handle.addEventListener("pointerdown", (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			resizing = true;
-			startPx = cmd.size && cmd.size > 0 ? cmd.size : baseTile;
-			startX = e.clientX;
-			startY = e.clientY;
-			handle.setPointerCapture(e.pointerId);
+		makeTileResizable(view, tile, baseTile, () => cmd.size, (v) => {
+			cmd.size = v;
 		});
-		handle.addEventListener("pointermove", (e) => {
-			if (!resizing) return;
-			const delta = Math.max(e.clientX - startX, e.clientY - startY);
-			const size = Math.max(50, Math.min(360, Math.round((startPx + delta) / 5) * 5));
-			cmd.size = size === baseTile ? undefined : size;
-			tile.style.setProperty("--hearth-tile", `${size}px`);
-			const span = Math.max(1, Math.round(size / baseTile));
-			tile.style.gridColumn = span > 1 ? `span ${span}` : "";
-		});
-		const endResize = (e: PointerEvent) => {
-			if (!resizing) return;
-			resizing = false;
-			try {
-				handle.releasePointerCapture(e.pointerId);
-			} catch {
-				// pointer already released
-			}
-			void view.plugin.saveData(view.plugin.settings);
-		};
-		handle.addEventListener("pointerup", endResize);
-		handle.addEventListener("pointercancel", endResize);
 	}
 }
 
@@ -1212,6 +1240,34 @@ function renderTasks(view: HomeView, card: DashboardCard, body: HTMLElement): vo
 	refresh();
 }
 
+/** Resolve TaskNotes' "create new task" command id. Prefer a live lookup (the
+ * plugin's command ids have shifted between versions) and fall back to the
+ * conventional id. */
+function taskNotesCreateCommandId(view: HomeView): string {
+	const commands = view.app.commands.listCommands();
+	const match =
+		commands.find((c) => /^tasknotes[:.]/i.test(c.id) && /create.*task/i.test(c.name)) ??
+		commands.find((c) => /tasknotes/i.test(c.id) && /create.*task/i.test(c.name));
+	return match?.id ?? "tasknotes:create-new-task";
+}
+
+/** A small "+" button (top-right) that triggers TaskNotes' create-task command. */
+function renderTaskNotesAddButton(view: HomeView, container: HTMLElement): void {
+	const head = container.createDiv("hearth-tasks-head");
+	const btn = head.createEl("button", {
+		cls: "hearth-task-add",
+		attr: { "aria-label": "Create new task", title: "Create new task" },
+	});
+	setIcon(btn, "plus");
+	btn.addEventListener("click", (e) => {
+		e.stopPropagation();
+		const id = taskNotesCreateCommandId(view);
+		if (!view.app.commands.executeCommandById(id)) {
+			new Notice("Hearth: couldn't run TaskNotes: Create new task.");
+		}
+	});
+}
+
 /** Map a raw priority value to a coarse level for coloring the indicator. */
 function priorityLevel(priority: string): "high" | "medium" | "low" | "other" {
 	const v = priority.trim().toLowerCase();
@@ -1253,6 +1309,8 @@ async function loadAndRenderTasks(
 			emptyState(container, "list-todo", "Enable the TaskNotes plugin, or switch source to checkboxes");
 			return;
 		}
+		// A quick "+" to create a new task via TaskNotes' own command.
+		renderTaskNotesAddButton(view, container);
 		hits = collectTaskNotesTasks(view, cfg);
 	} else {
 		hits = await collectCheckboxTasks(view, cfg);
