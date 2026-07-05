@@ -384,6 +384,9 @@ export class SearchSection {
 	}
 
 	private hide(): void {
+		// Invalidate any in-flight async content search so it can't re-open the
+		// dropdown after the user opened a result or dismissed it.
+		this.generation++;
 		if (this.resultsEl) this.resultsEl.hide();
 		this.inputEl?.setAttribute("aria-expanded", "false");
 		this.inputEl?.removeAttribute("aria-activedescendant");
