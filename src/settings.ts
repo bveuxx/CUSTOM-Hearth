@@ -455,32 +455,6 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Grid columns")
-			.setDesc("Default column count. Each dashboard can override it from its own settings.")
-			.addSlider((sl) =>
-				sl
-					.setLimits(4, 16, 1)
-					.setValue(s.gridColumns)
-					.onChange(async (v) => {
-						s.gridColumns = v;
-						await this.save();
-					}),
-			);
-
-		new Setting(containerEl)
-			.setName("Row height")
-			.setDesc("Default row height in pixels (lower = finer card sizing). Each dashboard can override it.")
-			.addSlider((sl) =>
-				sl
-					.setLimits(32, 160, 4)
-					.setValue(s.rowHeight)
-					.onChange(async (v) => {
-						s.rowHeight = v;
-						await this.save();
-					}),
-			);
-
-		new Setting(containerEl)
 			.setName("Cards")
 			.setDesc(
 				"Add and configure cards on the dashboard itself: open the home view, " +

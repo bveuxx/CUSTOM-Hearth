@@ -306,11 +306,11 @@
 	position: relative;
 }
 
+/* Free-form board: cards are absolutely positioned via inline left/top/width/
+   height (fractions of the board width horizontally, pixels vertically). */
 .hearth-grid {
-	display: grid;
-	grid-template-columns: repeat(var(--hearth-cols, 12), minmax(0, 1fr));
-	grid-auto-rows: var(--hearth-row-h, 92px);
-	gap: var(--hearth-gap, 16px);
+	position: relative;
+	width: 100%;
 }
 
 .hearth-fit .hearth-grid {
@@ -318,8 +318,8 @@
 }
 
 .hearth-card {
-	grid-column: span min(var(--card-w, 4), var(--hearth-cols, 12));
-	grid-row: span var(--card-h, 2);
+	position: absolute;
+	box-sizing: border-box;
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
@@ -329,6 +329,38 @@
 	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 	overflow: hidden;
 	transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+/* While dragging/resizing, drop position transitions so the card tracks the
+   pointer 1:1 and sits above its neighbours. */
+.hearth-card.is-moving,
+.hearth-card.is-resizing {
+	z-index: 5;
+	transition: box-shadow 120ms ease;
+	user-select: none;
+}
+
+/* Magnetic alignment guides shown while a card snaps to a neighbour/board edge. */
+.hearth-align-guide {
+	position: absolute;
+	z-index: 6;
+	pointer-events: none;
+	background: var(--interactive-accent);
+	box-shadow: 0 0 0 0.5px var(--interactive-accent);
+}
+
+.hearth-align-guide.is-vertical {
+	top: 0;
+	bottom: 0;
+	width: 1px;
+	transform: translateX(-0.5px);
+}
+
+.hearth-align-guide.is-horizontal {
+	left: 0;
+	right: 0;
+	height: 1px;
+	transform: translateY(-0.5px);
 }
 
 .hearth-card:hover {
@@ -1211,10 +1243,6 @@
 	border-radius: 14px;
 	opacity: 0.5;
 	pointer-events: none;
-}
-
-.hearth-card {
-	position: relative;
 }
 
 .hearth-card-overlay {
