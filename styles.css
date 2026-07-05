@@ -317,6 +317,19 @@
 	height: 100%;
 }
 
+/* In fit-to-page mode the board is locked to one screen: clip anything that
+   spills below the fold and never let the inline min-height (sized to the
+   cards' total footprint) push the grid past 100%, otherwise the overflow
+   area stays interactive and cards can be dropped/inserted "off screen". */
+.hearth-fit .hearth-dashboard {
+	overflow: hidden;
+}
+
+.hearth-fit .hearth-grid {
+	min-height: 0 !important;
+	overflow: hidden;
+}
+
 .hearth-card {
 	position: absolute;
 	box-sizing: border-box;
@@ -1605,13 +1618,19 @@
 	gap: 3px;
 	flex: 1;
 	min-height: 0;
+	overflow: hidden;
 }
 
 .hearth-heatmap-cell {
 	border-radius: 2px;
 	background: var(--background-modifier-border);
-	aspect-ratio: 1 / 1;
-	min-width: 8px;
+	/* Fill the grid cell without forcing a square aspect ratio: the cell's
+	   size is driven by the grid tracks (width = column / weeks, height =
+	   row / 7), so the grid scales smoothly with the card footprint instead
+	   of overflowing when the card's aspect ratio isn't weeks:7. */
+	min-width: 0;
+	width: 100%;
+	height: 100%;
 }
 
 .hearth-heatmap-cell.is-empty {
