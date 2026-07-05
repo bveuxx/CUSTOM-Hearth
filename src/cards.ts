@@ -62,7 +62,7 @@ export function renderCardBody(
 			renderDaily(view, card, body, component);
 			break;
 		case "web":
-			renderWeb(card, body);
+			renderWeb(card, body, component);
 			break;
 		case "bookmarks":
 			renderBookmarks(view, body);
@@ -89,13 +89,16 @@ export function renderCardBody(
 			renderTasks(view, card, body);
 			break;
 		case "calendar":
-			renderCalendar(view, body);
+			renderCalendar(view, card, body);
 			break;
 		case "stats":
 			renderStats(view, body);
 			break;
 		case "search":
 			renderSavedSearch(view, card, body);
+			break;
+		case "heatmap":
+			renderHeatmap(view, card, body);
 			break;
 	}
 }
@@ -457,14 +460,17 @@ export function watchedCardPath(view: HomeView, card: DashboardCard): string | n
  * today when it doesn't exist yet safely falls back to the core "Open
  * today's daily note" command (template-aware). Other empty days are left
  * alone rather than guessing at template handling for arbitrary dates. */
-function renderCalendar(view: HomeView, body: HTMLElement): void {
+function renderCalendar(view: HomeView, card: DashboardCard, body: HTMLElement): void {
 	const options = dailyNotesOptions(view);
 	if (!options) {
 		emptyState(body, "calendar-days", "Enable the core Daily notes plugin");
 		return;
 	}
 
+	const cfg = card.calendar ?? {};
 	const wrap = body.createDiv("hearth-calendar");
+	// Activity counts (edits per day) are only needed for the heatmap tint.
+	const activity = cfg.heatmap ? activityByDay(view.app, "modified") : null;
 	let cursor: Moment = moment().startOf("month");
 
 	const draw = () => {
@@ -483,7 +489,7 @@ function renderCalendar(view: HomeView, body: HTMLElement): void {
 				draw();
 			},
 		});
-		renderCalendarGrid(view, wrap, cursor, options);
+		renderCalendarGrid(view, wrap, cursor, options, cfg, activity);
 	};
 	draw();
 }
@@ -512,9 +518,17 @@ function renderCalendarGrid(
 	wrap: HTMLElement,
 	cursor: Moment,
 	options: DailyNotesOptions,
+	cfg: NonNullable<DashboardCard["calendar"]>,
+	activity: Map<string, number> | null,
 ): void {
 	const grid = wrap.createDiv("hearth-calendar-grid");
 	const startOfWeek = moment.localeData().firstDayOfWeek();
+	const weekNumbers = cfg.showWeekNumbers === true;
+	if (weekNumbers) {
+		// One extra leading column for the week number.
+		grid.style.gridTemplateColumns = "minmax(0, 0.6fr) repeat(7, minmax(0, 1fr))";
+		grid.createDiv({ cls: "hearth-calendar-dow hearth-calendar-wk", text: "wk" });
+	}
 
 	for (let i = 0; i < 7; i++) {
 		const dow = (startOfWeek + i) % 7;
@@ -526,9 +540,21 @@ function renderCalendarGrid(
 	const gridStart = monthStart.clone().subtract((monthStart.day() - startOfWeek + 7) % 7, "days");
 	const totalCells = Math.ceil((monthEnd.diff(gridStart, "days") + 1) / 7) * 7;
 
+	// Highest edit count in the visible range, so the heatmap tint is relative.
+	let peak = 1;
+	if (activity) {
+		for (let i = 0; i < totalCells; i++) {
+			const key = gridStart.clone().add(i, "days").format("YYYY-MM-DD");
+			peak = Math.max(peak, activity.get(key) ?? 0);
+		}
+	}
+
 	const today: string = moment().format("YYYY-MM-DD");
 	for (let i = 0; i < totalCells; i++) {
 		const day = gridStart.clone().add(i, "days");
+		if (weekNumbers && i % 7 === 0) {
+			grid.createDiv({ cls: "hearth-calendar-wk", text: day.format("W") });
+		}
 		const path = dailyNotePath(day, options);
 		const file = view.app.vault.getAbstractFileByPath(path);
 		const isToday = day.format("YYYY-MM-DD") === today;
@@ -537,10 +563,16 @@ function renderCalendarGrid(
 		cell.toggleClass("is-outside", day.month() !== cursor.month());
 		cell.toggleClass("is-today", isToday);
 		cell.toggleClass("has-note", file instanceof TFile);
+		if (activity) {
+			const count = activity.get(day.format("YYYY-MM-DD")) ?? 0;
+			cell.style.setProperty("--heat", count > 0 ? String(heatLevel(count, peak)) : "0");
+			cell.toggleClass("has-heat", count > 0);
+			cell.setAttribute("aria-label", `${day.format("MMM D")}: ${count} edited`);
+		}
 		cell.createDiv({ cls: "hearth-calendar-daynum", text: String(day.date()) });
 		if (file instanceof TFile) cell.createDiv("hearth-calendar-dot");
 
-		cell.addEventListener("click", () => {
+		const activate = () => {
 			if (file instanceof TFile) {
 				void view.app.workspace.getLeaf(true).openFile(file);
 			} else if (isToday) {
@@ -548,10 +580,61 @@ function renderCalendarGrid(
 					new Notice("Hearth: couldn't open today's daily note.");
 				}
 			} else {
-				new Notice(`Hearth: no daily note for ${day.format("MMM D, YYYY")} yet.`);
+				// Offer to create the missing daily note for that day.
+				void createDailyNoteAt(view, day, options).then((created) => {
+					if (created) void view.app.workspace.getLeaf(true).openFile(created);
+					else new Notice(`Hearth: couldn't create a note for ${day.format("MMM D, YYYY")}.`);
+				});
 			}
-		});
+		};
+		cell.addEventListener("click", activate);
+		makeClickable(cell, activate, day.format("MMMM D, YYYY"));
 	}
+}
+
+/** Bucket an edit count into a 1–4 heat level relative to the range peak. */
+function heatLevel(count: number, peak: number): number {
+	if (count <= 0) return 0;
+	return Math.min(4, Math.ceil((count / peak) * 4));
+}
+
+/** Create a daily note for `day` at the plugin's configured path (making any
+ * missing parent folders), returning the file or null on failure. The note is
+ * created empty — the core template only applies to "today" via its command. */
+async function createDailyNoteAt(
+	view: HomeView,
+	day: Moment,
+	options: DailyNotesOptions,
+): Promise<TFile | null> {
+	const path = dailyNotePath(day, options);
+	const existing = view.app.vault.getAbstractFileByPath(path);
+	if (existing instanceof TFile) return existing;
+	const folder = path.split("/").slice(0, -1).join("/");
+	if (folder && !view.app.vault.getAbstractFileByPath(folder)) {
+		try {
+			await view.app.vault.createFolder(folder);
+		} catch {
+			// Folder may have been created concurrently — ignore and try the file.
+		}
+	}
+	try {
+		return await view.app.vault.create(path, "");
+	} catch {
+		return null;
+	}
+}
+
+/** Count files edited (or created) per calendar day, keyed by YYYY-MM-DD. Read
+ * entirely from the in-memory file stats — no file reads. Shared by the
+ * calendar heatmap tint and the activity-heatmap card. */
+function activityByDay(app: HomeView["app"], metric: "modified" | "created"): Map<string, number> {
+	const counts = new Map<string, number>();
+	for (const file of app.vault.getMarkdownFiles()) {
+		const ts = metric === "created" ? file.stat.ctime : file.stat.mtime;
+		const key: string = moment(new Date(ts)).format("YYYY-MM-DD");
+		counts.set(key, (counts.get(key) ?? 0) + 1);
+	}
+	return counts;
 }
 
 // ---- Vault statistics -----------------------------------------------------
@@ -618,9 +701,76 @@ function dailyNoteStreak(view: HomeView): number | null {
 	return streak;
 }
 
+// ---- Activity heatmap (GitHub-style) ------------------------------------
+
+/** A contribution-style grid: one square per day for the last N weeks, tinted
+ * by how many notes were edited (or created) that day. */
+function renderHeatmap(view: HomeView, card: DashboardCard, body: HTMLElement): void {
+	const cfg = card.heatmap ?? {};
+	const metric = cfg.metric ?? "modified";
+	const weeks = cfg.weeks && cfg.weeks > 0 ? Math.min(cfg.weeks, 53) : 26;
+	const activity = activityByDay(view.app, metric);
+	const options = dailyNotesOptions(view);
+
+	const wrap = body.createDiv("hearth-heatmap");
+	const startOfWeek = moment.localeData().firstDayOfWeek();
+	const today = moment().startOf("day");
+	const todayKey: string = today.format("YYYY-MM-DD");
+	// Start `weeks - 1` weeks back, aligned to the start of that week, so the
+	// last column is the current (partial) week.
+	let start = today.clone().subtract((weeks - 1) * 7, "days");
+	start = start.clone().subtract((start.day() - startOfWeek + 7) % 7, "days");
+
+	// Relative peak over the visible, non-future days.
+	let peak = 1;
+	for (let i = 0; i < weeks * 7; i++) {
+		const key = start.clone().add(i, "days").format("YYYY-MM-DD");
+		if (key <= todayKey) peak = Math.max(peak, activity.get(key) ?? 0);
+	}
+
+	const grid = wrap.createDiv("hearth-heatmap-grid");
+	grid.style.gridTemplateColumns = `repeat(${weeks}, 1fr)`;
+	// Column-major fill (top-to-bottom, then next week): 7 rows, auto-flow column.
+	for (let w = 0; w < weeks; w++) {
+		for (let r = 0; r < 7; r++) {
+			const day = start.clone().add(w * 7 + r, "days");
+			const key: string = day.format("YYYY-MM-DD");
+			const cellEl = grid.createDiv("hearth-heatmap-cell");
+			if (key > todayKey) {
+				cellEl.addClass("is-empty");
+				continue;
+			}
+			const count = activity.get(key) ?? 0;
+			cellEl.style.setProperty("--heat", String(heatLevel(count, peak)));
+			cellEl.toggleClass("has-heat", count > 0);
+			cellEl.setAttribute("aria-label", `${day.format("MMM D, YYYY")}: ${count} ${metric}`);
+			cellEl.setAttribute("title", `${day.format("MMM D, YYYY")} · ${count} ${metric}`);
+			if (options) {
+				const activate = () => {
+					void createDailyNoteAt(view, day, options).then((f) => {
+						if (f) void view.app.workspace.getLeaf(true).openFile(f);
+					});
+				};
+				cellEl.addEventListener("click", activate);
+				makeClickable(cellEl, activate, day.format("MMMM D, YYYY"));
+			}
+		}
+	}
+
+	// A small Less→More legend.
+	const legend = wrap.createDiv("hearth-heatmap-legend");
+	legend.createSpan({ cls: "hearth-heatmap-legend-label", text: "Less" });
+	for (let l = 0; l <= 4; l++) {
+		const sq = legend.createDiv("hearth-heatmap-cell");
+		sq.style.setProperty("--heat", String(l));
+		if (l > 0) sq.addClass("has-heat");
+	}
+	legend.createSpan({ cls: "hearth-heatmap-legend-label", text: "More" });
+}
+
 // ---- Web / iframe embed -------------------------------------------------
 
-function renderWeb(card: DashboardCard, body: HTMLElement): void {
+function renderWeb(card: DashboardCard, body: HTMLElement, component: Component): void {
 	const url = card.url?.trim();
 	if (!url) {
 		emptyState(body, "globe", "Set a web URL in settings");
@@ -645,6 +795,36 @@ function renderWeb(card: DashboardCard, body: HTMLElement): void {
 	const tokens = ["allow-scripts", "allow-popups", "allow-forms"];
 	if (card.sandboxTrusted) tokens.push("allow-same-origin");
 	frame.setAttribute("sandbox", tokens.join(" "));
+
+	// A small always-available "open in browser" button, plus a fallback shown
+	// if the frame never loads (e.g. the site refuses framing via
+	// X-Frame-Options / CSP, which can't be detected reliably cross-origin).
+	const openExternally = () => window.open(url, "_blank");
+	const ext = body.createEl("button", {
+		cls: "hearth-web-external",
+		attr: { "aria-label": "Open in browser" },
+	});
+	setIcon(ext, "external-link");
+	ext.addEventListener("click", openExternally);
+
+	let loaded = false;
+	frame.addEventListener("load", () => {
+		loaded = true;
+		body.removeClass("hearth-web-blocked");
+	});
+	const timer = window.setTimeout(() => {
+		if (loaded) return;
+		body.addClass("hearth-web-blocked");
+		const fallback = body.createDiv("hearth-web-fallback");
+		setIcon(fallback.createDiv("hearth-card-empty-icon"), "globe");
+		fallback.createDiv({
+			cls: "hearth-card-empty-text",
+			text: "This site may refuse to be embedded.",
+		});
+		const open = fallback.createEl("button", { cls: "hearth-daily-create", text: "Open in browser" });
+		open.addEventListener("click", openExternally);
+	}, 4000);
+	component.register(() => window.clearTimeout(timer));
 }
 
 // ---- Bookmarks (Obsidian core) -----------------------------------------
@@ -895,14 +1075,23 @@ function renderCommands(view: HomeView, card: DashboardCard, body: HTMLElement):
 	}
 
 	const grid = body.createDiv("hearth-links hearth-commands-grid");
-	if (card.tileSize && card.tileSize > 0) {
-		grid.style.setProperty("--hearth-tile", `${card.tileSize}px`);
-	}
+	const baseTile = card.tileSize && card.tileSize > 0 ? card.tileSize : 90;
+	grid.style.setProperty("--hearth-tile", `${baseTile}px`);
 	for (const cmd of commands) {
 		const tile = grid.createDiv("hearth-link-tile");
+		// A per-tile size overrides the card default: it drives the tile's own
+		// height/icon (via --hearth-tile) and, when larger than the base, makes
+		// the tile span proportionally more grid columns so it's wider too.
+		if (cmd.size && cmd.size > 0) {
+			tile.style.setProperty("--hearth-tile", `${cmd.size}px`);
+			const span = Math.max(1, Math.round(cmd.size / baseTile));
+			if (span > 1) tile.style.gridColumn = `span ${span}`;
+		}
 		setIcon(tile.createDiv("hearth-link-icon"), cmd.icon || "terminal-square");
 		tile.createDiv({ cls: "hearth-link-label", text: cmd.name || cmd.id });
-		tile.addEventListener("click", () => runCommand(view, cmd));
+		const run = () => runCommand(view, cmd);
+		tile.addEventListener("click", run);
+		makeClickable(tile, run, cmd.name || cmd.id);
 	}
 }
 
@@ -940,24 +1129,33 @@ function inTaskScope(path: string, cfg: TasksConfig): boolean {
 
 function renderTasks(view: HomeView, card: DashboardCard, body: HTMLElement): void {
 	const cfg = card.tasks ?? {};
-	const listEl = body.createDiv("hearth-list hearth-tasks");
-	const refresh = () => void loadAndRenderTasks(view, cfg, listEl, refresh);
+	const container = body.createDiv("hearth-tasks-wrap");
+	const refresh = () => void loadAndRenderTasks(view, cfg, container, refresh);
 	refresh();
+}
+
+function sortTasks(hits: TaskHit[]): void {
+	hits.sort((a, b) => {
+		if (a.due && b.due) return a.due < b.due ? -1 : a.due > b.due ? 1 : 0;
+		if (a.due) return -1;
+		if (b.due) return 1;
+		return a.file.path.localeCompare(b.file.path);
+	});
 }
 
 async function loadAndRenderTasks(
 	view: HomeView,
 	cfg: TasksConfig,
-	listEl: HTMLElement,
+	container: HTMLElement,
 	refresh: () => void,
 ): Promise<void> {
-	listEl.empty();
+	container.empty();
 	const source = cfg.source ?? "checkbox";
 
 	let hits: TaskHit[];
 	if (source === "tasknotes") {
 		if (!view.app.plugins.enabledPlugins.has(TASKNOTES_PLUGIN_ID)) {
-			emptyState(listEl, "list-todo", "Enable the TaskNotes plugin, or switch source to checkboxes");
+			emptyState(container, "list-todo", "Enable the TaskNotes plugin, or switch source to checkboxes");
 			return;
 		}
 		hits = collectTaskNotesTasks(view, cfg);
@@ -965,52 +1163,171 @@ async function loadAndRenderTasks(
 		hits = await collectCheckboxTasks(view, cfg);
 	}
 
-	if (!cfg.showCompleted) hits = hits.filter((h) => !h.done);
+	sortTasks(hits);
 
-	hits.sort((a, b) => {
-		if (a.due && b.due) return a.due < b.due ? -1 : a.due > b.due ? 1 : 0;
-		if (a.due) return -1;
-		if (b.due) return 1;
-		return a.file.path.localeCompare(b.file.path);
-	});
-
-	const limit = cfg.count && cfg.count > 0 ? cfg.count : 10;
-	hits = hits.slice(0, limit);
-
-	if (hits.length === 0) {
-		emptyState(listEl, "list-todo", "No open tasks");
+	if (cfg.layout === "kanban") {
+		renderTaskKanban(view, cfg, hits, container, refresh);
 		return;
 	}
 
+	// List layout: hide completed unless asked, then cap.
+	let list = cfg.showCompleted ? hits : hits.filter((h) => !h.done);
+	const limit = cfg.count && cfg.count > 0 ? cfg.count : 10;
+	list = list.slice(0, limit);
+
+	if (list.length === 0) {
+		emptyState(container, "list-todo", "No open tasks");
+		return;
+	}
+
+	const listEl = container.createDiv("hearth-list hearth-tasks");
 	const today: string = moment().format("YYYY-MM-DD");
-	for (const hit of hits) {
-		const row = listEl.createDiv("hearth-list-item hearth-task");
-		row.toggleClass("is-done", hit.done);
+	for (const hit of list) renderTaskRow(view, listEl, hit, today, refresh);
+}
 
-		if (hit.line >= 0) {
-			const check = row.createEl("input", {
-				cls: "hearth-task-check",
-				attr: { type: "checkbox" },
+function renderTaskRow(
+	view: HomeView,
+	listEl: HTMLElement,
+	hit: TaskHit,
+	today: string,
+	refresh: () => void,
+): void {
+	const row = listEl.createDiv("hearth-list-item hearth-task");
+	row.toggleClass("is-done", hit.done);
+
+	if (hit.line >= 0) {
+		const check = row.createEl("input", {
+			cls: "hearth-task-check",
+			attr: { type: "checkbox" },
+		});
+		check.checked = hit.done;
+		check.addEventListener("click", (e) => e.stopPropagation());
+		check.addEventListener("change", () => {
+			void toggleCheckboxTask(view, hit).then((ok) => {
+				if (!ok) new Notice("Hearth: that task changed on disk — refreshed.");
+				refresh();
 			});
-			check.checked = hit.done;
-			check.addEventListener("click", (e) => e.stopPropagation());
-			check.addEventListener("change", () => {
-				void toggleCheckboxTask(view, hit).then((ok) => {
-					if (!ok) new Notice("Hearth: that task changed on disk — refreshed.");
-					refresh();
-				});
+		});
+	} else if (hit.status) {
+		row.createDiv({ cls: "hearth-task-status", text: hit.status });
+	}
+
+	row.createDiv({ cls: "hearth-list-label hearth-task-text", text: hit.text || hit.file.basename });
+	if (hit.due) {
+		const due = row.createDiv({ cls: "hearth-task-due", text: hit.due });
+		due.toggleClass("is-overdue", !hit.done && hit.due < today);
+	}
+
+	const open = () => void openTask(view, hit);
+	row.addEventListener("click", open);
+	makeClickable(row, open, hit.text || hit.file.basename);
+}
+
+/** A Kanban board: tasks grouped into status columns, draggable between them.
+ * For checkbox tasks the columns are To do / Done; for TaskNotes they're the
+ * distinct status values (plus the configured "done" value). Dropping a task in
+ * a column writes the new state back to the file. */
+function renderTaskKanban(
+	view: HomeView,
+	cfg: TasksConfig,
+	hits: TaskHit[],
+	container: HTMLElement,
+	refresh: () => void,
+): void {
+	const source = cfg.source ?? "checkbox";
+	const doneValue = (view.plugin.settings.taskNotesDoneValue.trim() || "done");
+
+	// Build the ordered list of columns and assign each hit to one.
+	interface Column { key: string; label: string; hits: TaskHit[] }
+	const columns: Column[] = [];
+	const columnFor = new Map<string, Column>();
+	const ensure = (key: string, label: string): Column => {
+		let col = columnFor.get(key);
+		if (!col) {
+			col = { key, label, hits: [] };
+			columnFor.set(key, col);
+			columns.push(col);
+		}
+		return col;
+	};
+
+	if (source === "checkbox") {
+		ensure("open", "To do");
+		ensure("done", "Done");
+		for (const hit of hits) columnFor.get(hit.done ? "done" : "open")!.hits.push(hit);
+	} else {
+		// Collect the statuses actually present, then make sure a "done" column
+		// exists so tasks can be completed by dragging.
+		for (const hit of hits) {
+			const status = (hit.status ?? "").trim() || "No status";
+			ensure(status.toLowerCase(), status).hits.push(hit);
+		}
+		if (!columnFor.has(doneValue.toLowerCase())) ensure(doneValue.toLowerCase(), doneValue);
+		// Keep the done column last.
+		columns.sort((a, b) => {
+			const ad = a.key === doneValue.toLowerCase() ? 1 : 0;
+			const bd = b.key === doneValue.toLowerCase() ? 1 : 0;
+			return ad - bd || a.label.localeCompare(b.label);
+		});
+	}
+
+	const board = container.createDiv("hearth-kanban");
+	const today: string = moment().format("YYYY-MM-DD");
+
+	// Move a dragged task into a target column and persist the change.
+	const moveTo = (hit: TaskHit, col: Column) => {
+		if (source === "checkbox") {
+			const wantDone = col.key === "done";
+			if (hit.done === wantDone) return;
+			void setCheckboxState(view, hit, wantDone).then((ok) => {
+				if (!ok) new Notice("Hearth: that task changed on disk — refreshed.");
+				refresh();
 			});
-		} else if (hit.status) {
-			row.createDiv({ cls: "hearth-task-status", text: hit.status });
+		} else {
+			const value = col.label === "No status" ? "" : col.label;
+			void setTaskNotesStatus(view, hit, value).then(refresh);
 		}
+	};
 
-		row.createDiv({ cls: "hearth-list-label hearth-task-text", text: hit.text || hit.file.basename });
-		if (hit.due) {
-			const due = row.createDiv({ cls: "hearth-task-due", text: hit.due });
-			due.toggleClass("is-overdue", !hit.done && hit.due < today);
+	for (const col of columns) {
+		const colEl = board.createDiv("hearth-kanban-col");
+		const head = colEl.createDiv("hearth-kanban-col-head");
+		head.createSpan({ cls: "hearth-kanban-col-title", text: col.label });
+		head.createSpan({ cls: "hearth-kanban-col-count", text: String(col.hits.length) });
+
+		const colBody = colEl.createDiv("hearth-kanban-col-body");
+		colBody.addEventListener("dragover", (e) => {
+			e.preventDefault();
+			colBody.addClass("is-drop-target");
+		});
+		colBody.addEventListener("dragleave", () => colBody.removeClass("is-drop-target"));
+		colBody.addEventListener("drop", (e) => {
+			e.preventDefault();
+			colBody.removeClass("is-drop-target");
+			const idx = parseInt(e.dataTransfer?.getData("text/plain") ?? "", 10);
+			const hit = Number.isNaN(idx) ? null : hits[idx];
+			if (hit) moveTo(hit, col);
+		});
+
+		for (const hit of col.hits) {
+			const idx = hits.indexOf(hit);
+			const cardEl = colBody.createDiv("hearth-kanban-card");
+			cardEl.toggleClass("is-done", hit.done);
+			cardEl.setAttribute("draggable", "true");
+			cardEl.addEventListener("dragstart", (e) => {
+				e.dataTransfer?.setData("text/plain", String(idx));
+				cardEl.addClass("is-dragging");
+			});
+			cardEl.addEventListener("dragend", () => cardEl.removeClass("is-dragging"));
+			cardEl.createDiv({ cls: "hearth-kanban-card-text", text: hit.text || hit.file.basename });
+			if (hit.due) {
+				const due = cardEl.createDiv({ cls: "hearth-task-due", text: hit.due });
+				due.toggleClass("is-overdue", !hit.done && hit.due < today);
+			}
+			const open = () => void openTask(view, hit);
+			cardEl.addEventListener("click", open);
+			makeClickable(cardEl, open, hit.text || hit.file.basename);
 		}
-
-		row.addEventListener("click", () => void openTask(view, hit));
 	}
 }
 
@@ -1079,25 +1396,78 @@ const CHECKBOX_MARKER = /^(\s*[-*+]\s\[)([ xX])(\])/;
  * workflow, not a plain open/done toggle. Re-validates the stored line against
  * the current file (which may have changed since render) and bails with a
  * refresh rather than flipping the wrong line. */
-async function toggleCheckboxTask(view: HomeView, hit: TaskHit): Promise<boolean> {
+function toggleCheckboxTask(view: HomeView, hit: TaskHit): Promise<boolean> {
+	return setCheckboxState(view, hit, !hit.done);
+}
+
+/** Set a checkbox task to an explicit done state in place. Re-validates the
+ * stored line against the current file (which may have changed since render)
+ * and only touches the leading marker, so a stale index or a "[x]" elsewhere
+ * in the text can't corrupt the file. Returns false when the line no longer
+ * matches (the caller should refresh). */
+async function setCheckboxState(view: HomeView, hit: TaskHit, done: boolean): Promise<boolean> {
 	const content = await view.app.vault.read(hit.file);
 	const lines = content.split("\n");
 	const line = lines[hit.line];
 	const match = line != null ? CHECKBOX_MARKER.exec(line) : null;
 	if (!match) return false; // line no longer a checkbox — file changed under us
-	// Confirm it's still the same task before flipping, comparing the text with
-	// any 📅 due date stripped (dates can shift without changing the task).
+	// Confirm it's still the same task, comparing text with any 📅 due date
+	// stripped (dates can shift without changing the task).
 	const strip = (t: string) => t.replace(/📅\s*\d{4}-\d{2}-\d{2}/, "").trim();
 	if (strip(line.slice(match[0].length)) !== strip(hit.text)) return false;
 	lines[hit.line] = line.replace(
 		CHECKBOX_MARKER,
-		(_m, pre: string, _state: string, post: string) => `${pre}${hit.done ? " " : "x"}${post}`,
+		(_m, pre: string, _state: string, post: string) => `${pre}${done ? "x" : " "}${post}`,
 	);
 	await view.app.vault.modify(hit.file, lines.join("\n"));
 	return true;
 }
 
+/** Write a TaskNotes task's status frontmatter field (used by the Kanban board
+ * when a card is dragged to another status column). */
+async function setTaskNotesStatus(view: HomeView, hit: TaskHit, value: string): Promise<void> {
+	const field = view.plugin.settings.taskNotesStatusField.trim() || "status";
+	try {
+		await view.app.fileManager.processFrontMatter(hit.file, (fm) => {
+			fm[field] = value;
+		});
+	} catch {
+		new Notice("Hearth: couldn't update the task status.");
+	}
+}
+
+/** Best-effort: open a TaskNotes task in TaskNotes' own editor rather than the
+ * raw Markdown note. TaskNotes exposes no stable public API, so this tries a
+ * couple of plausible instance/api methods and returns whether one handled it;
+ * the caller falls back to opening the file when it didn't. */
+function openInTaskNotes(view: HomeView, file: TFile): boolean {
+	const plugin = view.app.plugins.plugins[TASKNOTES_PLUGIN_ID] as
+		| Record<string, unknown>
+		| undefined;
+	if (!plugin) return false;
+	const targets: unknown[] = [plugin, plugin.api];
+	for (const target of targets) {
+		if (!target || typeof target !== "object") continue;
+		const obj = target as Record<string, unknown>;
+		for (const method of ["openTaskEditModal", "openTask"]) {
+			const fn = obj[method];
+			if (typeof fn === "function") {
+				try {
+					(fn as (f: TFile) => void).call(obj, file);
+					return true;
+				} catch {
+					// Wrong signature or internal error — fall through to file open.
+				}
+			}
+		}
+	}
+	return false;
+}
+
 async function openTask(view: HomeView, hit: TaskHit): Promise<void> {
+	// TaskNotes tasks (no line) open in TaskNotes' own editor when possible.
+	if (hit.line < 0 && openInTaskNotes(view, hit.file)) return;
+
 	const leaf = view.app.workspace.getLeaf(true);
 	await leaf.openFile(hit.file);
 	if (hit.line >= 0 && leaf.view instanceof MarkdownView) {

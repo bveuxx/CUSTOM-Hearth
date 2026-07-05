@@ -201,6 +201,18 @@ export class CardSettingsModal extends Modal {
 							this.opts.save();
 						}),
 				);
+				new Setting(containerEl)
+					.setName("Trusted site")
+					.setDesc(
+						"Allow the page same-origin access (cookies, storage). Only enable " +
+							"for sites you trust — it relaxes the iframe sandbox.",
+					)
+					.addToggle((t) =>
+						t.setValue(card.sandboxTrusted ?? false).onChange((v) => {
+							card.sandboxTrusted = v || undefined;
+							this.opts.save();
+						}),
+					);
 				this.refreshSetting(containerEl);
 				break;
 			case "recent":
@@ -234,7 +246,60 @@ export class CardSettingsModal extends Modal {
 			case "search":
 				this.savedSearchEditor(containerEl);
 				break;
+			case "calendar":
+				this.calendarEditor(containerEl);
+				break;
+			case "heatmap":
+				this.heatmapEditor(containerEl);
+				break;
 		}
+	}
+
+	private calendarEditor(containerEl: HTMLElement): void {
+		const cfg = (this.card.calendar ??= {});
+		new Setting(containerEl)
+			.setName("Week numbers")
+			.setDesc("Show an ISO week-number column down the left edge.")
+			.addToggle((t) =>
+				t.setValue(cfg.showWeekNumbers ?? false).onChange((v) => {
+					cfg.showWeekNumbers = v || undefined;
+					this.opts.save();
+				}),
+			);
+		new Setting(containerEl)
+			.setName("Heatmap")
+			.setDesc("Tint each day by how many notes were edited that day.")
+			.addToggle((t) =>
+				t.setValue(cfg.heatmap ?? false).onChange((v) => {
+					cfg.heatmap = v || undefined;
+					this.opts.save();
+				}),
+			);
+	}
+
+	private heatmapEditor(containerEl: HTMLElement): void {
+		const cfg = (this.card.heatmap ??= {});
+		new Setting(containerEl).setName("Metric").addDropdown((d) => {
+			d.addOption("modified", "Notes edited");
+			d.addOption("created", "Notes created");
+			d.setValue(cfg.metric ?? "modified").onChange((v) => {
+				cfg.metric = v as NonNullable<typeof cfg.metric>;
+				this.opts.save();
+			});
+		});
+		new Setting(containerEl)
+			.setName("Weeks")
+			.setDesc("How many weeks of history to show.")
+			.addSlider((s) =>
+				s
+					.setLimits(8, 53, 1)
+					.setValue(cfg.weeks ?? 26)
+					.setDynamicTooltip()
+					.onChange((v) => {
+						cfg.weeks = v === 26 ? undefined : v;
+						this.opts.save();
+					}),
+			);
 	}
 
 	private savedSearchEditor(containerEl: HTMLElement): void {
@@ -403,6 +468,18 @@ export class CardSettingsModal extends Modal {
 						this.opts.save();
 					}),
 			);
+			row.addText((t) => {
+				t.setPlaceholder("Size")
+					.setValue(cmd.size ? String(cmd.size) : "")
+					.onChange((v) => {
+						const n = parseInt(v, 10);
+						cmd.size = Number.isNaN(n) || n <= 0 ? undefined : n;
+						this.opts.save();
+					});
+				t.inputEl.type = "number";
+				t.inputEl.addClass("hearth-count-input");
+				t.inputEl.setAttribute("aria-label", "Tile size in pixels (optional)");
+			});
 			row.addExtraButton((b) =>
 				b
 					.setIcon("chevron-up")
@@ -460,7 +537,25 @@ export class CardSettingsModal extends Modal {
 			});
 
 		new Setting(containerEl)
+			.setName("Layout")
+			.setDesc("List, or a Kanban board grouped by status (drag cards between columns).")
+			.addDropdown((d) => {
+				d.addOption("list", "List");
+				d.addOption("kanban", "Kanban board");
+				d.setValue(cfg.layout ?? "list").onChange((v) => {
+					cfg.layout = v === "kanban" ? "kanban" : undefined;
+					this.opts.save();
+					this.render();
+				});
+			});
+
+		new Setting(containerEl)
 			.setName("Show completed")
+			.setDesc(
+				cfg.layout === "kanban"
+					? "Completed tasks always appear in the Done column on a Kanban board."
+					: "",
+			)
 			.addToggle((t) =>
 				t.setValue(cfg.showCompleted ?? false).onChange((v) => {
 					cfg.showCompleted = v || undefined;

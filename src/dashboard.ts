@@ -125,8 +125,26 @@ function mountCardBody(
 		// Editable cards sync content edits in their textarea, so don't redraw on
 		// modify (it would drop the cursor) — but still redraw on existence changes.
 		watchCardFile(view, card, parent, draw, !card.editable);
+		return;
+	}
+
+	// Data-driven cards derive their content from the vault as a whole (tasks,
+	// counts, daily-note existence, query matches, edit timestamps), so redraw
+	// them — debounced — whenever the vault or its metadata changes.
+	if (LIVE_KINDS.has(card.kind)) {
+		const redraw = debounce(draw, 400, true);
+		const { vault, metadataCache } = view.app;
+		parent.registerEvent(vault.on("create", () => redraw()));
+		parent.registerEvent(vault.on("delete", () => redraw()));
+		parent.registerEvent(vault.on("rename", () => redraw()));
+		parent.registerEvent(vault.on("modify", () => redraw()));
+		parent.registerEvent(metadataCache.on("changed", () => redraw()));
 	}
 }
+
+/** Card kinds whose content is derived from the whole vault and should refresh
+ * live on vault/metadata changes. */
+const LIVE_KINDS = new Set<DashboardCard["kind"]>(["tasks", "stats", "calendar", "search", "heatmap"]);
 
 /** Redraw an embed/daily card's body when the file it tracks changes on disk.
  * create/delete/rename always redraw; modify only when `redrawOnModify`. */

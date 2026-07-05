@@ -114,6 +114,12 @@ export const CARD_TEMPLATES: CardTemplate[] = [
 		build: () => ({ kind: "search", title: "Saved search", savedSearch: { query: "" }, w: 4, h: 4 }),
 	},
 	{
+		id: "heatmap",
+		name: "Activity heatmap",
+		icon: "grid-2x2",
+		build: () => ({ kind: "heatmap", title: "Activity", heatmap: {}, w: 6, h: 3 }),
+	},
+	{
 		id: "text",
 		name: "Text / jot-down",
 		icon: "pencil",

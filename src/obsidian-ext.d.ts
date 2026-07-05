@@ -18,11 +18,14 @@ declare module "obsidian" {
 		plugins: {
 			/** Ids of every enabled community plugin. */
 			enabledPlugins: Set<string>;
+			/** The loaded community plugin instances, keyed by id. */
+			plugins: Record<string, unknown>;
 		};
 	}
 
 	interface FileManager {
 		createNewMarkdownFile(folder: TFolder, baseName?: string): Promise<TFile>;
+		processFrontMatter(file: TFile, fn: (frontmatter: Record<string, unknown>) => void): Promise<void>;
 	}
 }
 
