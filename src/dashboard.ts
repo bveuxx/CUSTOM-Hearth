@@ -15,7 +15,6 @@ import {
 	effectiveRowHeight,
 	removeCard,
 	renderCards,
-	resolveCardOpacity,
 	setCardPinned,
 } from "./types";
 import {
@@ -61,13 +60,16 @@ export function renderDashboard(
 	grid.toggleClass("is-arranging", view.arrangeMode);
 	// Board-level default; per-card overrides are set in the render loop below.
 	grid.style.setProperty("--card-opacity", String(effectiveCardOpacity(s)));
-	grid.style.minHeight = `${layoutHeight(cards) + GRID_GAP}px`;
+	const fit = effectiveFitToPage(s);
+	// In fit-to-page mode the board is locked to one screen, so leave the
+	// min-height to CSS (which clips the overflow). Otherwise grow the board
+	// to fit its cards.
+	if (!fit) grid.style.minHeight = `${layoutHeight(cards) + GRID_GAP}px`;
 
 	// In fit-to-page mode, recover any card that's stuck outside the visible
 	// board (e.g. from a layout import, a pane resize, or a glitched drag).
 	// The grid's clientHeight isn't final until laid out, so use the dashboard
 	// container's height (the visible area) as the clamp bound.
-	const fit = effectiveFitToPage(s);
 	if (fit) {
 		const boardH = container.clientHeight - 40; // minus toolbar row
 		let recovered = false;
@@ -75,7 +77,6 @@ export function renderDashboard(
 			if (clampCardToBoard(card, boardH > 0 ? boardH : null)) recovered = true;
 		}
 		if (recovered) {
-			grid.style.minHeight = `${layoutHeight(cards) + GRID_GAP}px`;
 			void view.plugin.saveData(s);
 		}
 	}

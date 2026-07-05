@@ -88,7 +88,7 @@ function searchByName(app: App, query: string, filter: QueryFilter, limit: numbe
 				file,
 				score: match.score,
 				// Highlight ranges only apply when the name itself matched.
-				matches: onName ? (match.matches as [number, number][]) : undefined,
+				matches: onName ? match.matches : undefined,
 			});
 		}
 	}

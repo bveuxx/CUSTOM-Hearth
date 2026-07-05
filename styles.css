@@ -361,11 +361,11 @@
 }
 
 /* In fit-to-page mode the board is locked to one screen: clip anything that
-   spills below the fold and never let the inline min-height (sized to the
-   cards' total footprint) push the grid past 100%, otherwise the overflow
-   area stays interactive and cards can be dropped/inserted "off screen". */
+   spills below the fold. No inline min-height is set in this mode (see
+   updateBoardHeight / renderDashboard), so a plain rule wins without needing
+   !important. */
 .hearth-fit .hearth-grid {
-	min-height: 0 !important;
+	min-height: 0;
 	overflow: hidden;
 }
 
@@ -829,6 +829,12 @@
 	opacity: 0.92;
 }
 
+/* Briefly hide a dragged tile from hit-testing so elementFromPoint() can find
+ * the tile underneath it during a reorder. */
+.hearth-link-tile.is-hit-testing {
+	pointer-events: none;
+}
+
 /* In arrange mode, tiles show a grab cursor to signal they're repositionable. */
 .hearth-grid.is-arranging .hearth-link-tile {
 	cursor: grab;
@@ -837,8 +843,7 @@
 /* While any tile in a card is being resized or dragged, hide the card's
  * header so the full card area is visible for the gesture. The header floats
  * over the card in arrange mode, so hiding it doesn't reflow the layout. */
-.hearth-grid.is-arranging .hearth-card:has(.is-tile-resizing) .hearth-card-head,
-.hearth-grid.is-arranging .hearth-card:has(.is-tile-dragging) .hearth-card-head {
+.hearth-grid.is-arranging .hearth-card.has-tile-gesture .hearth-card-head {
 	opacity: 0;
 	pointer-events: none;
 }
@@ -991,6 +996,10 @@
 	grid-template-columns: repeat(7, minmax(0, 1fr));
 	gap: 2px;
 	flex: 1;
+}
+
+.hearth-calendar-grid.has-week-numbers {
+	grid-template-columns: minmax(0, 0.6fr) repeat(7, minmax(0, 1fr));
 }
 
 .hearth-calendar-dow {

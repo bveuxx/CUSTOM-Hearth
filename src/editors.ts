@@ -1,4 +1,4 @@
-import { App, Menu, Modal, Notice, Setting } from "obsidian";
+import { App, Modal, Notice, Setting } from "obsidian";
 import { CommandPickerModal, FilePickerModal } from "./pickers";
 import { CardKind, ClockConfig, DashboardCard, LinkItem, TasksConfig } from "./types";
 import { confirmAction } from "./ui";
@@ -308,7 +308,6 @@ export class CardSettingsModal extends Modal {
 				s
 					.setLimits(8, 53, 1)
 					.setValue(cfg.weeks ?? 26)
-					.setDynamicTooltip()
 					.onChange((v) => {
 						cfg.weeks = v === 26 ? undefined : v;
 						this.opts.save();
@@ -841,7 +840,6 @@ export class CardSettingsModal extends Modal {
 			sl
 				.setLimits(0, 1, 0.05)
 				.setValue(card.cardOpacity ?? 1)
-				.setDynamicTooltip()
 				.onChange((v) => {
 					card.cardOpacity = v;
 					this.opts.save();

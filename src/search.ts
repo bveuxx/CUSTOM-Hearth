@@ -3,11 +3,6 @@ import type { HomeView } from "./view";
 import { FILE_TYPE_GROUPS, FileTypeGroup, groupForFile, iconForFile, OTHER_GROUP_ID } from "./filetypes";
 import { QueryHit, runQuery, searchFileContents } from "./query";
 
-/** A rendered result: either a vault file/folder hit or a command to run. */
-type ResultRow =
-	| { kind: "file"; hit: QueryHit }
-	| { kind: "command"; command: Command };
-
 /** Recently opened-via-search files, kept in the vault's local storage (never
  * in settings/data.json) so it stays out of the settings UI and layout
  * export entirely — a quiet convenience, not a feature to configure. */

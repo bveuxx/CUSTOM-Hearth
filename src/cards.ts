@@ -556,7 +556,7 @@ function renderCalendarGrid(
 	const weekNumbers = cfg.showWeekNumbers === true;
 	if (weekNumbers) {
 		// One extra leading column for the week number.
-		grid.style.gridTemplateColumns = "minmax(0, 0.6fr) repeat(7, minmax(0, 1fr))";
+		grid.addClass("has-week-numbers");
 		grid.createDiv({ cls: "hearth-calendar-dow hearth-calendar-wk", text: "wk" });
 	}
 
@@ -1214,6 +1214,7 @@ function makeTileResizable(
 		startY = e.clientY;
 		handle.setPointerCapture(e.pointerId);
 		tile.addClass("is-tile-resizing");
+		tile.closest(".hearth-card")?.addClass("has-tile-gesture");
 	});
 
 	handle.addEventListener("pointermove", (e) => {
@@ -1247,6 +1248,7 @@ function makeTileResizable(
 			// pointer already released
 		}
 		tile.removeClass("is-tile-resizing");
+		tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
 		void view.plugin.saveData(view.plugin.settings);
 	};
 	handle.addEventListener("pointerup", end);
@@ -1300,12 +1302,13 @@ function makeTileDraggable<T extends { id: string }>(
 		if (!moved) {
 			moved = true;
 			tile.addClass("is-tile-dragging");
+			tile.closest(".hearth-card")?.addClass("has-tile-gesture");
 		}
 		// Find the tile under the pointer (not the dragged one) by hiding the
 		// dragged tile from hit-testing for a moment.
-		tile.style.pointerEvents = "none";
+		tile.addClass("is-hit-testing");
 		const over = container.ownerDocument.elementFromPoint(e.clientX, e.clientY);
-		tile.style.pointerEvents = "";
+		tile.removeClass("is-hit-testing");
 		const target = over?.closest(".hearth-link-tile") as HTMLElement | null;
 		if (target && target !== tile) {
 			// Swap the data items; the DOM follows on the next render.
@@ -1320,6 +1323,7 @@ function makeTileDraggable<T extends { id: string }>(
 				// user can pick it up again from its new position.
 				dragging = false;
 				tile.removeClass("is-tile-dragging");
+				tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
 				try {
 					tile.releasePointerCapture(pointerId);
 				} catch {
@@ -1336,6 +1340,7 @@ function makeTileDraggable<T extends { id: string }>(
 		dragging = false;
 		moved = false;
 		tile.removeClass("is-tile-dragging");
+		tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
 		try {
 			tile.releasePointerCapture(e.pointerId);
 		} catch {
@@ -1930,13 +1935,13 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 		const due: string | null = typeof fm[dueField] === "string" ? String(fm[dueField]) : null;
 		// TaskNotes' scheduled field is conventionally "scheduled"; read it as
 		// a fallback sort key when no due date is set.
-		const scheduledRaw = fm["scheduled"];
+		const scheduledRaw: unknown = fm["scheduled"];
 		const scheduled: string | null = typeof scheduledRaw === "string" ? scheduledRaw : null;
-		const priorityRaw = fm[priorityField];
+		const priorityRaw: unknown = fm[priorityField];
 		const priority = priorityRaw == null || priorityRaw === "" ? undefined : String(priorityRaw);
 		// TaskNotes stores the recurrence rule in a "recurrence" frontmatter
 		// field (an RRULE like "FREQ=WEEKLY;INTERVAL=1" or "RRULE:FREQ=DAILY").
-		const recurrenceRaw = fm["recurrence"];
+		const recurrenceRaw: unknown = fm["recurrence"];
 		const recurrence =
 			recurrenceRaw == null || recurrenceRaw === "" ? undefined : String(recurrenceRaw);
 		hits.push({

@@ -442,8 +442,11 @@ export function enableDragResize(
 	}
 }
 
-/** Grow the board so it always contains its lowest card (plus breathing room). */
+/** Grow the board so it always contains its lowest card (plus breathing room).
+ * In fit-to-page mode the board is locked to one screen, so skip the inline
+ * min-height there — the CSS handles clipping instead. */
 export function updateBoardHeight(gridEl: HTMLElement): void {
+	if (gridEl.closest(".hearth-fit")) return;
 	let bottom = 0;
 	for (const child of Array.from(gridEl.children)) {
 		const el = child as HTMLElement;

@@ -590,7 +590,11 @@ export function fillMissingDefaults(
 	for (const [key, dv] of Object.entries(defaults)) {
 		const tv = target[key];
 		if (tv === undefined) {
-			target[key] = Array.isArray(dv) ? [...dv] : isPlainObject(dv) ? { ...dv } : dv;
+			target[key] = Array.isArray(dv)
+				? [...(dv as unknown[])]
+				: isPlainObject(dv)
+					? { ...dv }
+					: dv;
 		} else if (isPlainObject(dv) && isPlainObject(tv)) {
 			fillMissingDefaults(tv, dv);
 		}
