@@ -7,11 +7,13 @@ launcher in one. Hearth turns your vault into a welcoming front page with a fast
 fuzzy search, quick file-type filters, and a fully arrangeable grid of live
 cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
 
-> **v1.4** — free-form dashboard with magnetic alignment, per-card colors and
-> opacity, multiple switchable boards with per-board overrides, pinned cards,
-> Kanban tasks, a search-only mobile mode with a customizable action bar,
-> tag/frontmatter/full-text search, command mode, layout import/export, and
-> independent tile resizing in arrange mode.
+> **v1.5** — a redesigned dashboard experience: a CSS-grid tile layout with
+> independent column/row spans and drag-to-reorder, an ambient default
+> background, an overhauled starter dashboard, recurring TaskNotes tasks with
+> a ↻ badge and human-readable recurrence tooltip, smarter task sorting
+> (due → scheduled → priority → created), kanban drop outlines, calendar
+> today outline under the heatmap, search layout polish, and many fit-to-page
+> and card-drag fixes.
 
 ## Screenshots
 
@@ -94,12 +96,19 @@ toolbar; configure each one from the card itself (title, content, colors, size).
 - **Tasks** — scans Markdown checkboxes (with 📅 due-date parsing,
   click-to-toggle, click-to-open at the line) or reads TaskNotes task notes via
   frontmatter. Folder whitelist/blacklist for scope. Click **+** (top-right,
-  TaskNotes source) to create a new task via TaskNotes' own command.
+  TaskNotes source) to create a new task via TaskNotes' own command. Tasks are
+  sorted by **due → scheduled → priority → created**.
+- **Recurring tasks** — TaskNotes tasks with a `recurrence` RRULE show a **↻**
+  badge next to the next-occurrence date (read from `scheduled`), tinted with
+  the accent color so recurring items stand out at a glance. Hovering the date
+  reveals a plain-English schedule (e.g. "Repeats every week"). Overdue
+  recurring tasks are tinted just like one-offs.
 - **Kanban tasks** — the Tasks card can render as a Kanban board grouped by
   status. Drag cards between columns to change checkbox state or TaskNotes
   status, drag column headers to reorder, and hide columns you don't need.
   TaskNotes tasks show a **priority indicator** read from a configurable
-  frontmatter field.
+  frontmatter field, and a drop outline previews where a dragged card will
+  land.
 - **Mini calendar** — a month grid resolved from the core Daily notes plugin's
   format/folder, with a dot on days that already have a note. Optional ISO week
   numbers and an edit-count heatmap tint; click an empty day to create that
@@ -114,10 +123,12 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   favicons next to URL bookmarks.
 - **Favorites** — a grid of curated note cards.
 - **Recent files** — your recently opened files (configurable count).
-- **Links / launchpad** — a grid of tiles opening notes, URLs or commands, with
-  per-tile resizing.
-- **Commands** — tiles that run any command-palette command, with adjustable
-  per-tile size.
+- **Links / launchpad** — a grid of tiles opening notes, URLs or commands.
+  Tiles live on a **CSS grid** with independent **column and row spans**, so a
+  tile can be 2×2, 4×1, or any proportion. In arrange mode, drag tiles to
+  **reorder** them, and resize each tile independently via a corner grip.
+- **Commands** — tiles that run any command-palette command, on the same grid
+  with adjustable per-tile size.
 - **Clock & greeting** — digital or **analogue** face, several date formats
   (including a custom moment.js format), and a live greeting with an optional
   **playful** (cheeky, randomised) mode.
@@ -157,21 +168,28 @@ toolbar; configure each one from the card itself (title, content, colors, size).
 - **Per-card colors & background** — give any card an accent and a background
   tint.
 - **Per-card opacity** — a global **Card opacity** slider tints card surfaces
-  so the dashboard background shows through without dimming content.
-- **Independent tile sizing** — in arrange mode, link and command tiles show a
-  resize grip on hover. Drag **right** to grow width, **down** to grow height —
-  the two axes are independent, so tiles can be any proportion.
+  so the dashboard background shows through without dimming content. Opacity
+  cascades: global → per-dashboard → per-card override.
+- **Ambient default background** — out of the box Hearth ships with a soft
+  ambient background (low opacity + blur) that sits behind cards without
+  competing with content. Replace it with a solid color, a vault image, or an
+  image URL — per-board overrides supported.
+- **Independent tile sizing** — tiles live on a fine CSS grid (44 px cells,
+  4 px snap), each with its own column and row span. Drag the corner grip to
+  resize; drag the tile body to reorder. The default tile is a 2×2 cell block.
 - **Granular card sizing** — numeric width/height per card, plus a configurable
   row height for fine vertical control.
 - **Fit to page** — lock the dashboard to one screen (no scroll) or let it
-  scroll. Available globally and per-board.
+  scroll. Available globally and per-board. On by default for new installs;
+  stuck cards are auto-recovered back onto the board on render.
 - **Import / export** — back up or share the active board's layout as JSON.
 
 ## Appearance
 
 - **Title & logo** — set any title text and an emoji/short logo.
 - **Background** — solid color, a vault image, or an image URL, with opacity
-  and blur controls. Per-board overrides supported.
+  and blur controls. Per-board overrides supported. Ships with an ambient
+  default so the dashboard looks good out of the box.
 - **Compact spacing** — tighten card padding and the top margin to enlarge the
   usable area.
 - **Card opacity** — make card surfaces translucent so the dashboard background
@@ -236,27 +254,35 @@ into `<vault>/.obsidian/plugins/hearth/`.
 
 - Free-form layout with magnetic alignment and guide lines
 - Drag & resize cards from any edge or corner
-- Per-card accent and background colors; global card opacity
+- Per-card accent and background colors; global card opacity (cascading)
+- Ambient default background
 - Card library / templates
 - Embeds: notes, images, canvas, `.base`, Excalidraw, web (iframe)
 - Editable Markdown embeds (rendered → double-click to edit)
 - Embed zoom; per-card auto-refresh
 - Live embeds (vault-event driven, cursor-preserving for editable notes)
 - Tasks card (checkboxes or TaskNotes frontmatter, folder scope)
-- Kanban tasks (drag between status columns, reorder/hide columns, priority)
+- Recurring TaskNotes tasks (↻ badge, next-occurrence date, recurrence tooltip)
+- Task sorting (due → scheduled → priority → created)
+- Kanban tasks (drag between status columns, reorder/hide columns, priority,
+  drop outline)
 - TaskNotes quick-add button
-- Mini calendar (week numbers, heatmap tint, click-empty-day to create)
+- Mini calendar (week numbers, heatmap tint, click-empty-day to create,
+  today outline under the heatmap)
 - Vault statistics, saved search, activity heatmap
 - Bookmarks, favorites, recent files, links/launchpad, commands
-- Independent per-tile resize (width & height) in arrange mode
+- CSS-grid tiles with independent column/row spans, drag-to-reorder,
+  corner-grip resize
 - Clock & greeting (digital/analogue, custom formats, playful greetings)
 - Text / jot-down card
-- Multiple dashboards with switcher, per-board overrides, pinned cards
-- Fit-to-page (global and per-board)
+- Multiple dashboards with switcher, per-board overrides, pinned cards,
+  Lucide dashboard icons, duplicate dashboard
+- Fit-to-page (global and per-board, default-on, auto card recovery)
 - Layout import / export
 - Mobile mode (search-only) with customizable action bar
 - Tag search, frontmatter property search, command mode, full-text search
 - Auto-detected file-type filters (incl. Excalidraw, `.usheet`, "Other")
+- Search autocomplete with click-outside dismiss
 - Match highlighting; recent-files history in empty search
 - Keyboard-operable results, filters, cards, calendar and switcher
 - Dashboard keyboard shortcuts (switch by position, next/previous)
