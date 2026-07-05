@@ -1136,7 +1136,7 @@ function renderLinks(view: HomeView, card: DashboardCard, body: HTMLElement): vo
 }
 
 /** Apply a per-tile size: converts pixel width/height into grid column/row
- * spans (relative to the base cell size). Each tile is placed on the grid
+ * spans (relative to the fine cell size). Each tile is placed on the grid
  * spanning N columns × M rows, so it can independently span multiple rows
  * without its row's height being governed by the tallest tile. */
 function applyTileSize(
@@ -1149,16 +1149,27 @@ function applyTileSize(
 	// Migrate a legacy single `size` into independent width/height on read.
 	const w = sizeW ?? legacySize;
 	const h = sizeH ?? legacySize;
-	// Column span: how many base cells wide. Row span: how many base rows tall.
-	const rowH = Math.round(baseTile * 0.78);
-	const cs = w && w > 0 ? Math.max(1, Math.round(w / baseTile)) : 1;
-	const rs = h && h > 0 ? Math.max(1, Math.round(h / rowH)) : 1;
+	// Use the fine cell size for span calculation so sizing is granular.
+	const cell = TILE_CELL;
+	const rowH = Math.round(TILE_CELL * 0.78);
+	const cs = w && w > 0 ? Math.max(1, Math.round(w / cell)) : DEFAULT_TILE_CS;
+	const rs = h && h > 0 ? Math.max(1, Math.round(h / rowH)) : DEFAULT_TILE_RS;
 	tile.style.setProperty("--hearth-tile-cs", String(cs));
 	tile.style.setProperty("--hearth-tile-rs", String(rs));
 }
 
+/** Default span for a tile with no explicit size: 2 columns × 2 rows on the
+ * fine grid (≈88×68px), matching the visual size of the old 90px default. */
+const DEFAULT_TILE_CS = 2;
+const DEFAULT_TILE_RS = 2;
+
 /** Fine grid (px) that tile sizes snap to, so tiles align like Android widgets. */
-const TILE_GRID = 8;
+const TILE_GRID = 4;
+
+/** Base cell size (px) for the tile grid. Smaller = finer granularity: a tile
+ * can span more columns/rows in smaller steps, so sizing feels precise rather
+ * than chunky. Half of the visual default so 2 cells ≈ one old tile. */
+const TILE_CELL = 44;
 
 /** Attach a widget-style resize handle to a tile. The handle is a clear,
  * grabbable corner grip (bottom-right) that resizes width and height together
@@ -1212,14 +1223,16 @@ function makeTileResizable(
 		const dx = e.clientX - startX;
 		const dy = e.clientY - startY;
 		// Snap to the fine grid so tiles stay aligned like widgets.
-		const w = Math.max(baseTile, Math.min(480, snap(startW + dx, TILE_GRID)));
-		const h = Math.max(56, Math.min(480, snap(startH + dy, TILE_GRID)));
+		const w = Math.max(TILE_CELL, Math.min(480, snap(startW + dx, TILE_GRID)));
+		const h = Math.max(34, Math.min(480, snap(startH + dy, TILE_GRID)));
 		setW(w === baseTile ? undefined : w);
 		setH(h === Math.round(baseTile * 0.78) ? undefined : h);
 		setLegacy(undefined);
-		// Convert live pixel size to grid spans so the tile grows by whole cells.
-		const rowH = Math.round(baseTile * 0.78);
-		const cs = Math.max(1, Math.round(w / baseTile));
+		// Convert live pixel size to grid spans using the fine cell size so
+		// the tile grows in small, precise steps.
+		const cell = TILE_CELL;
+		const rowH = Math.round(TILE_CELL * 0.78);
+		const cs = Math.max(1, Math.round(w / cell));
 		const rs = Math.max(1, Math.round(h / rowH));
 		tile.style.setProperty("--hearth-tile-cs", String(cs));
 		tile.style.setProperty("--hearth-tile-rs", String(rs));
@@ -1740,6 +1753,33 @@ function renderTaskKanban(
 				cardEl.addClass("is-dragging");
 			});
 			cardEl.addEventListener("dragend", () => cardEl.removeClass("is-dragging"));
+			// Highlight the task card a dragged task would land on (the card
+			// being hovered), with the same dashed outline as column drop.
+			cardEl.addEventListener("dragover", (e) => {
+				if (e.dataTransfer?.types.includes("application/hearth-col")) return;
+				e.preventDefault();
+				e.stopPropagation();
+				cardEl.addClass("is-drop-target");
+			});
+			cardEl.addEventListener("dragleave", () => cardEl.removeClass("is-drop-target"));
+			cardEl.addEventListener("drop", (e) => {
+				cardEl.removeClass("is-drop-target");
+				if (e.dataTransfer?.types.includes("application/hearth-col")) return;
+				const raw = e.dataTransfer?.getData("text/plain") ?? "";
+				if (!raw) return;
+				e.preventDefault();
+				e.stopPropagation();
+				const fromIdx = parseInt(raw, 10);
+				if (Number.isNaN(fromIdx)) return;
+				const from = hits[fromIdx];
+				if (!from) return;
+				if (from === hit) return;
+				if (from.status === hit.status) {
+					// Same column: reorder within it. No fine-grained order is
+					// stored (tasks sort by due), so just move to the same col.
+				}
+				moveTo(from, col);
+			});
 			cardEl.createDiv({ cls: "hearth-kanban-card-text", text: hit.text || hit.file.basename });
 			const meta = cardEl.createDiv("hearth-kanban-card-meta");
 			if (hit.priority) renderPriority(meta, hit.priority);

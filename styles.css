@@ -759,14 +759,14 @@
 
 /* Links / launchpad */
 .hearth-links {
-	/* CSS grid with a fixed cell size: each tile spans N columns × M rows
-	 * based on its width/height. This lets a tile span multiple rows
-	 * independently (e.g. 1×2, 2×2) — flex-wrap couldn't do that because each
-	 * row's height was governed by its tallest tile. */
+	/* CSS grid with a fine cell size (44px columns, ~34px rows) so tiles can be
+	 * sized in small, precise steps and span multiple rows independently.
+	 * Column sizing uses the fine cell; the --hearth-tile var (per-card default)
+	 * is kept as the minimum column width so the grid fills the card width. */
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(var(--hearth-tile, 90px), 1fr));
-	grid-auto-rows: calc(var(--hearth-tile, 90px) * 0.78);
-	gap: 10px;
+	grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+	grid-auto-rows: 34px;
+	gap: 6px;
 	justify-content: start;
 }
 
@@ -1694,6 +1694,14 @@
 
 .hearth-kanban-card.is-dragging {
 	opacity: 0.5;
+}
+
+/* Dashed accent outline on a task card that a dragged task is hovering over
+ * (matches the column drop outline, applied to the specific card). */
+.hearth-kanban-card.is-drop-target {
+	outline: 2px dashed var(--interactive-accent);
+	outline-offset: 1px;
+	border-radius: 8px;
 }
 
 .hearth-kanban-card.is-done .hearth-kanban-card-text {
