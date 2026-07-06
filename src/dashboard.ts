@@ -343,9 +343,9 @@ function renderToolbar(view: HomeView, container: HTMLElement): void {
 			menu.showAtMouseEvent(evt);
 		});
 
-		// Toggle the dashboard header (title + search) off so the full board
-		// is visible while arranging. Only available while arranging; the
-		// header comes back automatically when arranging ends.
+		// Toggle the per-card headers (title input + actions) off so each
+		// card's full body is visible while arranging. Only available while
+		// arranging; the headers come back automatically when arranging ends.
 		const hideHdr = bar.createEl("button", { cls: "hearth-tool-btn" });
 		hideHdr.toggleClass("is-active", view.hideHeaderInArrange);
 		setIcon(
@@ -354,11 +354,11 @@ function renderToolbar(view: HomeView, container: HTMLElement): void {
 		);
 		hideHdr.createSpan({
 			cls: "hearth-tool-label",
-			text: view.hideHeaderInArrange ? "Show header" : "Hide header",
+			text: view.hideHeaderInArrange ? "Show titles" : "Hide titles",
 		});
 		hideHdr.setAttribute(
 			"aria-label",
-			view.hideHeaderInArrange ? "Show the dashboard header" : "Hide the dashboard header",
+			view.hideHeaderInArrange ? "Show card headers" : "Hide card headers",
 		);
 		hideHdr.addEventListener("click", () => {
 			view.hideHeaderInArrange = !view.hideHeaderInArrange;

@@ -14,8 +14,8 @@ export class HomeView extends ItemView {
 	plugin: HearthPlugin;
 	/** Whether the dashboard is in layout/arrange mode (drag & resize). */
 	arrangeMode = false;
-	/** In arrange mode, optionally hide the dashboard header (title + search)
-	 * so the full board is visible end-to-end. Toggled from the Arrange
+	/** In arrange mode, optionally hide the per-card headers (title input +
+	 * actions) so each card's full body is visible. Toggled from the Arrange
 	 * toolbar; resets when the view reopens. */
 	hideHeaderInArrange = false;
 	/** Per-render child component so embeds/markdown get cleaned up on re-render. */
@@ -99,9 +99,9 @@ export class HomeView extends ItemView {
 		root.empty();
 		root.addClass("hearth-view");
 		root.toggleClass("hearth-compact", this.plugin.settings.compact);
-		// In arrange mode the user can hide the dashboard header to see the
-		// full board. The class is only applied while arranging so the header
-		// comes back automatically when arranging ends.
+		// In arrange mode the user can hide the per-card headers to see each
+		// card's full body. The class is only applied while arranging so the
+		// headers come back automatically when arranging ends.
 		root.toggleClass(
 			"hearth-hide-header",
 			this.arrangeMode && this.hideHeaderInArrange,

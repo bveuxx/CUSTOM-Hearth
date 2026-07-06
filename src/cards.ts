@@ -1276,13 +1276,15 @@ function snap(value: number, grid: number): number {
  *  mode. Uses pointer events (not HTML5 DnD) so it coexists with the resize
  *  handle and doesn't trigger the card's drag engine.
  *
- *  Phone-widget-style live reflow: while dragging, the tile floats freely
- *  above the grid (absolutely positioned under the pointer), and a dashed
- *  placeholder occupies its target grid cell. The other tiles auto-flow
- *  around the moving placeholder, so the user sees the layout shift in real
- *  time — exactly how Android/iOS widgets reorder. On drop the tile's
- *  `col`/`row` is set to the placeholder's position and persisted; tiles with
- *  no explicit position keep auto-flowing around the pinned ones. */
+ *  Phone-widget-style live reorder via swapping: while dragging, the tile
+ *  floats freely above the grid (absolutely positioned under the pointer).
+ *  Every other tile is frozen to its current cell at drag start, so the
+ *  layout is stable. As the pointer moves over another tile, that tile is
+ *  swapped into the dragged tile's old slot — so ALL tiles move out of the
+ *  way (pinned or auto-flow), and the dragged tile never hides behind a
+ *  sibling. Over empty space, the drop target follows the pointer so the
+ *  tile can also be dropped into a free cell. On drop, final positions are
+ *  persisted; swapped auto-flow tiles become pinned at their new slot. */
 function makeTileDraggable<T extends { id: string; col?: number; row?: number }>(
 	view: HomeView,
 	container: HTMLElement,
@@ -1299,13 +1301,21 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 	let pointerId = -1;
 	const DRAG_THRESHOLD = 5;
 
-	// Placeholder element that occupies the tile's target grid slot, so the
-	// other tiles auto-flow around it during the drag.
-	let placeholder: HTMLElement | null = null;
 	// Grab offset within the tile (px from tile's top-left), so the tile stays
 	// under the grab point instead of jumping to centre on the pointer.
 	let grabOffsetX = 0;
 	let grabOffsetY = 0;
+
+	// Frozen positions of the sibling tiles (element -> current {col, row}).
+	// At drag start every sibling is pinned to its current cell so the layout
+	// is stable and a swap moves exactly the two tiles involved.
+	const frozen = new Map<HTMLElement, { col: number; row: number }>();
+	// Tiles swapped during the drag (item -> final position), persisted on drop.
+	const swapped = new Map<T, { col: number; row: number }>();
+	// Lookup: tile element -> item.
+	const itemByEl = new Map<HTMLElement, T>();
+	// The dragged tile's current logical slot (where it would land on drop).
+	let draggedPos: { col: number; row: number } | null = null;
 
 	tile.addEventListener("pointerdown", (e) => {
 		// Don't start a tile drag from the resize handle.
@@ -1330,38 +1340,63 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 			moved = true;
 			tile.addClass("is-tile-dragging");
 			tile.closest(".hearth-card")?.addClass("has-tile-gesture");
-			// Take the tile out of grid flow so the placeholder can occupy its
-			// slot and other tiles reflow around it. Size it to its current
-			// footprint so it doesn't collapse while floating.
+			// Freeze every sibling tile to its current cell so swaps are
+			// exact and the layout doesn't reflow unpredictably mid-drag.
+			const siblings = Array.from(
+				container.querySelectorAll<HTMLElement>(".hearth-link-tile"),
+			);
+			for (const sib of siblings) {
+				if (sib === tile) continue;
+				const sibItem = items.find(
+					(it) => it.id === sib.getAttribute("data-tile-id"),
+				);
+				if (!sibItem) continue;
+				itemByEl.set(sib, sibItem);
+				const cell = getTileCell(sib, container);
+				if (cell) {
+					frozen.set(sib, cell);
+					sib.style.setProperty("--hearth-tile-col", String(cell.col));
+					sib.style.setProperty("--hearth-tile-row", String(cell.row));
+				}
+			}
+			// The dragged tile's starting slot.
+			draggedPos = getTileCell(tile, container) ?? {
+				col: item.col ?? 1,
+				row: item.row ?? 1,
+			};
+			// Float the tile above the grid, sized to its current footprint.
 			const rect = tile.getBoundingClientRect();
 			grabOffsetX = startX - rect.left;
 			grabOffsetY = startY - rect.top;
 			tile.style.position = "absolute";
 			tile.style.width = `${rect.width}px`;
 			tile.style.height = `${rect.height}px`;
-			// Insert placeholder in the grid at the tile's current slot, with
-			// the same span, so the layout doesn't jump when the tile leaves.
-			placeholder = container.createDiv("hearth-tile-placeholder");
-			const cs = tile.style.getPropertyValue("--hearth-tile-cs") || String(DEFAULT_TILE_CS);
-			const rs = tile.style.getPropertyValue("--hearth-tile-rs") || String(DEFAULT_TILE_RS);
-			placeholder.style.setProperty("--hearth-tile-cs", cs);
-			placeholder.style.setProperty("--hearth-tile-rs", rs);
-			if (item.col != null) placeholder.style.setProperty("--hearth-tile-col", String(item.col));
-			if (item.row != null) placeholder.style.setProperty("--hearth-tile-row", String(item.row));
 		}
-		// Float the tile under the pointer, offset by the grab point so it
-		// stays under the cursor naturally.
+		// Float the tile under the pointer, offset by the grab point.
 		const containerRect = container.getBoundingClientRect();
 		tile.style.left = `${e.clientX - containerRect.left - grabOffsetX}px`;
 		tile.style.top = `${e.clientY - containerRect.top - grabOffsetY}px`;
-		// Move the placeholder to the cell under the pointer so the other
-		// tiles reflow around it live.
-		if (placeholder) {
-			const cell = pickGridCell(container, e.clientX, e.clientY, tile);
-			if (cell) {
-				placeholder.style.setProperty("--hearth-tile-col", String(cell.col));
-				placeholder.style.setProperty("--hearth-tile-row", String(cell.row));
+		if (!draggedPos) return;
+		// Find the sibling tile under the pointer (the dragged tile has
+		// pointer-events: none, so elementFromPoint returns what's behind it).
+		const other = findTileUnderPointer(container, e.clientX, e.clientY, tile);
+		if (other) {
+			const otherPos = frozen.get(other);
+			if (otherPos) {
+				// Swap: move the other tile into the dragged's old slot.
+				other.style.setProperty("--hearth-tile-col", String(draggedPos.col));
+				other.style.setProperty("--hearth-tile-row", String(draggedPos.row));
+				frozen.set(other, draggedPos);
+				const otherItem = itemByEl.get(other);
+				if (otherItem) swapped.set(otherItem, draggedPos);
+				// The dragged tile now logically occupies the other's old slot.
+				draggedPos = otherPos;
 			}
+		} else {
+			// Empty space: the drop target follows the pointer so the tile can
+			// also be dropped into a free cell, not just swapped.
+			const cell = pickGridCell(container, e.clientX, e.clientY, tile);
+			if (cell) draggedPos = cell;
 		}
 	});
 
@@ -1378,9 +1413,13 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 		tile.style.height = "";
 		tile.style.zIndex = "";
 		tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
-		if (placeholder) {
-			placeholder.remove();
-			placeholder = null;
+		// Clear the inline freeze on non-swapped siblings (a full re-render
+		// follows, but this keeps the DOM clean in case render is deferred).
+		for (const sib of frozen.keys()) {
+			if (!itemByEl.get(sib) || !swapped.has(itemByEl.get(sib)!)) {
+				sib.style.removeProperty("--hearth-tile-col");
+				sib.style.removeProperty("--hearth-tile-row");
+			}
 		}
 		try {
 			tile.releasePointerCapture(e.pointerId);
@@ -1388,12 +1427,15 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 			// already released
 		}
 		if (!wasMoved) return;
-		// Pin the tile to the grid cell under the pointer. Compute the cell
-		// from the grid's metrics so it matches what the user sees.
-		const cell = pickGridCell(container, e.clientX, e.clientY, tile);
-		if (cell) {
-			item.col = cell.col;
-			item.row = cell.row;
+		// Persist the dragged tile's final slot.
+		if (draggedPos) {
+			item.col = draggedPos.col;
+			item.row = draggedPos.row;
+		}
+		// Persist swapped siblings at their new slots.
+		for (const [sibItem, pos] of swapped) {
+			sibItem.col = pos.col;
+			sibItem.row = pos.row;
 		}
 		void view.plugin.saveData(view.plugin.settings);
 		view.render();
@@ -1413,6 +1455,53 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 			view.render();
 		});
 	}
+}
+
+/** Read a tile's current grid cell from the DOM. Prefers the inline
+ *  `--hearth-tile-col/row` (set for pinned tiles), falling back to the tile's
+ *  rendered position mapped onto the grid's metrics. Returns null when the
+ *  metrics can't be measured reliably. */
+function getTileCell(
+	tile: HTMLElement,
+	container: HTMLElement,
+): { col: number; row: number } | null {
+	const colAttr = tile.style.getPropertyValue("--hearth-tile-col");
+	const rowAttr = tile.style.getPropertyValue("--hearth-tile-row");
+	if (colAttr && rowAttr) {
+		const col = parseInt(colAttr, 10);
+		const row = parseInt(rowAttr, 10);
+		if (Number.isFinite(col) && Number.isFinite(row)) return { col, row };
+	}
+	const rect = tile.getBoundingClientRect();
+	const cRect = container.getBoundingClientRect();
+	if (cRect.width <= 0) return null;
+	const gap = 6;
+	const columns = Math.max(1, Math.floor((cRect.width + gap) / (TILE_CELL + gap)));
+	const colW = (cRect.width - (columns - 1) * gap) / columns;
+	const rowH = Math.round(TILE_CELL * 0.78);
+	const relX = rect.left - cRect.left;
+	const relY = rect.top - cRect.top;
+	const col = Math.max(1, Math.round(relX / (colW + gap)) + 1);
+	const row = Math.max(1, Math.round(relY / (rowH + gap)) + 1);
+	return { col, row };
+}
+
+/** Find the `.hearth-link-tile` under a pointer, excluding the dragged tile
+ *  (and anything inside it, like its resize handle). The dragged tile has
+ *  pointer-events: none while dragging, so elementFromPoint already skips it,
+ *  but we also guard against its descendants in case a child overrides. */
+function findTileUnderPointer(
+	container: HTMLElement,
+	clientX: number,
+	clientY: number,
+	except: HTMLElement,
+): HTMLElement | null {
+	const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
+	if (!el) return null;
+	if (except.contains(el)) return null;
+	const tile = el.closest(".hearth-link-tile") as HTMLElement | null;
+	if (!tile || tile === except || !container.contains(tile)) return null;
+	return tile;
 }
 
 /** Work out the (col, row) grid cell under a pointer, relative to the card's
