@@ -19,6 +19,7 @@ import {
 } from "./types";
 import {
 	applyCardPosition,
+	applyEdgeMerging,
 	clampCardToBoard,
 	enableDragResize,
 	ensureFreeform,
@@ -127,6 +128,16 @@ export function renderDashboard(
 			enableDragResize(view, el, grid, card, gridLayout, component, commit);
 		}
 	}
+
+	// Sharpen touching corners between neighbouring cards so adjacent cards
+	// read as one merged tile. Recomputed after every drag/resize commit and
+	// on viewport resize (handled below) since card positions reflow.
+	applyEdgeMerging(grid);
+
+	// Recompute edge merging whenever the board reflows (pane resize, zoom,
+	// dashboard switch) — fractional widths shift which edges touch.
+	const remerge = () => applyEdgeMerging(grid);
+	component.registerDomEvent(window, "resize", debounce(remerge, 120, true));
 }
 
 /** Render a card's body. Each (re)draw renders under a fresh child component so

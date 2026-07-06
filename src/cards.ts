@@ -16,6 +16,7 @@ import { ClockConfig, CommandItem, DashboardCard, LinkItem, TasksConfig } from "
 import { EXCALIDRAW_PLUGIN_ID, iconForFile, isExcalidraw } from "./filetypes";
 import { QueryHit, runQuery, searchFileContents } from "./query";
 import { makeClickable } from "./ui";
+import { parseNaturalDate } from "./dates";
 
 /**
  * moment is bundled with Obsidian, not a direct dependency, so it's imported
@@ -1109,7 +1110,7 @@ function renderLinks(view: HomeView, card: DashboardCard, body: HTMLElement): vo
 	if (view.arrangeMode) body.addClass("hearth-tiles-arrange");
 	for (const link of links) {
 		const tile = grid.createDiv("hearth-link-tile");
-		applyTileSize(tile, link.sizeW, link.sizeH, link.size, baseTile);
+		applyTileSize(tile, link.sizeW, link.sizeH, link.size, baseTile, link.col, link.row);
 		setIcon(tile.createDiv("hearth-link-icon"), link.icon || "link");
 		tile.createDiv({ cls: "hearth-link-label", text: link.label || link.target });
 		const open = () => openLink(view, link);
@@ -1138,13 +1139,17 @@ function renderLinks(view: HomeView, card: DashboardCard, body: HTMLElement): vo
 /** Apply a per-tile size: converts pixel width/height into grid column/row
  * spans (relative to the fine cell size). Each tile is placed on the grid
  * spanning N columns × M rows, so it can independently span multiple rows
- * without its row's height being governed by the tallest tile. */
+ * without its row's height being governed by the tallest tile. When the tile
+ * has an explicit free-form position (col/row), it's pinned to that grid line
+ * instead of auto-flowing. */
 function applyTileSize(
 	tile: HTMLElement,
 	sizeW: number | undefined,
 	sizeH: number | undefined,
 	legacySize: number | undefined,
 	baseTile: number,
+	col?: number,
+	row?: number,
 ): void {
 	// Migrate a legacy single `size` into independent width/height on read.
 	const w = sizeW ?? legacySize;
@@ -1156,6 +1161,12 @@ function applyTileSize(
 	const rs = h && h > 0 ? Math.max(1, Math.round(h / rowH)) : DEFAULT_TILE_RS;
 	tile.style.setProperty("--hearth-tile-cs", String(cs));
 	tile.style.setProperty("--hearth-tile-rs", String(rs));
+	// Free-form position: pin to a grid line (1-based). When either is missing
+	// the tile auto-flows into the next available cell.
+	if (col != null && col > 0) tile.style.setProperty("--hearth-tile-col", String(col));
+	else tile.style.removeProperty("--hearth-tile-col");
+	if (row != null && row > 0) tile.style.setProperty("--hearth-tile-row", String(row));
+	else tile.style.removeProperty("--hearth-tile-row");
 }
 
 /** Default span for a tile with no explicit size: 2 columns × 2 rows on the
@@ -1260,11 +1271,15 @@ function snap(value: number, grid: number): number {
 	return Math.round(value / grid) * grid;
 }
 
-/** Make a tile draggable (to reorder it within its card) in arrange mode. Uses
- *  pointer events (not HTML5 DnD) so it coexists with the resize handle and
- *  doesn't trigger the card's drag engine. Swaps the tile's data item with its
- *  neighbours as the pointer moves over them. */
-function makeTileDraggable<T extends { id: string }>(
+/** Make a tile draggable (to reposition it freely within its card) in arrange
+ *  mode. Uses pointer events (not HTML5 DnD) so it coexists with the resize
+ *  handle and doesn't trigger the card's drag engine. While dragging, the tile
+ *  follows the pointer visually; on drop it's pinned to the grid cell under the
+ *  pointer (computed from the card's column/row metrics), so tiles can be
+ *  placed anywhere instead of being forced into a top-to-bottom, left-to-right
+ *  flow. The data's `col`/`row` is set and persisted; tiles with no explicit
+ *  position keep auto-flowing around the pinned ones. */
+function makeTileDraggable<T extends { id: string; col?: number; row?: number }>(
 	view: HomeView,
 	container: HTMLElement,
 	tile: HTMLElement,
@@ -1276,9 +1291,19 @@ function makeTileDraggable<T extends { id: string }>(
 	let dragging = false;
 	let startX = 0;
 	let startY = 0;
+	let originCol: number | undefined;
+	let originRow: number | undefined;
 	let moved = false;
 	let pointerId = -1;
 	const DRAG_THRESHOLD = 5;
+
+	// Live visual offset of the tile under the pointer (px, relative to its
+	// grid slot). Applied as a transform so the grid layout itself isn't
+	// disturbed while dragging — only the dragged tile floats.
+	const setOffset = (dx: number, dy: number) => {
+		tile.style.transform = `translate(${dx}px, ${dy}px)`;
+		tile.style.zIndex = "15";
+	};
 
 	tile.addEventListener("pointerdown", (e) => {
 		// Don't start a tile drag from the resize handle.
@@ -1286,6 +1311,8 @@ function makeTileDraggable<T extends { id: string }>(
 		e.stopPropagation(); // don't reach the card drag overlay
 		startX = e.clientX;
 		startY = e.clientY;
+		originCol = item.col;
+		originRow = item.row;
 		dragging = true;
 		moved = false;
 		pointerId = e.pointerId;
@@ -1304,54 +1331,87 @@ function makeTileDraggable<T extends { id: string }>(
 			tile.addClass("is-tile-dragging");
 			tile.closest(".hearth-card")?.addClass("has-tile-gesture");
 		}
-		// Find the tile under the pointer (not the dragged one) by hiding the
-		// dragged tile from hit-testing for a moment.
-		tile.addClass("is-hit-testing");
-		const over = container.ownerDocument.elementFromPoint(e.clientX, e.clientY);
-		tile.removeClass("is-hit-testing");
-		const target = over?.closest(".hearth-link-tile") as HTMLElement | null;
-		if (target && target !== tile) {
-			// Swap the data items; the DOM follows on the next render.
-			const fromIdx = items.indexOf(item);
-			const targetId = target.getAttribute("data-tile-id");
-			const toIdx = items.findIndex((it) => it.id === targetId);
-			if (toIdx >= 0 && toIdx !== fromIdx) {
-				const [m] = items.splice(fromIdx, 1);
-				items.splice(toIdx, 0, m);
-				// Persist + re-render once to reflect the new order. Don't keep
-				// dragging the old tile element (it's gone after render); the
-				// user can pick it up again from its new position.
-				dragging = false;
-				tile.removeClass("is-tile-dragging");
-				tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
-				try {
-					tile.releasePointerCapture(pointerId);
-				} catch {
-					// already released
-				}
-				void view.plugin.saveData(view.plugin.settings);
-				view.render();
-			}
-		}
+		// Float the tile under the pointer without disturbing the grid.
+		setOffset(dx, dy);
 	});
 
 	const end = (e: PointerEvent) => {
 		if (!dragging || e.pointerId !== pointerId) return;
 		dragging = false;
+		const wasMoved = moved;
 		moved = false;
 		tile.removeClass("is-tile-dragging");
+		tile.style.transform = "";
+		tile.style.zIndex = "";
 		tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
 		try {
 			tile.releasePointerCapture(e.pointerId);
 		} catch {
 			// already released
 		}
+		if (!wasMoved) return;
+		// Pin the tile to the grid cell under the pointer. Compute the cell
+		// from the grid's metrics so it matches what the user sees.
+		const cell = pickGridCell(container, e.clientX, e.clientY, tile);
+		if (cell) {
+			item.col = cell.col;
+			item.row = cell.row;
+		}
+		void view.plugin.saveData(view.plugin.settings);
+		view.render();
 	};
 	tile.addEventListener("pointerup", end);
 	tile.addEventListener("pointercancel", end);
 
 	// Tag the tile so we can find it by id during drag swap.
 	tile.setAttribute("data-tile-id", item.id);
+	// Double-click a pinned tile to clear its position and let it auto-flow.
+	if (item.col != null || item.row != null) {
+		tile.addEventListener("dblclick", (e) => {
+			e.stopPropagation();
+			delete item.col;
+			delete item.row;
+			void view.plugin.saveData(view.plugin.settings);
+			view.render();
+		});
+	}
+}
+
+/** Work out the (col, row) grid cell under a pointer, relative to the card's
+ *  tile grid. `container` is the `.hearth-links` grid element. Returns null
+ *  when the metrics can't be measured reliably. Clamps to the grid's bounds
+ *  so a tile dropped near the edge lands on the last valid cell, not off-board.
+ *  `tile` is the dragged element (its span is used so the drop keeps the tile
+ *  fully inside the grid — the column count limits the start column). */
+function pickGridCell(
+	container: HTMLElement,
+	clientX: number,
+	clientY: number,
+	tile: HTMLElement,
+): { col: number; row: number } | null {
+	const rect = container.getBoundingClientRect();
+	if (rect.width <= 0) return null;
+	const gap = 6;
+	// auto-fill column count at the current card width (matches the CSS
+	// `repeat(auto-fill, minmax(44px, 1fr))` grid).
+	const columns = Math.max(1, Math.floor((rect.width + gap) / (TILE_CELL + gap)));
+	// Actual column width (the 1fr columns expand past the 44px minimum, so
+	// use the real width to map the pointer to a column line).
+	const colW = (rect.width - (columns - 1) * gap) / columns;
+	// The dragged tile's column span, so we keep its start within bounds.
+	const cs = parseInt(
+		tile.style.getPropertyValue("--hearth-tile-cs") || String(DEFAULT_TILE_CS),
+		10,
+	) || DEFAULT_TILE_CS;
+	const rowH = Math.round(TILE_CELL * 0.78);
+	// Pointer relative to the grid's content box, in cells (1-based lines).
+	const relX = clientX - rect.left;
+	const relY = clientY - rect.top;
+	let col = Math.round(relX / (colW + gap)) + 1;
+	let row = Math.round(relY / (rowH + gap)) + 1;
+	col = Math.max(1, Math.min(col, Math.max(1, columns - cs + 1)));
+	row = Math.max(1, row);
+	return { col, row };
 }
 
 function openLink(view: HomeView, link: LinkItem): void {
@@ -1389,7 +1449,7 @@ function renderCommands(view: HomeView, card: DashboardCard, body: HTMLElement):
 		// A per-tile size overrides the card default: it drives the tile's own
 		// height/icon (via --hearth-tile) and, when larger than the base, makes
 		// the tile span proportionally more grid columns so it's wider too.
-		applyTileSize(tile, cmd.sizeW, cmd.sizeH, cmd.size, baseTile);
+		applyTileSize(tile, cmd.sizeW, cmd.sizeH, cmd.size, baseTile, cmd.col, cmd.row);
 		setIcon(tile.createDiv("hearth-link-icon"), cmd.icon || "terminal-square");
 		tile.createDiv({ cls: "hearth-link-label", text: cmd.name || cmd.id });
 		const run = () => runCommand(view, cmd);
@@ -1426,6 +1486,9 @@ interface TaskHit {
 	text: string;
 	done: boolean;
 	due: string | null;
+	/** The original due text as written (e.g. "tomorrow"), kept so the display
+	 * can show the user's natural-language wording next to the parsed date. */
+	dueRaw: string | null;
 	/** TaskNotes "scheduled" date (frontmatter), used as a fallback for sorting
 	 * when no due date is set. */
 	scheduled: string | null;
@@ -1522,12 +1585,18 @@ function effectiveDate(hit: TaskHit): string | null {
 
 /** Format a due/next-occurrence date for display. Recurring tasks append a ↻
  * symbol so the date isn't mistaken for a one-off and the user knows it's the
- * next occurrence. The raw datetime is normalized to YYYY-MM-DD. */
+ * next occurrence. The raw datetime is normalized to YYYY-MM-DD. When the
+ * user wrote the date in natural language (e.g. "tomorrow"), the wording is
+ * shown alongside the parsed date so they recognise what they typed. */
 function formatDueLabel(hit: TaskHit): string | null {
 	const raw = hit.recurrence ? hit.due ?? hit.scheduled : hit.due;
 	if (!raw) return hit.recurrence ? "↻" : null;
 	const date = raw.slice(0, 10);
-	return hit.recurrence ? `${date} ↻` : date;
+	const tail = hit.recurrence ? " ↻" : "";
+	if (hit.dueRaw && hit.dueRaw.toLowerCase() !== date) {
+		return `${date} · ${hit.dueRaw}${tail}`;
+	}
+	return `${date}${tail}`;
 }
 
 /** Map a raw priority value to a coarse level for coloring the indicator. */
@@ -1897,13 +1966,23 @@ async function collectCheckboxTasks(view: HomeView, cfg: TasksConfig): Promise<T
 			const match = /^\s*[-*+]\s\[([ xX])\]\s*(.*)$/.exec(line);
 			if (!match) return;
 			const text = match[2].trim();
-			const dueMatch = /📅\s*(\d{4}-\d{2}-\d{2})/.exec(text);
+			// The Tasks-plugin emoji convention: `📅 <date>` for the due date.
+			// The date can be YYYY-MM-DD or any natural-language wording
+			// (today, next friday, in 3 days, …) which we resolve to a date.
+			const dueExpr = readEmojiField(text, "📅");
+			let due: string | null = null;
+			let dueRaw: string | null = null;
+			if (dueExpr) {
+				dueRaw = dueExpr;
+				due = /^\d{4}-\d{2}-\d{2}$/.test(dueExpr) ? dueExpr : parseNaturalDate(dueExpr);
+			}
 		hits.push({
 			file,
 			line: i,
 			text,
 			done: match[1].toLowerCase() === "x",
-			due: dueMatch ? dueMatch[1] : null,
+			due,
+			dueRaw,
 			scheduled: null,
 			created: file.stat.ctime,
 			recurrence: undefined,
@@ -1932,7 +2011,17 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 		const fm = cache?.frontmatter;
 		if (!fm || !(statusField in fm)) continue;
 		const status = String(fm[statusField] ?? "");
-		const due: string | null = typeof fm[dueField] === "string" ? String(fm[dueField]) : null;
+		const dueRawVal: unknown = fm[dueField];
+		// TaskNotes stores due as YYYY-MM-DD by convention, but users may have
+		// written a natural-language date — resolve either to YYYY-MM-DD and
+		// keep the raw wording for display.
+		let due: string | null = null;
+		let dueRaw: string | null = null;
+		if (typeof dueRawVal === "string" && dueRawVal.trim()) {
+			const expr = dueRawVal.trim();
+			dueRaw = expr;
+			due = /^\d{4}-\d{2}-\d{2}$/.test(expr) ? expr : parseNaturalDate(expr);
+		}
 		// TaskNotes' scheduled field is conventionally "scheduled"; read it as
 		// a fallback sort key when no due date is set.
 		const scheduledRaw: unknown = fm["scheduled"];
@@ -1950,6 +2039,7 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 			text: String(fm.title ?? file.basename),
 			done: status.toLowerCase() === doneValue,
 			due,
+			dueRaw,
 			scheduled,
 			created: file.stat.ctime,
 			recurrence,
@@ -1958,6 +2048,21 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 		});
 	}
 	return hits;
+}
+
+/** Read the value of a Tasks-plugin emoji field from a checkbox line, e.g.
+ * `📅 tomorrow` or `📅 2024-01-15`. Returns the trimmed value up to the next
+ * known emoji marker (⏳ 🛫 🔁 ✅ ➕ ⏫ 🔼 🔽) or end of line, or null when the
+ * marker isn't present. */
+function readEmojiField(text: string, emoji: string): string | null {
+	const idx = text.indexOf(emoji);
+	if (idx < 0) return null;
+	let rest = text.slice(idx + emoji.length);
+	// Stop at the next emoji marker (any of the Tasks-plugin conventions).
+	const next = rest.search(/[⏳🛫🔁✅➕⏫🔼🔽]/);
+	if (next >= 0) rest = rest.slice(0, next);
+	const value = rest.trim();
+	return value || null;
 }
 
 /** The checkbox marker at the start of a list item, capturing the state char so
@@ -1986,7 +2091,7 @@ async function setCheckboxState(view: HomeView, hit: TaskHit, done: boolean): Pr
 	if (!match) return false; // line no longer a checkbox — file changed under us
 	// Confirm it's still the same task, comparing text with any 📅 due date
 	// stripped (dates can shift without changing the task).
-	const strip = (t: string) => t.replace(/📅\s*\d{4}-\d{2}-\d{2}/, "").trim();
+	const strip = (t: string) => t.replace(/📅\s*[^\n\r⏳🛫🔁✅➕⏫🔼🔽]*/, "").trim();
 	if (strip(line.slice(match[0].length)) !== strip(hit.text)) return false;
 	lines[hit.line] = line.replace(
 		CHECKBOX_MARKER,

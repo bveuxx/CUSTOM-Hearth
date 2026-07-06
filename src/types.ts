@@ -31,6 +31,10 @@ export interface CommandItem {
 	/** Legacy single per-tile pixel size (drove width and height together).
 	 * Migrated to sizeW/sizeH on first read; new code writes those instead. */
 	size?: number;
+	/** Free-form grid position (1-based grid line). See LinkItem.col. */
+	col?: number;
+	/** Free-form grid row (1-based). See LinkItem.row. */
+	row?: number;
 }
 
 /** Per-card configuration for a "tasks" card. */
@@ -137,6 +141,12 @@ export interface LinkItem {
 	/** Legacy single per-tile pixel size (drove width and height together).
 	 * Migrated to sizeW/sizeH on first read; new code writes those instead. */
 	size?: number;
+	/** Free-form grid position (1-based grid line). When omitted the tile
+	 * auto-flows into the first available cell. Set explicitly when a tile is
+	 * dragged to a spot so it stays there. */
+	col?: number;
+	/** Free-form grid row (1-based). See `col`. */
+	row?: number;
 }
 
 export interface DashboardCard {

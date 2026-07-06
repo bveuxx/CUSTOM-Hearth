@@ -403,12 +403,15 @@ export function enableDragResize(
 				showGuide("y", null);
 			}
 
-			cardEl.style.left = `${left}px`;
-			cardEl.style.width = `${width}px`;
-			cardEl.style.top = `${top}px`;
-			cardEl.style.height = `${height}px`;
+		cardEl.style.left = `${left}px`;
+		cardEl.style.width = `${width}px`;
+		cardEl.style.top = `${top}px`;
+		cardEl.style.height = `${height}px`;
 		}
 		updateBoardHeight(gridEl);
+		// Live edge-merge so touching corners sharpen as the card snaps to a
+		// neighbour during a drag/resize.
+		applyEdgeMerging(gridEl);
 	};
 
 	const end = (e: PointerEvent) => {
@@ -427,6 +430,9 @@ export function enableDragResize(
 		// Normalise back to the responsive percentage form.
 		applyCardPosition(cardEl, card);
 		updateBoardHeight(gridEl);
+		// After a committed move/resize, recompute merges from the final
+		// stored positions (responsive reflow may have shifted neighbours).
+		applyEdgeMerging(gridEl);
 		onCommit();
 	};
 
@@ -454,4 +460,72 @@ export function updateBoardHeight(gridEl: HTMLElement): void {
 		bottom = Math.max(bottom, el.offsetTop + el.offsetHeight);
 	}
 	gridEl.style.minHeight = `${bottom + GRID_GAP}px`;
+}
+
+/** Detect pairs of cards whose edges touch and flag them so CSS can sharpen
+ *  the touching corners (and drop the double border between them) — making two
+ *  adjacent cards read as a single merged tile, like grouped Android
+ *  notifications. Reads live DOM offsets so it works both at rest and while a
+ *  card is being dragged (its inline position is already current). */
+export function applyEdgeMerging(gridEl: HTMLElement): void {
+	const cards = Array.from(gridEl.querySelectorAll<HTMLElement>(":scope > .hearth-card"));
+	for (const c of cards) {
+		c.classList.remove("merge-top", "merge-bottom", "merge-left", "merge-right");
+	}
+	if (cards.length < 2) return;
+
+	// Touch threshold: cards snap edges to a 0-gap line, so a couple of px of
+	// slack covers sub-pixel rendering without merging cards that merely sit
+	// near each other. The perpendicular overlap floor avoids joining cards
+	// that only brush at a corner.
+	const TOUCH = 2;
+	const OVERLAP = 6;
+	const rects = cards.map((el) => ({
+		el,
+		left: el.offsetLeft,
+		top: el.offsetTop,
+		right: el.offsetLeft + el.offsetWidth,
+		bottom: el.offsetTop + el.offsetHeight,
+	}));
+
+	for (let i = 0; i < rects.length; i++) {
+		for (let j = i + 1; j < rects.length; j++) {
+			const a = rects[i];
+			const b = rects[j];
+			// Horizontal adjacency (side by side): the right edge of one meets
+			// the left edge of the other, with real vertical overlap.
+			const aLeftOfB = Math.abs(a.right - b.left) <= TOUCH;
+			const bLeftOfA = Math.abs(b.right - a.left) <= TOUCH;
+			if (aLeftOfB || bLeftOfA) {
+				const vOverlap = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+				if (vOverlap > OVERLAP) {
+					if (aLeftOfB) {
+						a.el.classList.add("merge-right");
+						b.el.classList.add("merge-left");
+					}
+					if (bLeftOfA) {
+						b.el.classList.add("merge-right");
+						a.el.classList.add("merge-left");
+					}
+				}
+			}
+			// Vertical adjacency (stacked): bottom edge meets top edge, with
+			// real horizontal overlap.
+			const aAboveB = Math.abs(a.bottom - b.top) <= TOUCH;
+			const bAboveA = Math.abs(b.bottom - a.top) <= TOUCH;
+			if (aAboveB || bAboveA) {
+				const hOverlap = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+				if (hOverlap > OVERLAP) {
+					if (aAboveB) {
+						a.el.classList.add("merge-bottom");
+						b.el.classList.add("merge-top");
+					}
+					if (bAboveA) {
+						b.el.classList.add("merge-bottom");
+						a.el.classList.add("merge-top");
+					}
+				}
+			}
+		}
+	}
 }
