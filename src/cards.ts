@@ -2224,14 +2224,15 @@ function renderTaskKanban(
 				}
 				moveTo(from, col);
 			});
-			// Recurring TaskNotes tasks get a per-occurrence completion checkbox
-			// at the top of the card (before the text), in addition to drag:
-			// checking it completes today's instance and advances scheduled
-			// without retiring the task.
-			if (source !== "checkbox" && hit.recurrence) {
-				renderRecurringCheckbox(view, hit, today, cardEl, refresh);
-			}
-			cardEl.createDiv({ cls: "hearth-kanban-card-text", text: hit.text || hit.file.basename });
+		// Recurring TaskNotes tasks get a per-occurrence completion checkbox
+		// inline with the task text (in a row), in addition to drag: checking
+		// it completes today's instance and advances scheduled without
+		// retiring the task.
+		const textRow = cardEl.createDiv("hearth-kanban-card-row");
+		if (source !== "checkbox" && hit.recurrence) {
+			renderRecurringCheckbox(view, hit, today, textRow, refresh);
+		}
+		textRow.createDiv({ cls: "hearth-kanban-card-text", text: hit.text || hit.file.basename });
 			const meta = cardEl.createDiv("hearth-kanban-card-meta");
 			if (hit.priority) renderPriority(meta, hit.priority);
 			const dueLabel = formatDueLabel(hit);

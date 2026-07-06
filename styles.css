@@ -712,6 +712,14 @@
 	align-self: flex-start;
 }
 
+/* A row holding the recurring checkbox inline with the task text, so the
+ * checkbox leads the title on the same line instead of sitting above it. */
+.hearth-kanban-card-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+}
+
 .hearth-task-due {
 	flex-shrink: 0;
 	font-size: 0.78rem;
