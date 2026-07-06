@@ -451,6 +451,8 @@
 	min-height: 0;
 	overflow: auto;
 	padding: 12px 14px;
+	/* Anchor for floating overlays (e.g. the daily-note open button). */
+	position: relative;
 }
 
 /* When a card body holds a read-only embed/daily-note host directly, the host
@@ -569,15 +571,17 @@
 	opacity: 0.9;
 }
 
-/* A small sticky action bar (e.g. the daily-note "open" button) pinned to the
- * top-right of a card body, staying visible while the content scrolls. */
+/* A floating action button (e.g. the daily-note "open" button) pinned to the
+ * top-right corner of a card body, overlapping content without taking up a
+ * row — so the card has no header-like bar, just the content with the button
+ * floating on top. */
 .hearth-card-actions-overlay {
-	position: sticky;
-	top: 0;
-	z-index: 4;
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	z-index: 5;
 	display: flex;
 	justify-content: flex-end;
-	margin-bottom: 2px;
 	pointer-events: none;
 }
 
@@ -870,16 +874,14 @@
 	z-index: 6;
 }
 
-/* While a tile is being dragged, lift it above its siblings and show a grab
- * cursor + subtle shadow. The tile is absolutely positioned (out of grid
- * flow) and ignored by pointer events, so elementFromPoint() finds the
- * sibling underneath for live swap-reordering. */
 .hearth-link-tile.is-tile-dragging {
 	z-index: 20;
 	cursor: grabbing;
 	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
 	opacity: 0.92;
 	pointer-events: none;
+	/* No transition during drag — the tile must follow the pointer instantly. */
+	transition: none;
 }
 
 /* Dashed placeholder that occupies the dragged tile's target grid cell, so

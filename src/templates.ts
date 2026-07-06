@@ -45,7 +45,7 @@ export const CARD_TEMPLATES: CardTemplate[] = [
 		id: "daily",
 		name: "Daily note (today)",
 		icon: "calendar",
-		build: () => ({ kind: "daily", title: "Today", w: 6, h: 4 }),
+		build: () => ({ kind: "daily", w: 6, h: 4 }),
 	},
 	{
 		id: "web",

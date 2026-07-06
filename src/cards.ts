@@ -1136,8 +1136,9 @@ function renderLinks(view: HomeView, card: DashboardCard, body: HTMLElement): vo
 		}
 	}
 
-	// Flag tiles obscured behind a sibling so the overlap is visible.
-	if (view.arrangeMode) markOverlappingTiles(grid);
+	// Flag tiles obscured behind a sibling so the overlap is visible (always,
+	// not just in arrange mode — a hidden tile is a problem either way).
+	markOverlappingTiles(grid);
 }
 
 /** Apply a per-tile size: converts pixel width/height into grid column/row
@@ -1313,10 +1314,12 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 	}
 }
 
-/** Free-form drag: the tile floats under the pointer (absolutely positioned)
- *  and lands on whatever cell the pointer is over on drop. Siblings don't
- *  move; tiles may overlap. Overlapping tiles glow so a hidden tile stays
- *  visible (an undesirable state worth flagging). */
+/** Free-form drag: the tile floats under the pointer via a transform (delta
+ *  from the grab point) and lands on whatever cell the pointer is over on
+ *  drop. Siblings don't move; tiles may overlap. Overlapping tiles glow so
+ *  a hidden tile stays visible (an undesirable state worth flagging).
+ *  Using a transform (not absolute positioning) avoids any offset/jump —
+ *  the tile simply translates by the pointer delta from its grid slot. */
 function makeTileFreeFormDrag<T extends { id: string; col?: number; row?: number }>(
 	view: HomeView,
 	container: HTMLElement,
@@ -1329,8 +1332,6 @@ function makeTileFreeFormDrag<T extends { id: string; col?: number; row?: number
 	let moved = false;
 	let pointerId = -1;
 	const DRAG_THRESHOLD = 5;
-	let grabOffsetX = 0;
-	let grabOffsetY = 0;
 
 	tile.addEventListener("pointerdown", (e) => {
 		if ((e.target as HTMLElement).closest(".hearth-tile-resize")) return;
@@ -1354,16 +1355,11 @@ function makeTileFreeFormDrag<T extends { id: string; col?: number; row?: number
 			moved = true;
 			tile.addClass("is-tile-dragging");
 			tile.closest(".hearth-card")?.addClass("has-tile-gesture");
-			const rect = tile.getBoundingClientRect();
-			grabOffsetX = startX - rect.left;
-			grabOffsetY = startY - rect.top;
-			tile.style.position = "absolute";
-			tile.style.width = `${rect.width}px`;
-			tile.style.height = `${rect.height}px`;
 		}
-		const containerRect = container.getBoundingClientRect();
-		tile.style.left = `${e.clientX - containerRect.left - grabOffsetX}px`;
-		tile.style.top = `${e.clientY - containerRect.top - grabOffsetY}px`;
+		// Float the tile by the pointer delta — no position/size changes, so
+		// there's no offset or jump. The grid slot stays reserved.
+		tile.style.transform = `translate(${dx}px, ${dy}px)`;
+		tile.style.zIndex = "20";
 		// Live-flag tiles the dragged tile is covering so overlaps are visible
 		// as it moves (the dragged tile is on top and ignored by the marker).
 		markOverlappingTiles(container);
@@ -1375,11 +1371,7 @@ function makeTileFreeFormDrag<T extends { id: string; col?: number; row?: number
 		const wasMoved = moved;
 		moved = false;
 		tile.removeClass("is-tile-dragging");
-		tile.style.position = "";
-		tile.style.left = "";
-		tile.style.top = "";
-		tile.style.width = "";
-		tile.style.height = "";
+		tile.style.transform = "";
 		tile.style.zIndex = "";
 		tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
 		try {
@@ -1419,8 +1411,10 @@ function makeTileAutoFlowDrag<T extends { id: string; col?: number; row?: number
 	let pointerId = -1;
 	const DRAG_THRESHOLD = 5;
 
-	let grabOffsetX = 0;
-	let grabOffsetY = 0;
+	// The tile's offset within the container at drag start, so we can position
+	// it absolutely without a jump (delta-based movement).
+	let baseLeft = 0;
+	let baseTop = 0;
 
 	let placeholder: HTMLElement | null = null;
 	let placeholderPos: { col: number; row: number } | null = null;
@@ -1447,11 +1441,13 @@ function makeTileAutoFlowDrag<T extends { id: string; col?: number; row?: number
 			moved = true;
 			tile.addClass("is-tile-dragging");
 			tile.closest(".hearth-card")?.addClass("has-tile-gesture");
-			// Measure the grab offset BEFORE freezing siblings, so the grid
-			// reflow caused by freezing doesn't throw off the offset.
+			// Measure the tile's position relative to the container BEFORE
+			// removing it from flow, so we can place it absolutely at the
+			// same spot (then move by the pointer delta — no jump).
 			const rect = tile.getBoundingClientRect();
-			grabOffsetX = startX - rect.left;
-			grabOffsetY = startY - rect.top;
+			const containerRect = container.getBoundingClientRect();
+			baseLeft = rect.left - containerRect.left;
+			baseTop = rect.top - containerRect.top;
 			placeholderPos = getTileCell(tile, container) ?? {
 				col: item.col ?? 1,
 				row: item.row ?? 1,
@@ -1476,13 +1472,17 @@ function makeTileAutoFlowDrag<T extends { id: string; col?: number; row?: number
 					sib.style.setProperty("--hearth-tile-row", String(cell.row));
 				}
 			}
+			// Take the tile out of flow and immediately pin it to its current
+			// spot so it doesn't jump before the first delta is applied.
 			tile.style.position = "absolute";
 			tile.style.width = `${rect.width}px`;
 			tile.style.height = `${rect.height}px`;
+			tile.style.left = `${baseLeft}px`;
+			tile.style.top = `${baseTop}px`;
 		}
-		const containerRect = container.getBoundingClientRect();
-		tile.style.left = `${e.clientX - containerRect.left - grabOffsetX}px`;
-		tile.style.top = `${e.clientY - containerRect.top - grabOffsetY}px`;
+		// Move by the pointer delta from the grab point — no offset issues.
+		tile.style.left = `${baseLeft + dx}px`;
+		tile.style.top = `${baseTop + dy}px`;
 		if (!placeholder || !placeholderPos) return;
 		const other = findTileUnderPointer(container, e.clientX, e.clientY, tile);
 		if (other) {
@@ -1722,8 +1722,9 @@ function renderCommands(view: HomeView, card: DashboardCard, body: HTMLElement):
 		}
 	}
 
-	// Flag tiles obscured behind a sibling so the overlap is visible.
-	if (view.arrangeMode) markOverlappingTiles(grid);
+	// Flag tiles obscured behind a sibling so the overlap is visible (always,
+	// not just in arrange mode — a hidden tile is a problem either way).
+	markOverlappingTiles(grid);
 }
 
 function runCommand(view: HomeView, cmd: CommandItem): void {
