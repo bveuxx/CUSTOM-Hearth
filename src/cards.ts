@@ -16,7 +16,7 @@ import { ClockConfig, CommandItem, DashboardCard, LinkItem, TasksConfig } from "
 import { EXCALIDRAW_PLUGIN_ID, iconForFile, isExcalidraw } from "./filetypes";
 import { QueryHit, runQuery, searchFileContents } from "./query";
 import { makeClickable } from "./ui";
-import { parseNaturalDate } from "./dates";
+import { parseNaturalDate, formatRelativeDate } from "./dates";
 
 /**
  * moment is bundled with Obsidian, not a direct dependency, so it's imported
@@ -1583,20 +1583,15 @@ function effectiveDate(hit: TaskHit): string | null {
 	return hit.due ?? hit.scheduled ?? null;
 }
 
-/** Format a due/next-occurrence date for display. Recurring tasks append a ↻
- * symbol so the date isn't mistaken for a one-off and the user knows it's the
- * next occurrence. The raw datetime is normalized to YYYY-MM-DD. When the
- * user wrote the date in natural language (e.g. "tomorrow"), the wording is
- * shown alongside the parsed date so they recognise what they typed. */
+/** Format a due/next-occurrence date for display as a short, human-relative
+ * label ("Today", "Tomorrow", "Yesterday", "Friday", "Next Friday", "15 Jul").
+ * Recurring tasks append a ↻ symbol so the date isn't mistaken for a one-off
+ * and the user knows it's the next occurrence. */
 function formatDueLabel(hit: TaskHit): string | null {
 	const raw = hit.recurrence ? hit.due ?? hit.scheduled : hit.due;
 	if (!raw) return hit.recurrence ? "↻" : null;
-	const date = raw.slice(0, 10);
 	const tail = hit.recurrence ? " ↻" : "";
-	if (hit.dueRaw && hit.dueRaw.toLowerCase() !== date) {
-		return `${date} · ${hit.dueRaw}${tail}`;
-	}
-	return `${date}${tail}`;
+	return `${formatRelativeDate(raw)}${tail}`;
 }
 
 /** Map a raw priority value to a coarse level for coloring the indicator. */
