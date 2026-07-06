@@ -451,10 +451,13 @@ function renderDaily(
 		return;
 	}
 
-	// Optional button to open today's note in the editor (hideable).
+	// Optional button to open today's note in the editor (hideable). Rendered
+	// as a floating overlay on the card element (not the body) so it doesn't
+	// affect the body's scroll/flow.
 	if (card.showOpenButton !== false) {
-		const actions = body.createDiv("hearth-card-actions-overlay");
-		const open = actions.createEl("button", {
+		const cardEl = body.closest(".hearth-card") as HTMLElement | null;
+		const overlay = (cardEl ?? body).createDiv("hearth-card-actions-overlay");
+		const open = overlay.createEl("button", {
 			cls: "hearth-open-btn",
 			attr: { "aria-label": "Open today's note" },
 		});
@@ -1316,8 +1319,9 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 
 /** Free-form drag: the tile floats under the pointer via a transform (delta
  *  from the grab point) and lands on whatever cell the pointer is over on
- *  drop. Siblings don't move; tiles may overlap. Overlapping tiles glow so
- *  a hidden tile stays visible (an undesirable state worth flagging).
+ *  drop. Siblings don't move; tiles may overlap. A dashed ghost outline
+ *  follows the pointer so the drop target is visible. Overlapping tiles glow
+ *  so a hidden tile stays visible (an undesirable state worth flagging).
  *  Using a transform (not absolute positioning) avoids any offset/jump —
  *  the tile simply translates by the pointer delta from its grid slot. */
 function makeTileFreeFormDrag<T extends { id: string; col?: number; row?: number }>(
@@ -1332,6 +1336,8 @@ function makeTileFreeFormDrag<T extends { id: string; col?: number; row?: number
 	let moved = false;
 	let pointerId = -1;
 	const DRAG_THRESHOLD = 5;
+	// Dashed ghost showing the drop target cell under the pointer.
+	let ghost: HTMLElement | null = null;
 
 	tile.addEventListener("pointerdown", (e) => {
 		if ((e.target as HTMLElement).closest(".hearth-tile-resize")) return;
@@ -1355,11 +1361,25 @@ function makeTileFreeFormDrag<T extends { id: string; col?: number; row?: number
 			moved = true;
 			tile.addClass("is-tile-dragging");
 			tile.closest(".hearth-card")?.addClass("has-tile-gesture");
+			// Insert a dashed ghost outline that will follow the pointer.
+			ghost = container.createDiv("hearth-tile-ghost");
+			const cs = tile.style.getPropertyValue("--hearth-tile-cs") || String(DEFAULT_TILE_CS);
+			const rs = tile.style.getPropertyValue("--hearth-tile-rs") || String(DEFAULT_TILE_RS);
+			ghost.style.setProperty("--hearth-tile-cs", cs);
+			ghost.style.setProperty("--hearth-tile-rs", rs);
 		}
 		// Float the tile by the pointer delta — no position/size changes, so
 		// there's no offset or jump. The grid slot stays reserved.
 		tile.style.transform = `translate(${dx}px, ${dy}px)`;
 		tile.style.zIndex = "20";
+		// Move the ghost outline to the cell under the pointer.
+		if (ghost) {
+			const cell = pickGridCell(container, e.clientX, e.clientY, tile);
+			if (cell) {
+				ghost.style.setProperty("--hearth-tile-col", String(cell.col));
+				ghost.style.setProperty("--hearth-tile-row", String(cell.row));
+			}
+		}
 		// Live-flag tiles the dragged tile is covering so overlaps are visible
 		// as it moves (the dragged tile is on top and ignored by the marker).
 		markOverlappingTiles(container);
@@ -1373,6 +1393,10 @@ function makeTileFreeFormDrag<T extends { id: string; col?: number; row?: number
 		tile.removeClass("is-tile-dragging");
 		tile.style.transform = "";
 		tile.style.zIndex = "";
+		if (ghost) {
+			ghost.remove();
+			ghost = null;
+		}
 		tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
 		try {
 			tile.releasePointerCapture(e.pointerId);
