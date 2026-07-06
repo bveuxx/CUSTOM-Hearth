@@ -37,10 +37,11 @@ interface Moment {
 	day(value: number): Moment;
 	date(): number;
 	month(): number;
+	year(): number;
 	diff(other: Moment, unit?: string): number;
 }
 interface MomentFn {
-	(input?: Date): Moment;
+	(input?: Date | string): Moment;
 	localeData(): { firstDayOfWeek(): number };
 }
 const moment: MomentFn = createMoment as unknown as MomentFn;
@@ -1498,6 +1499,10 @@ interface TaskHit {
 	 * When present the task is recurring; shown as a ↻ badge next to the due
 	 * date so the date isn't mistaken for a one-off. */
 	recurrence?: string;
+	/** TaskNotes complete_instances: the YYYY-MM-DD dates already completed for
+	 * a recurring task. Used to mark today's instance done and to reflect an
+	 * already-checked checkbox without re-completing. */
+	completeInstances?: string[];
 	/** Raw TaskNotes status value, shown as a badge instead of a checkbox
 	 * since it may not be a simple open/done binary. */
 	status?: string;
@@ -1712,6 +1717,11 @@ function renderTaskRow(
 				refresh();
 			});
 		});
+	} else if (hit.recurrence) {
+		// Recurring TaskNotes tasks complete per-occurrence (complete_instances +
+		// next scheduled), not by flipping status — a checkbox does that without
+		// needing a status column to drag into.
+		renderRecurringCheckbox(view, hit, today, row, refresh);
 	} else if (hit.status) {
 		row.createDiv({ cls: "hearth-task-status", text: hit.status });
 	}
@@ -1829,6 +1839,14 @@ function renderTaskKanban(
 				refresh();
 			});
 		} else {
+			// Recurring TaskNotes tasks complete per-occurrence, not by status:
+			// dragging one into the "done" column marks today's instance done and
+			// advances its scheduled date instead of setting status=done (which
+			// would wrongly retire the whole recurring task).
+			if (hit.recurrence && col.key === doneValue.toLowerCase()) {
+				void completeRecurringInstance(view, hit).then(refresh);
+				return;
+			}
 			const value = col.label === "No status" ? "" : col.label;
 			void setTaskNotesStatus(view, hit, value).then(refresh);
 		}
@@ -1930,6 +1948,12 @@ function renderTaskKanban(
 			});
 			cardEl.createDiv({ cls: "hearth-kanban-card-text", text: hit.text || hit.file.basename });
 			const meta = cardEl.createDiv("hearth-kanban-card-meta");
+			// Recurring TaskNotes tasks get a per-occurrence completion checkbox
+			// on the card (in addition to drag): checking it completes today's
+			// instance and advances scheduled without retiring the task.
+			if (source !== "checkbox" && hit.recurrence) {
+				renderRecurringCheckbox(view, hit, today, meta, refresh);
+			}
 			if (hit.priority) renderPriority(meta, hit.priority);
 			const dueLabel = formatDueLabel(hit);
 			if (dueLabel) {
@@ -2028,6 +2052,13 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 		const recurrenceRaw: unknown = fm["recurrence"];
 		const recurrence =
 			recurrenceRaw == null || recurrenceRaw === "" ? undefined : String(recurrenceRaw);
+		// TaskNotes records each completed occurrence of a recurring task as a
+		// YYYY-MM-DD entry in "complete_instances". Read it so the completion
+		// checkbox can reflect today's state and avoid double-completing.
+		const ciRaw: unknown = fm["complete_instances"];
+		const completeInstances: string[] = Array.isArray(ciRaw)
+			? ciRaw.map((v) => String(v)).filter(Boolean)
+			: [];
 		hits.push({
 			file,
 			line: -1,
@@ -2038,6 +2069,7 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 			scheduled,
 			created: file.stat.ctime,
 			recurrence,
+			completeInstances,
 			status,
 			priority,
 		});
@@ -2107,6 +2139,131 @@ async function setTaskNotesStatus(view: HomeView, hit: TaskHit, value: string): 
 	} catch {
 		new Notice("Hearth: couldn't update the task status.");
 	}
+}
+
+/** Compute the next occurrence date (YYYY-MM-DD) of a TaskNotes recurrence
+ * rule strictly after `fromDate` (YYYY-MM-DD). Handles the common FREQ values
+ * (DAILY/WEEKLY/MONTHLY/YEARLY) with INTERVAL and BYDAY; weeks are aligned to
+ * the rule's DTSTART so a "weekly on Monday, every 1 week" anchored on a
+ * Monday keeps landing on Mondays. Returns null when the rule can't be parsed
+ * or no occurrence is found within a sane horizon (~2 years). */
+function nextOccurrence(rule: string, fromDate: string): string | null {
+	if (!rule || !fromDate) return null;
+	const r = rule.replace(/^RRULE:/i, "");
+	const dtRaw = /DTSTART[:=](\d{8})/i.exec(r)?.[1];
+	const freq = /FREQ=([A-Z]+)/i.exec(r)?.[1]?.toUpperCase();
+	if (!freq) return null;
+	const interval = Math.max(1, parseInt(/INTERVAL=(\d+)/i.exec(r)?.[1] ?? "1", 10) || 1);
+	const bydayRaw = /BYDAY=([A-Z,]+)/i.exec(r)?.[1];
+	const dtstart = dtRaw
+		? moment(`${dtRaw.slice(0, 4)}-${dtRaw.slice(4, 6)}-${dtRaw.slice(6, 8)}`)
+		: null;
+	const from = moment(fromDate);
+	const wdMap: Record<string, number> = { MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, SU: 0 };
+	const weekdays = bydayRaw
+		? bydayRaw
+				.split(",")
+				.map((d) => wdMap[d.trim().toUpperCase()] ?? -1)
+				.filter((w) => w >= 0)
+		: dtstart
+			? [dtstart.day()]
+			: [];
+
+	const cursor = from.clone().add(1, "day");
+	const limit = 730;
+	for (let i = 0; i < limit; i++) {
+		const daysSince = dtstart ? cursor.diff(dtstart, "days") : 0;
+		if (daysSince < 0) {
+			cursor.add(1, "day");
+			continue;
+		}
+		if (freq === "DAILY") {
+			if (daysSince % interval === 0) return cursor.format("YYYY-MM-DD");
+		} else if (freq === "WEEKLY") {
+			if (weekdays.length === 0) {
+				if (Math.floor(daysSince / 7) % interval === 0) return cursor.format("YYYY-MM-DD");
+			} else if (weekdays.includes(cursor.day())) {
+				if (Math.floor(daysSince / 7) % interval === 0) return cursor.format("YYYY-MM-DD");
+			}
+		} else if (freq === "MONTHLY") {
+			if (dtstart && cursor.date() === dtstart.date()) {
+				const monthsSince =
+					(cursor.year() - dtstart.year()) * 12 + (cursor.month() - dtstart.month());
+				if (monthsSince >= 0 && monthsSince % interval === 0)
+					return cursor.format("YYYY-MM-DD");
+			}
+		} else if (freq === "YEARLY") {
+			if (
+				dtstart &&
+				cursor.date() === dtstart.date() &&
+				cursor.month() === dtstart.month()
+			) {
+				const yearsSince = cursor.year() - dtstart.year();
+				if (yearsSince >= 0 && yearsSince % interval === 0)
+					return cursor.format("YYYY-MM-DD");
+			}
+		}
+		cursor.add(1, "day");
+	}
+	return null;
+}
+
+/** Mark today's occurrence of a recurring TaskNotes task complete the way
+ * TaskNotes does: append today's YYYY-MM-DD to `complete_instances` (deduped,
+ * kept sorted) and advance `scheduled` to the next occurrence derived from the
+ * recurrence rule. The task's `status` is left untouched — a recurring task
+ * stays open and just rolls forward to its next due date. */
+async function completeRecurringInstance(view: HomeView, hit: TaskHit): Promise<void> {
+	if (!hit.recurrence) return;
+	const today: string = moment().format("YYYY-MM-DD");
+	const next = nextOccurrence(hit.recurrence, today);
+	try {
+		await view.app.fileManager.processFrontMatter(hit.file, (fm) => {
+			const cur = typeof fm["scheduled"] === "string" ? String(fm["scheduled"]) : null;
+			const timeMatch = cur ? /T(\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z?)\s*$/.exec(cur) : null;
+			const instances = Array.isArray(fm["complete_instances"])
+				? fm["complete_instances"].map((v: unknown) => String(v))
+				: [];
+			if (!instances.includes(today)) {
+				instances.push(today);
+				instances.sort();
+				fm["complete_instances"] = instances;
+			}
+			if (next) {
+				fm["scheduled"] = timeMatch ? `${next}T${timeMatch[1]}` : next;
+			}
+		});
+	} catch {
+		new Notice("Hearth: couldn't mark the recurring task instance complete.");
+	}
+}
+
+/** Render a small checkbox that completes today's occurrence of a recurring
+ * TaskNotes task on check. Pre-checked when today is already in
+ * complete_instances. Stops propagation so it never triggers the row/card click
+ * or drag. */
+function renderRecurringCheckbox(
+	view: HomeView,
+	hit: TaskHit,
+	today: string,
+	parent: HTMLElement,
+	refresh: () => void,
+): void {
+	const check = parent.createEl("input", {
+		cls: "hearth-task-check hearth-task-check-recurring",
+		attr: { type: "checkbox", "aria-label": "Mark today's occurrence complete" },
+	});
+	check.checked = (hit.completeInstances ?? []).includes(today);
+	check.addEventListener("click", (e) => e.stopPropagation());
+	check.addEventListener("mousedown", (e) => e.stopPropagation());
+	check.addEventListener("pointerdown", (e) => e.stopPropagation());
+	check.addEventListener("change", () => {
+		if (!check.checked) {
+			check.checked = true;
+			return;
+		}
+		void completeRecurringInstance(view, hit).then(refresh);
+	});
 }
 
 /** Best-effort: open a TaskNotes task in TaskNotes' own editor rather than the

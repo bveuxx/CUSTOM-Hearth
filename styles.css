@@ -442,7 +442,11 @@
 .hearth-card-body {
 	flex: 1;
 	min-height: 0;
-	overflow: auto;
+	/* Only one scroll container per card: vertical. Horizontal overflow is
+	 * clipped so wide content (tables/code) doesn't add a second scrollbar at
+	 * the card level — those elements carry their own inner scroll instead. */
+	overflow-y: auto;
+	overflow-x: hidden;
 	padding: 12px 14px;
 }
 
@@ -473,7 +477,13 @@
 	font-size: 0.85rem;
 }
 
-/* Embeds */
+/* Embeds: the card body is the sole scroll container. Keep the embed host
+ * non-scrolling so a theme's `.markdown-rendered` overflow can't stack a
+ * second vertical scrollbar next to the body's. */
+.hearth-embed {
+	overflow: visible;
+}
+
 .hearth-embed img,
 .hearth-embed video {
 	max-width: 100%;
@@ -481,11 +491,15 @@
 }
 
 /* Per-card zoom: anchor at the top-left and widen inversely so scaled-up
- * content fills the card before scaling (the card body scrolls any overflow). */
+ * content fills the card. The scaled host becomes its own scroll container
+ * (both axes) so zoomed-in content stays reachable — the body is vertical-
+ * scroll-only and would otherwise clip the widened box. */
 .hearth-embed.is-scaled {
 	transform: scale(var(--hearth-embed-scale, 1));
 	transform-origin: top left;
 	width: calc(100% / var(--hearth-embed-scale, 1));
+	overflow: auto;
+	max-height: 100%;
 }
 
 /* Editable embed: a plain textarea bound to the note's file. Uses a monospace
@@ -666,6 +680,12 @@
 .hearth-task-check {
 	flex-shrink: 0;
 	margin: 0;
+}
+
+/* Recurring-task completion checkbox (TaskNotes). Same size as the regular
+ * task checkbox; a touch of right margin when it leads the kanban card meta. */
+.hearth-task-check-recurring {
+	margin-right: 2px;
 }
 
 .hearth-task-due {
