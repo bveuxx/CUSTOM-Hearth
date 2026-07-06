@@ -1274,12 +1274,15 @@ function snap(value: number, grid: number): number {
 
 /** Make a tile draggable (to reposition it freely within its card) in arrange
  *  mode. Uses pointer events (not HTML5 DnD) so it coexists with the resize
- *  handle and doesn't trigger the card's drag engine. While dragging, the tile
- *  follows the pointer visually; on drop it's pinned to the grid cell under the
- *  pointer (computed from the card's column/row metrics), so tiles can be
- *  placed anywhere instead of being forced into a top-to-bottom, left-to-right
- *  flow. The data's `col`/`row` is set and persisted; tiles with no explicit
- *  position keep auto-flowing around the pinned ones. */
+ *  handle and doesn't trigger the card's drag engine.
+ *
+ *  Phone-widget-style live reflow: while dragging, the tile floats freely
+ *  above the grid (absolutely positioned under the pointer), and a dashed
+ *  placeholder occupies its target grid cell. The other tiles auto-flow
+ *  around the moving placeholder, so the user sees the layout shift in real
+ *  time — exactly how Android/iOS widgets reorder. On drop the tile's
+ *  `col`/`row` is set to the placeholder's position and persisted; tiles with
+ *  no explicit position keep auto-flowing around the pinned ones. */
 function makeTileDraggable<T extends { id: string; col?: number; row?: number }>(
 	view: HomeView,
 	container: HTMLElement,
@@ -1292,19 +1295,17 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 	let dragging = false;
 	let startX = 0;
 	let startY = 0;
-	let originCol: number | undefined;
-	let originRow: number | undefined;
 	let moved = false;
 	let pointerId = -1;
 	const DRAG_THRESHOLD = 5;
 
-	// Live visual offset of the tile under the pointer (px, relative to its
-	// grid slot). Applied as a transform so the grid layout itself isn't
-	// disturbed while dragging — only the dragged tile floats.
-	const setOffset = (dx: number, dy: number) => {
-		tile.style.transform = `translate(${dx}px, ${dy}px)`;
-		tile.style.zIndex = "15";
-	};
+	// Placeholder element that occupies the tile's target grid slot, so the
+	// other tiles auto-flow around it during the drag.
+	let placeholder: HTMLElement | null = null;
+	// Grab offset within the tile (px from tile's top-left), so the tile stays
+	// under the grab point instead of jumping to centre on the pointer.
+	let grabOffsetX = 0;
+	let grabOffsetY = 0;
 
 	tile.addEventListener("pointerdown", (e) => {
 		// Don't start a tile drag from the resize handle.
@@ -1312,8 +1313,6 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 		e.stopPropagation(); // don't reach the card drag overlay
 		startX = e.clientX;
 		startY = e.clientY;
-		originCol = item.col;
-		originRow = item.row;
 		dragging = true;
 		moved = false;
 		pointerId = e.pointerId;
@@ -1331,9 +1330,39 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 			moved = true;
 			tile.addClass("is-tile-dragging");
 			tile.closest(".hearth-card")?.addClass("has-tile-gesture");
+			// Take the tile out of grid flow so the placeholder can occupy its
+			// slot and other tiles reflow around it. Size it to its current
+			// footprint so it doesn't collapse while floating.
+			const rect = tile.getBoundingClientRect();
+			grabOffsetX = startX - rect.left;
+			grabOffsetY = startY - rect.top;
+			tile.style.position = "absolute";
+			tile.style.width = `${rect.width}px`;
+			tile.style.height = `${rect.height}px`;
+			// Insert placeholder in the grid at the tile's current slot, with
+			// the same span, so the layout doesn't jump when the tile leaves.
+			placeholder = container.createDiv("hearth-tile-placeholder");
+			const cs = tile.style.getPropertyValue("--hearth-tile-cs") || String(DEFAULT_TILE_CS);
+			const rs = tile.style.getPropertyValue("--hearth-tile-rs") || String(DEFAULT_TILE_RS);
+			placeholder.style.setProperty("--hearth-tile-cs", cs);
+			placeholder.style.setProperty("--hearth-tile-rs", rs);
+			if (item.col != null) placeholder.style.setProperty("--hearth-tile-col", String(item.col));
+			if (item.row != null) placeholder.style.setProperty("--hearth-tile-row", String(item.row));
 		}
-		// Float the tile under the pointer without disturbing the grid.
-		setOffset(dx, dy);
+		// Float the tile under the pointer, offset by the grab point so it
+		// stays under the cursor naturally.
+		const containerRect = container.getBoundingClientRect();
+		tile.style.left = `${e.clientX - containerRect.left - grabOffsetX}px`;
+		tile.style.top = `${e.clientY - containerRect.top - grabOffsetY}px`;
+		// Move the placeholder to the cell under the pointer so the other
+		// tiles reflow around it live.
+		if (placeholder) {
+			const cell = pickGridCell(container, e.clientX, e.clientY, tile);
+			if (cell) {
+				placeholder.style.setProperty("--hearth-tile-col", String(cell.col));
+				placeholder.style.setProperty("--hearth-tile-row", String(cell.row));
+			}
+		}
 	});
 
 	const end = (e: PointerEvent) => {
@@ -1342,9 +1371,17 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 		const wasMoved = moved;
 		moved = false;
 		tile.removeClass("is-tile-dragging");
-		tile.style.transform = "";
+		tile.style.position = "";
+		tile.style.left = "";
+		tile.style.top = "";
+		tile.style.width = "";
+		tile.style.height = "";
 		tile.style.zIndex = "";
 		tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
+		if (placeholder) {
+			placeholder.remove();
+			placeholder = null;
+		}
 		try {
 			tile.releasePointerCapture(e.pointerId);
 		} catch {

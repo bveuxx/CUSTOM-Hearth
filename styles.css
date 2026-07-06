@@ -67,6 +67,12 @@
 	z-index: 50;
 }
 
+/* In arrange mode the header can be toggled off (from the Arrange toolbar) so
+ * the full board is visible end-to-end while placing cards. */
+.hearth-view.hearth-hide-header .hearth-header {
+	display: none;
+}
+
 /* The search row: search column (flex:1) + New-note button. Top-aligned so the
  * button sits flush beside the search bar, not pushed down among filters. */
 .hearth-search-wrap {
@@ -806,7 +812,10 @@
 	 * Column sizing uses the fine cell; the --hearth-tile var (per-card default)
 	 * is kept as the minimum column width so the grid fills the card width.
 	 * `dense` auto-flow fills gaps left by explicitly positioned tiles so the
-	 * board stays compact when some tiles are pinned to a free-form spot. */
+	 * board stays compact when some tiles are pinned to a free-form spot.
+	 * `position: relative` anchors the absolutely-positioned dragged tile
+	 * (which floats above the grid during a drag). */
+	position: relative;
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
 	grid-auto-rows: 34px;
@@ -861,12 +870,28 @@
 }
 
 /* While a tile is being dragged, lift it above its siblings and show a grab
- * cursor + subtle shadow. */
+ * cursor + subtle shadow. The tile is absolutely positioned (out of grid
+ * flow) so it floats freely under the pointer while the placeholder reserves
+ * its target slot. */
 .hearth-link-tile.is-tile-dragging {
-	z-index: 15;
+	z-index: 20;
 	cursor: grabbing;
 	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
 	opacity: 0.92;
+	pointer-events: none;
+}
+
+/* Dashed placeholder that occupies the dragged tile's target grid cell, so
+ * the other tiles auto-flow around it and the layout shifts live like phone
+ * widgets. */
+.hearth-tile-placeholder {
+	grid-column: var(--hearth-tile-col, auto) / span var(--hearth-tile-cs, 1);
+	grid-row: var(--hearth-tile-row, auto) / span var(--hearth-tile-rs, 1);
+	border-radius: 12px;
+	border: 2px dashed var(--interactive-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+	pointer-events: none;
+	opacity: 0.7;
 }
 
 /* Briefly hide a dragged tile from hit-testing so elementFromPoint() can find

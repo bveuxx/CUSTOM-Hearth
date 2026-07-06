@@ -342,6 +342,28 @@ function renderToolbar(view: HomeView, container: HTMLElement): void {
 			}
 			menu.showAtMouseEvent(evt);
 		});
+
+		// Toggle the dashboard header (title + search) off so the full board
+		// is visible while arranging. Only available while arranging; the
+		// header comes back automatically when arranging ends.
+		const hideHdr = bar.createEl("button", { cls: "hearth-tool-btn" });
+		hideHdr.toggleClass("is-active", view.hideHeaderInArrange);
+		setIcon(
+			hideHdr.createSpan("hearth-tool-icon"),
+			view.hideHeaderInArrange ? "eye-off" : "eye",
+		);
+		hideHdr.createSpan({
+			cls: "hearth-tool-label",
+			text: view.hideHeaderInArrange ? "Show header" : "Hide header",
+		});
+		hideHdr.setAttribute(
+			"aria-label",
+			view.hideHeaderInArrange ? "Show the dashboard header" : "Hide the dashboard header",
+		);
+		hideHdr.addEventListener("click", () => {
+			view.hideHeaderInArrange = !view.hideHeaderInArrange;
+			view.render();
+		});
 	}
 
 	const arrange = bar.createEl("button", { cls: "hearth-tool-btn" });

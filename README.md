@@ -13,7 +13,10 @@ cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
 > mobile search, and edge-merging cards: two cards snapped together lose their
 > shared border and sharpen their touching corners so they read as one
 > continuous tile. Task due dates also accept natural-language input (`📅
-> tomorrow`, `📅 next friday`, `📅 in 3 days`…).
+> tomorrow`, `📅 next friday`, `📅 in 3 days`…). In arrange mode, launchpad
+> tiles **live-reflow** around the one you're dragging (phone-widget style)
+> and the dashboard header can be **toggled off** so the full board is visible
+> end-to-end while you arrange.
 
 > **v1.5** — a redesigned dashboard experience: a CSS-grid tile layout with
 > independent column/row spans and drag-to-reorder, an ambient default
@@ -186,7 +189,9 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   merge follows the live layout, so it updates as you drag cards together.
 - **On-board management** — in arrange mode each card header is editable:
   rename inline, swap the embedded file via a fuzzy picker, or remove the card.
-  **Add card** (toolbar) drops in a new card from the library.
+  **Add card** (toolbar) drops in a new card from the library. A **Hide header**
+  toggle in the toolbar hides the dashboard header so the full board is visible
+  end-to-end while you arrange.
 - **Per-card colors & background** — give any card an accent and a background
   tint.
 - **Per-card opacity** — a global **Card opacity** slider tints card surfaces
@@ -296,7 +301,7 @@ into `<vault>/.obsidian/plugins/hearth/`.
 - Vault statistics, saved search, activity heatmap
 - Bookmarks, favorites, recent files, links/launchpad, commands
 - CSS-grid tiles with independent column/row spans, drag-to-reorder,
-  corner-grip resize
+  corner-grip resize, live reflow during drag (phone-widget style)
 - Clock & greeting (digital/analogue, custom formats, playful greetings)
 - Text / jot-down card
 - Multiple dashboards with switcher, per-board overrides, pinned cards,
