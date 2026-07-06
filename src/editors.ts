@@ -384,7 +384,21 @@ export class CardSettingsModal extends Modal {
 
 	private linksEditor(containerEl: HTMLElement): void {
 		new Setting(containerEl).setName("Links").setHeading();
-		const links = (this.card.links ??= []);
+		const card = this.card;
+		const links = (card.links ??= []);
+
+		new Setting(containerEl)
+			.setName("Auto-shift tiles (beta)")
+			.setDesc(
+				"When on, tiles shove each other aside as one is dragged (like phone " +
+					"widgets). Off by default — tiles are pure free-form and may overlap.",
+			)
+			.addToggle((t) =>
+				t.setValue(card.tileAutoFlow ?? false).onChange((v) => {
+					card.tileAutoFlow = v;
+					this.opts.save();
+				}),
+			);
 
 		links.forEach((link, index) => {
 			const row = new Setting(containerEl).setClass("hearth-link-setting");
@@ -461,6 +475,18 @@ export class CardSettingsModal extends Modal {
 
 	private commandsEditor(containerEl: HTMLElement): void {
 		const card = this.card;
+		new Setting(containerEl)
+			.setName("Auto-shift tiles (beta)")
+			.setDesc(
+				"When on, tiles shove each other aside as one is dragged (like phone " +
+					"widgets). Off by default — tiles are pure free-form and may overlap.",
+			)
+			.addToggle((t) =>
+				t.setValue(card.tileAutoFlow ?? false).onChange((v) => {
+					card.tileAutoFlow = v;
+					this.opts.save();
+				}),
+			);
 		new Setting(containerEl)
 			.setName("Button size")
 			.setDesc(

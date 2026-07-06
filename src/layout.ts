@@ -141,6 +141,7 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 	if (typeof r.refreshSec === "number") card.refreshSec = r.refreshSec;
 	if (typeof r.editable === "boolean") card.editable = r.editable;
 	if (typeof r.tileSize === "number") card.tileSize = r.tileSize;
+	if (typeof r.tileAutoFlow === "boolean") card.tileAutoFlow = r.tileAutoFlow;
 	if (typeof r.showOpenButton === "boolean") card.showOpenButton = r.showOpenButton;
 	if (typeof r.sandboxTrusted === "boolean") card.sandboxTrusted = r.sandboxTrusted;
 	if (typeof r.pinned === "boolean") card.pinned = r.pinned;

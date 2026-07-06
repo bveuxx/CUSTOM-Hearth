@@ -200,6 +200,12 @@ export interface DashboardCard {
 	 * Omitted means the default tile size. */
 	tileSize?: number;
 
+	/** kind === "links" / "commands" (beta): when true, tiles auto-shift out
+	 * of the way (swap with a placeholder) as one is dragged, so the layout
+	 * reorders live like phone widgets. Default off — tiles are pure
+	 * free-form and may overlap. */
+	tileAutoFlow?: boolean;
+
 	/** kind === "daily": show a button that opens today's note in the editor.
 	 * Defaults to shown; set false to hide. */
 	showOpenButton?: boolean;

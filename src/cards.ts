@@ -1132,9 +1132,12 @@ function renderLinks(view: HomeView, card: DashboardCard, body: HTMLElement): vo
 			}, () => link.size, (v) => {
 				link.size = v;
 			});
-			makeTileDraggable(view, grid, tile, links, link);
+			makeTileDraggable(view, grid, tile, links, link, card.tileAutoFlow === true);
 		}
 	}
+
+	// Flag tiles obscured behind a sibling so the overlap is visible.
+	if (view.arrangeMode) markOverlappingTiles(grid);
 }
 
 /** Apply a per-tile size: converts pixel width/height into grid column/row
@@ -1272,31 +1275,143 @@ function snap(value: number, grid: number): number {
 	return Math.round(value / grid) * grid;
 }
 
-/** Make a tile draggable (to reposition it freely within its card) in arrange
- *  mode. Uses pointer events (not HTML5 DnD) so it coexists with the resize
- *  handle and doesn't trigger the card's drag engine.
+/** Make a tile draggable (to reposition it within its card) in arrange mode.
+ *  Uses pointer events (not HTML5 DnD) so it coexists with the resize handle
+ *  and doesn't trigger the card's drag engine.
  *
- *  Phone-widget-style live reorder with a dashed placeholder:
- *  - At drag start, every sibling tile is frozen to its current cell (inline
- *    col/row) so the layout is stable, and a dashed placeholder is dropped
- *    into the dragged tile's slot.
- *  - The dragged tile floats above the grid (absolutely positioned under the
- *    pointer). As the pointer moves over another tile, that tile swaps places
- *    with the placeholder — so ALL tiles (pinned or auto-flow) shift out of
- *    the way, and nothing hides behind a sibling. Over empty space the
- *    placeholder follows the pointer so the tile can land in a free cell too.
- *  - On drop, only the dragged tile's `col`/`row` is persisted; the siblings
- *    revert to their stored positions (a full re-render follows), so a tile
- *    that was shoved aside comes back if its slot wasn't taken. */
+ *  Two modes:
+ *  - Free-form (default, `autoFlow = false`): the tile floats under the
+ *    pointer and lands on the cell under it on drop. Tiles may overlap and
+ *    be placed anywhere; siblings never move. Overlapping tiles are flagged
+ *    with a glow (see `markOverlappingTiles`) so a hidden tile is visible.
+ *  - Auto-shift (beta, `autoFlow = true`): a dashed placeholder occupies the
+ *    target slot and siblings swap aside live (phone-widget style). See
+ *    `makeTileAutoFlowDrag`. */
 function makeTileDraggable<T extends { id: string; col?: number; row?: number }>(
 	view: HomeView,
 	container: HTMLElement,
 	tile: HTMLElement,
 	items: T[],
 	item: T,
+	autoFlow: boolean,
 ): void {
-	// A drag handle that covers the whole tile body (except the resize grip).
-	// The tile is grabbable anywhere in arrange mode.
+	if (autoFlow) {
+		makeTileAutoFlowDrag(view, container, tile, item);
+	} else {
+		makeTileFreeFormDrag(view, container, tile, item);
+	}
+	tile.setAttribute("data-tile-id", item.id);
+	// Double-click a pinned tile to clear its position and let it auto-flow.
+	if (item.col != null || item.row != null) {
+		tile.addEventListener("dblclick", (e) => {
+			e.stopPropagation();
+			delete item.col;
+			delete item.row;
+			void view.plugin.saveData(view.plugin.settings);
+			view.render();
+		});
+	}
+}
+
+/** Free-form drag: the tile floats under the pointer (absolutely positioned)
+ *  and lands on whatever cell the pointer is over on drop. Siblings don't
+ *  move; tiles may overlap. Overlapping tiles glow so a hidden tile stays
+ *  visible (an undesirable state worth flagging). */
+function makeTileFreeFormDrag<T extends { id: string; col?: number; row?: number }>(
+	view: HomeView,
+	container: HTMLElement,
+	tile: HTMLElement,
+	item: T,
+): void {
+	let dragging = false;
+	let startX = 0;
+	let startY = 0;
+	let moved = false;
+	let pointerId = -1;
+	const DRAG_THRESHOLD = 5;
+	let grabOffsetX = 0;
+	let grabOffsetY = 0;
+
+	tile.addEventListener("pointerdown", (e) => {
+		if ((e.target as HTMLElement).closest(".hearth-tile-resize")) return;
+		e.stopPropagation();
+		startX = e.clientX;
+		startY = e.clientY;
+		dragging = true;
+		moved = false;
+		pointerId = e.pointerId;
+		tile.setPointerCapture(e.pointerId);
+	});
+
+	tile.addEventListener("pointermove", (e) => {
+		if (!dragging || e.pointerId !== pointerId) return;
+		const dx = e.clientX - startX;
+		const dy = e.clientY - startY;
+		if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+		e.preventDefault();
+		e.stopPropagation();
+		if (!moved) {
+			moved = true;
+			tile.addClass("is-tile-dragging");
+			tile.closest(".hearth-card")?.addClass("has-tile-gesture");
+			const rect = tile.getBoundingClientRect();
+			grabOffsetX = startX - rect.left;
+			grabOffsetY = startY - rect.top;
+			tile.style.position = "absolute";
+			tile.style.width = `${rect.width}px`;
+			tile.style.height = `${rect.height}px`;
+		}
+		const containerRect = container.getBoundingClientRect();
+		tile.style.left = `${e.clientX - containerRect.left - grabOffsetX}px`;
+		tile.style.top = `${e.clientY - containerRect.top - grabOffsetY}px`;
+		// Live-flag tiles the dragged tile is covering so overlaps are visible
+		// as it moves (the dragged tile is on top and ignored by the marker).
+		markOverlappingTiles(container);
+	});
+
+	const end = (e: PointerEvent) => {
+		if (!dragging || e.pointerId !== pointerId) return;
+		dragging = false;
+		const wasMoved = moved;
+		moved = false;
+		tile.removeClass("is-tile-dragging");
+		tile.style.position = "";
+		tile.style.left = "";
+		tile.style.top = "";
+		tile.style.width = "";
+		tile.style.height = "";
+		tile.style.zIndex = "";
+		tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
+		try {
+			tile.releasePointerCapture(e.pointerId);
+		} catch {
+			// already released
+		}
+		if (!wasMoved) return;
+		// Drop on the cell under the pointer (free-form; may overlap others).
+		const cell = pickGridCell(container, e.clientX, e.clientY, tile);
+		if (cell) {
+			item.col = cell.col;
+			item.row = cell.row;
+		}
+		void view.plugin.saveData(view.plugin.settings);
+		view.render();
+	};
+	tile.addEventListener("pointerup", end);
+	tile.addEventListener("pointercancel", end);
+}
+
+/** Auto-shift drag (beta): a dashed placeholder occupies the dragged tile's
+ *  target slot and siblings swap aside live, like phone widgets. On drop,
+ *  only the dragged tile's `col`/`row` is persisted; siblings revert to
+ *  their stored positions (a full re-render follows), so a tile that was
+ *  shoved aside comes back if its slot wasn't taken. */
+function makeTileAutoFlowDrag<T extends { id: string; col?: number; row?: number }>(
+	view: HomeView,
+	container: HTMLElement,
+	tile: HTMLElement,
+	item: T,
+): void {
 	let dragging = false;
 	let startX = 0;
 	let startY = 0;
@@ -1304,22 +1419,15 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 	let pointerId = -1;
 	const DRAG_THRESHOLD = 5;
 
-	// Grab offset within the tile (px from tile's top-left), so the tile stays
-	// under the grab point instead of jumping to centre on the pointer.
 	let grabOffsetX = 0;
 	let grabOffsetY = 0;
 
-	// Dashed placeholder occupying the dragged tile's current target slot, so
-	// the user sees where it will land and siblings reflow around it.
 	let placeholder: HTMLElement | null = null;
-	// The placeholder's current grid slot (col/row). Moves as the pointer
-	// moves; the dragged tile is dropped here.
 	let placeholderPos: { col: number; row: number } | null = null;
 
 	tile.addEventListener("pointerdown", (e) => {
-		// Don't start a tile drag from the resize handle.
 		if ((e.target as HTMLElement).closest(".hearth-tile-resize")) return;
-		e.stopPropagation(); // don't reach the card drag overlay
+		e.stopPropagation();
 		startX = e.clientX;
 		startY = e.clientY;
 		dragging = true;
@@ -1344,14 +1452,10 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 			const rect = tile.getBoundingClientRect();
 			grabOffsetX = startX - rect.left;
 			grabOffsetY = startY - rect.top;
-			// The dragged tile's starting slot becomes the placeholder's
-			// initial position (so the layout doesn't jump when the tile
-			// leaves the grid flow).
 			placeholderPos = getTileCell(tile, container) ?? {
 				col: item.col ?? 1,
 				row: item.row ?? 1,
 			};
-			// Insert the dashed placeholder into the grid at the tile's slot.
 			placeholder = container.createDiv("hearth-tile-placeholder");
 			const cs = tile.style.getPropertyValue("--hearth-tile-cs") || String(DEFAULT_TILE_CS);
 			const rs = tile.style.getPropertyValue("--hearth-tile-rs") || String(DEFAULT_TILE_RS);
@@ -1359,8 +1463,8 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 			placeholder.style.setProperty("--hearth-tile-rs", rs);
 			placeholder.style.setProperty("--hearth-tile-col", String(placeholderPos.col));
 			placeholder.style.setProperty("--hearth-tile-row", String(placeholderPos.row));
-			// Freeze every sibling tile to its current cell so the layout is
-			// stable and a swap with the placeholder moves exactly one tile.
+			// Freeze every sibling tile to its current cell so a swap with the
+			// placeholder moves exactly one tile.
 			const siblings = Array.from(
 				container.querySelectorAll<HTMLElement>(".hearth-link-tile"),
 			);
@@ -1372,25 +1476,18 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 					sib.style.setProperty("--hearth-tile-row", String(cell.row));
 				}
 			}
-			// Float the tile above the grid, sized to its current footprint.
 			tile.style.position = "absolute";
 			tile.style.width = `${rect.width}px`;
 			tile.style.height = `${rect.height}px`;
 		}
-		// Float the tile under the pointer, offset by the grab point.
 		const containerRect = container.getBoundingClientRect();
 		tile.style.left = `${e.clientX - containerRect.left - grabOffsetX}px`;
 		tile.style.top = `${e.clientY - containerRect.top - grabOffsetY}px`;
 		if (!placeholder || !placeholderPos) return;
-		// Find the sibling tile under the pointer (the dragged tile has
-		// pointer-events: none, so elementFromPoint returns what's behind it).
 		const other = findTileUnderPointer(container, e.clientX, e.clientY, tile);
 		if (other) {
 			const otherPos = getTileCell(other, container);
 			if (otherPos) {
-				// Swap: the sibling takes the placeholder's slot, the
-				// placeholder takes the sibling's slot. Only these two move;
-				// every other frozen tile stays put.
 				other.style.setProperty("--hearth-tile-col", String(placeholderPos.col));
 				other.style.setProperty("--hearth-tile-row", String(placeholderPos.row));
 				placeholder.style.setProperty("--hearth-tile-col", String(otherPos.col));
@@ -1398,8 +1495,6 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 				placeholderPos = otherPos;
 			}
 		} else {
-			// Empty space: the placeholder follows the pointer so the tile can
-			// also land in a free cell, not just by swapping.
 			const cell = pickGridCell(container, e.clientX, e.clientY, tile);
 			if (cell) {
 				placeholder.style.setProperty("--hearth-tile-col", String(cell.col));
@@ -1422,15 +1517,11 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 		tile.style.height = "";
 		tile.style.zIndex = "";
 		tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
-		// Drop target — remember it before tearing down the placeholder.
 		const dropPos = placeholderPos;
 		if (placeholder) {
 			placeholder.remove();
 			placeholder = null;
 		}
-		// Clear the inline freeze on siblings; their stored positions are
-		// restored by the re-render that follows, so a tile that was shoved
-		// aside comes back if its slot wasn't taken by the dragged tile.
 		const siblings = Array.from(
 			container.querySelectorAll<HTMLElement>(".hearth-link-tile"),
 		);
@@ -1445,7 +1536,6 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 			// already released
 		}
 		if (!wasMoved) return;
-		// Persist only the dragged tile's new slot.
 		if (dropPos) {
 			item.col = dropPos.col;
 			item.row = dropPos.row;
@@ -1455,18 +1545,39 @@ function makeTileDraggable<T extends { id: string; col?: number; row?: number }>
 	};
 	tile.addEventListener("pointerup", end);
 	tile.addEventListener("pointercancel", end);
+}
 
-	// Tag the tile so we can find it by id during drag swap.
-	tile.setAttribute("data-tile-id", item.id);
-	// Double-click a pinned tile to clear its position and let it auto-flow.
-	if (item.col != null || item.row != null) {
-		tile.addEventListener("dblclick", (e) => {
-			e.stopPropagation();
-			delete item.col;
-			delete item.row;
-			void view.plugin.saveData(view.plugin.settings);
-			view.render();
-		});
+/** Mark tiles that are obscured behind another tile in the same card, so the
+ *  user can see (and fix) the undesirable overlap. A tile counts as obscured
+ *  when another sibling tile's rect covers a meaningful part of it. The
+ *  actively-dragged tile is skipped (it's on top, so it can't be "obscured"),
+ *  but a tile it covers IS flagged. Only runs in arrange mode. */
+function markOverlappingTiles(container: HTMLElement): void {
+	const tiles = Array.from(container.querySelectorAll<HTMLElement>(".hearth-link-tile"));
+	for (const t of tiles) t.removeClass("is-obscured");
+	const rects = tiles.map((t) => ({
+		t,
+		r: t.getBoundingClientRect(),
+		dragging: t.classList.contains("is-tile-dragging"),
+	}));
+	for (let i = 0; i < rects.length; i++) {
+		const a = rects[i];
+		if (a.dragging) continue; // the dragged tile floats on top — never obscured
+		// A tile is obscured if any other tile (drawn later, i.e. on top in
+		// DOM order, or the floating dragged tile) overlaps more than a sliver
+		// of its area.
+		for (let j = i + 1; j < rects.length; j++) {
+			const b = rects[j];
+			const ix = Math.max(0, Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left));
+			const iy = Math.max(0, Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top));
+			const overlap = ix * iy;
+			const aArea = a.r.width * a.r.height;
+			// Flag `a` (the lower-DOM, i.e. underneath) tile when `b` covers
+			// more than 15% of it.
+			if (aArea > 0 && overlap / aArea > 0.15) {
+				a.t.addClass("is-obscured");
+			}
+		}
 	}
 }
 
@@ -1607,9 +1718,12 @@ function renderCommands(view: HomeView, card: DashboardCard, body: HTMLElement):
 			}, () => cmd.size, (v) => {
 				cmd.size = v;
 			});
-			makeTileDraggable(view, grid, tile, commands, cmd);
+			makeTileDraggable(view, grid, tile, commands, cmd, card.tileAutoFlow === true);
 		}
 	}
+
+	// Flag tiles obscured behind a sibling so the overlap is visible.
+	if (view.arrangeMode) markOverlappingTiles(grid);
 }
 
 function runCommand(view: HomeView, cmd: CommandItem): void {

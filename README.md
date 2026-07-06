@@ -13,10 +13,12 @@ cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
 > mobile search, and edge-merging cards: two cards snapped together lose their
 > shared border and sharpen their touching corners so they read as one
 > continuous tile. Task due dates also accept natural-language input (`📅
-> tomorrow`, `📅 next friday`, `📅 in 3 days`…). In arrange mode, launchpad
-> tiles **live-reflow** around the one you're dragging (phone-widget style)
-> and the dashboard header can be **toggled off** so the full board is visible
-> end-to-end while you arrange.
+> tomorrow`, `📅 next friday`, `📅 in 3 days`…). Launchpad tiles are now pure
+> free-form: they can be placed anywhere and may overlap — a hidden tile glows
+> so the overlap is easy to spot and fix. An optional **Auto-shift tiles**
+> (beta) per-card toggle makes tiles shove each other aside live while
+> dragging (phone-widget style). In arrange mode the per-card headers can be
+> toggled off so each card's full body is visible.
 
 > **v1.5** — a redesigned dashboard experience: a CSS-grid tile layout with
 > independent column/row spans and drag-to-reorder, an ambient default

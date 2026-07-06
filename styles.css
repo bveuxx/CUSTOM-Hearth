@@ -920,6 +920,22 @@
 	transform: translateY(-1px);
 }
 
+/* A tile fully/partially hidden behind another tile — an undesirable overlap.
+ * Glow it with the accent (and a warning tint) so the user notices and fixes
+ * it. Only applied in arrange mode. */
+.hearth-link-tile.is-obscured {
+	outline: 2px solid var(--color-red, #f55);
+	outline-offset: 2px;
+	box-shadow: 0 0 12px 2px color-mix(in srgb, var(--color-red, #f55) 55%, transparent);
+	border-color: var(--color-red, #f55);
+	animation: hearth-tile-obscured-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hearth-tile-obscured-pulse {
+	0%, 100% { box-shadow: 0 0 8px 1px color-mix(in srgb, var(--color-red, #f55) 40%, transparent); }
+	50% { box-shadow: 0 0 16px 3px color-mix(in srgb, var(--color-red, #f55) 65%, transparent); }
+}
+
 .hearth-link-label {
 	font-size: 0.8rem;
 	color: var(--text-normal);
