@@ -67,6 +67,13 @@
 	z-index: 50;
 }
 
+/* In arrange mode the card headers (title input + actions) can be toggled off
+ * from the Arrange toolbar so each card's full body is visible while placing
+ * tiles. The dashboard header (search) stays. */
+.hearth-view.hearth-hide-header .hearth-card-head {
+	display: none;
+}
+
 /* The search row: search column (flex:1) + New-note button. Top-aligned so the
  * button sits flush beside the search bar, not pushed down among filters. */
 .hearth-search-wrap {
@@ -446,6 +453,16 @@
 	padding: 12px 14px;
 }
 
+/* When a card body holds a read-only embed/daily-note host directly, the host
+ * is the scroll container (one vertical scrollbar) — the body itself doesn't
+ * scroll, so it can't stack a second scrollbar next to the embed's. The same
+ * applies to the editable embed wrapper (.hearth-jot), whose preview/textarea
+ * handle their own scrolling. */
+.hearth-card-body.is-embed-host,
+.hearth-card-body.is-jot-host {
+	overflow: hidden;
+}
+
 /* Empty states */
 .hearth-card-empty,
 .hearth-grid-empty {
@@ -473,7 +490,22 @@
 	font-size: 0.85rem;
 }
 
-/* Embeds */
+/* Embeds: the host is the single scroll container for embedded content, so a
+ * theme's `.markdown-rendered` overflow can't stack a second vertical scrollbar
+ * next to it. Fills the body and scrolls vertically only — horizontal overflow
+ * is clipped so text wraps (code blocks scroll within themselves via Obsidian's
+ * own `pre` styling). */
+.hearth-embed {
+	overflow-y: auto;
+	overflow-x: hidden;
+	height: 100%;
+	max-height: 100%;
+	/* Break long unbroken strings (URLs, paths) so they wrap instead of
+	 * forcing horizontal scroll. */
+	overflow-wrap: break-word;
+	word-break: break-word;
+}
+
 .hearth-embed img,
 .hearth-embed video {
 	max-width: 100%;
@@ -481,7 +513,7 @@
 }
 
 /* Per-card zoom: anchor at the top-left and widen inversely so scaled-up
- * content fills the card before scaling (the card body scrolls any overflow). */
+ * content fills the card before scaling (the embed host scrolls any overflow). */
 .hearth-embed.is-scaled {
 	transform: scale(var(--hearth-embed-scale, 1));
 	transform-origin: top left;
@@ -544,15 +576,17 @@
 	opacity: 0.9;
 }
 
-/* A small sticky action bar (e.g. the daily-note "open" button) pinned to the
- * top-right of a card body, staying visible while the content scrolls. */
+/* A floating action button (e.g. the daily-note "open" button) pinned to the
+ * top-right corner of a card body, overlapping content without taking up a
+ * row — so the card has no header-like bar, just the content with the button
+ * floating on top. */
 .hearth-card-actions-overlay {
-	position: sticky;
-	top: 0;
-	z-index: 4;
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	z-index: 5;
 	display: flex;
 	justify-content: flex-end;
-	margin-bottom: 2px;
 	pointer-events: none;
 }
 
@@ -668,6 +702,24 @@
 	margin: 0;
 }
 
+/* Recurring-task completion checkbox (TaskNotes). Sits before the task text;
+ * in a kanban card it leads the column so it reads like a checklist item. */
+.hearth-task-check-recurring {
+	margin-right: 2px;
+}
+
+.hearth-kanban-card > .hearth-task-check-recurring {
+	align-self: flex-start;
+}
+
+/* A row holding the recurring checkbox inline with the task text, so the
+ * checkbox leads the title on the same line instead of sitting above it. */
+.hearth-kanban-card-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+}
+
 .hearth-task-due {
 	flex-shrink: 0;
 	font-size: 0.78rem;
@@ -738,9 +790,12 @@
 }
 
 /* Text / jot-down: a rendered Markdown preview that swaps to a textarea on
- * double-click (so links in the preview stay clickable). */
+ * double-click (so links in the preview stay clickable). The wrapper fills
+ * the card body; exactly one of preview/textarea is shown at a time, and that
+ * one is the single scroll container (one vertical scrollbar). */
 .hearth-jot {
 	height: 100%;
+	overflow: hidden;
 }
 
 .hearth-jot-preview {
@@ -773,10 +828,16 @@
 	/* CSS grid with a fine cell size (44px columns, ~34px rows) so tiles can be
 	 * sized in small, precise steps and span multiple rows independently.
 	 * Column sizing uses the fine cell; the --hearth-tile var (per-card default)
-	 * is kept as the minimum column width so the grid fills the card width. */
+	 * is kept as the minimum column width so the grid fills the card width.
+	 * `dense` auto-flow fills gaps left by explicitly positioned tiles so the
+	 * board stays compact when some tiles are pinned to a free-form spot.
+	 * `position: relative` anchors the absolutely-positioned dragged tile
+	 * (which floats above the grid during a drag). */
+	position: relative;
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
 	grid-auto-rows: 34px;
+	grid-auto-flow: dense;
 	gap: 6px;
 	justify-content: start;
 }
@@ -798,10 +859,12 @@
 }
 
 /* Per-tile width/height: converted to grid column/row spans inline by
- * applyTileSize(). The CSS variables are kept for the default (1×1) case. */
+ * applyTileSize(). The CSS variables are kept for the default (1×1) case.
+ * When --hearth-tile-col/row is set, the tile is pinned to that grid line
+ * (free-form placement) rather than auto-flowing. */
 .hearth-tiles-sized .hearth-link-tile {
-	grid-column: span var(--hearth-tile-cs, 1);
-	grid-row: span var(--hearth-tile-rs, 1);
+	grid-column: var(--hearth-tile-col, auto) / span var(--hearth-tile-cs, 1);
+	grid-row: var(--hearth-tile-row, auto) / span var(--hearth-tile-rs, 1);
 }
 
 /* Fixed icon size: the icon does NOT scale with tile height. Icons stay a
@@ -824,13 +887,40 @@
 	z-index: 6;
 }
 
-/* While a tile is being dragged, lift it above its siblings and show a grab
- * cursor + subtle shadow. */
 .hearth-link-tile.is-tile-dragging {
-	z-index: 15;
+	z-index: 20;
 	cursor: grabbing;
 	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
 	opacity: 0.92;
+	pointer-events: none;
+	/* No transition during drag — the tile must follow the pointer instantly. */
+	transition: none;
+}
+
+/* Dashed placeholder that occupies the dragged tile's target grid cell, so
+ * the user sees where it will land and siblings swap around it live like
+ * phone widgets. */
+.hearth-tile-placeholder {
+	grid-column: var(--hearth-tile-col, auto) / span var(--hearth-tile-cs, 1);
+	grid-row: var(--hearth-tile-row, auto) / span var(--hearth-tile-rs, 1);
+	border-radius: 12px;
+	border: 2px dashed var(--interactive-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+	pointer-events: none;
+	opacity: 0.7;
+}
+
+/* Dashed ghost outline (free-form drag) marking the cell the tile will land
+ * on. Unlike the auto-flow placeholder it doesn't reserve the slot — siblings
+ * don't move — it just shows the drop target. */
+.hearth-tile-ghost {
+	grid-column: var(--hearth-tile-col, auto) / span var(--hearth-tile-cs, 1);
+	grid-row: var(--hearth-tile-row, auto) / span var(--hearth-tile-rs, 1);
+	border-radius: 12px;
+	border: 2px dashed var(--interactive-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 10%, transparent);
+	pointer-events: none;
+	opacity: 0.6;
 }
 
 /* Briefly hide a dragged tile from hit-testing so elementFromPoint() can find
@@ -856,6 +946,22 @@
 	border-color: var(--interactive-accent);
 	background: var(--background-modifier-hover);
 	transform: translateY(-1px);
+}
+
+/* A tile fully/partially hidden behind another tile — an undesirable overlap.
+ * Glow it with the accent (and a warning tint) so the user notices and fixes
+ * it. Only applied in arrange mode. */
+.hearth-link-tile.is-obscured {
+	outline: 2px solid var(--color-red, #f55);
+	outline-offset: 2px;
+	box-shadow: 0 0 12px 2px color-mix(in srgb, var(--color-red, #f55) 55%, transparent);
+	border-color: var(--color-red, #f55);
+	animation: hearth-tile-obscured-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hearth-tile-obscured-pulse {
+	0%, 100% { box-shadow: 0 0 8px 1px color-mix(in srgb, var(--color-red, #f55) 40%, transparent); }
+	50% { box-shadow: 0 0 16px 3px color-mix(in srgb, var(--color-red, #f55) 65%, transparent); }
 }
 
 .hearth-link-label {
@@ -1246,6 +1352,10 @@
 
 .hearth-view.hearth-mobile-only .hearth-inner {
 	gap: 20px;
+	/* Fit-to-page (the default) gives .hearth-inner height:100%, which makes
+	 * the scroll's justify-content:center powerless (the inner fills it). So
+	 * centre the header group vertically within that full-height inner. */
+	justify-content: center;
 }
 
 /* ---- Mobile action bar (Mobile mode) --------------------------------- */
@@ -1346,6 +1456,28 @@
 
 /* ---- Per-card colors ------------------------------------------------ */
 
+/* Edge merging: when two cards touch (gap ≈ 0, e.g. snapped together), the
+ * touching corners sharpen and the shared border drops out so the pair reads
+ * as one continuous tile — like grouped Android notifications. The classes
+ * are toggled by applyEdgeMerging() after every layout change and during
+ * drags, so they only ever reflect the current on-screen adjacency. */
+.hearth-card.merge-top {
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+}
+.hearth-card.merge-bottom {
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+}
+.hearth-card.merge-left {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
+.hearth-card.merge-right {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
+
 .hearth-card.has-accent {
 	border-color: var(--card-accent);
 }
@@ -1357,6 +1489,16 @@
 .hearth-card.has-accent .hearth-card-title {
 	color: var(--card-accent);
 }
+
+/* Collapse the shared border between touching cards so there's no double line
+ * — the two surfaces meet flush and look like a single tile. The card's own
+ * background fills the now-borderless edge (box-sizing is border-box).
+ * Deliberately placed after the accent rules so a touching edge goes
+ * borderless even on accent-coloured cards. */
+.hearth-card.merge-top { border-top-color: transparent; }
+.hearth-card.merge-bottom { border-bottom-color: transparent; }
+.hearth-card.merge-left { border-left-color: transparent; }
+.hearth-card.merge-right { border-right-color: transparent; }
 
 .hearth-card-body.has-bg {
 	background: var(--card-bg);

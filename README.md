@@ -7,6 +7,19 @@ launcher in one. Hearth turns your vault into a welcoming front page with a fast
 fuzzy search, quick file-type filters, and a fully arrangeable grid of live
 cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
 
+> **v1.6** — task due dates show as short relative labels ("Today", "Tomorrow",
+> "Yesterday", "Friday", "Next Friday", "15 Jul"), free-form launchpad tiles
+> you can drop anywhere on the card (not just the top-to-bottom flow), centred
+> mobile search, and edge-merging cards: two cards snapped together lose their
+> shared border and sharpen their touching corners so they read as one
+> continuous tile. Task due dates also accept natural-language input (`📅
+> tomorrow`, `📅 next friday`, `📅 in 3 days`…). Launchpad tiles are now pure
+> free-form: they can be placed anywhere and may overlap — a hidden tile glows
+> so the overlap is easy to spot and fix. An optional **Auto-shift tiles**
+> (beta) per-card toggle makes tiles shove each other aside live while
+> dragging (phone-widget style). In arrange mode the per-card headers can be
+> toggled off so each card's full body is visible.
+
 > **v1.5** — a redesigned dashboard experience: a CSS-grid tile layout with
 > independent column/row spans and drag-to-reorder, an ambient default
 > background, an overhauled starter dashboard, recurring TaskNotes tasks with
@@ -99,7 +112,12 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   click-to-toggle, click-to-open at the line) or reads TaskNotes task notes via
   frontmatter. Folder whitelist/blacklist for scope. Click **+** (top-right,
   TaskNotes source) to create a new task via TaskNotes' own command. Tasks are
-  sorted by **due → scheduled → priority → created**.
+  sorted by **due → scheduled → priority → created**. Due dates show as short
+  relative labels (**Today**, **Tomorrow**, **Yesterday**, the weekday for the
+  rest of the week, **Next Friday** / **Last Friday** for the week after, then
+  a compact "15 Jul"). They also accept **natural-language input**: write
+  `📅 tomorrow`, `📅 next friday`, `📅 in 3 days`, `📅 end of month` (or the same
+  wording in a TaskNotes `due` field) and Hearth resolves it to a date.
 - **Recurring tasks** — TaskNotes tasks with a `recurrence` RRULE show a **↻**
   badge next to the next-occurrence date (read from `scheduled`), tinted with
   the accent color so recurring items stand out at a glance. Hovering the date
@@ -127,8 +145,11 @@ toolbar; configure each one from the card itself (title, content, colors, size).
 - **Recent files** — your recently opened files (configurable count).
 - **Links / launchpad** — a grid of tiles opening notes, URLs or commands.
   Tiles live on a **CSS grid** with independent **column and row spans**, so a
-  tile can be 2×2, 4×1, or any proportion. In arrange mode, drag tiles to
-  **reorder** them, and resize each tile independently via a corner grip.
+  tile can be 2×2, 4×1, or any proportion. In arrange mode, drag a tile to
+  **drop it anywhere** on the card — it pins to that spot instead of being
+  forced into a top-to-bottom, left-to-right flow (double-click a pinned tile
+  to release it back to auto-flow), and resize each tile independently via a
+  corner grip.
 - **Commands** — tiles that run any command-palette command, on the same grid
   with adjustable per-tile size.
 - **Clock & greeting** — digital or **analogue** face, several date formats
@@ -164,9 +185,15 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   anywhere) and resize them from **any edge or corner**. Placement is fully
   free-form: cards sit and size anywhere, with **magnetic alignment** — edges
   and centres snap to neighbouring cards and the board, showing guide lines.
+- **Edge-merging cards** — when two cards are snapped together (touching edges),
+  their shared border drops out and the touching corners sharpen so the pair
+  reads as **one continuous tile** — like grouped Android notifications. The
+  merge follows the live layout, so it updates as you drag cards together.
 - **On-board management** — in arrange mode each card header is editable:
   rename inline, swap the embedded file via a fuzzy picker, or remove the card.
-  **Add card** (toolbar) drops in a new card from the library.
+  **Add card** (toolbar) drops in a new card from the library. A **Hide header**
+  toggle in the toolbar hides the dashboard header so the full board is visible
+  end-to-end while you arrange.
 - **Per-card colors & background** — give any card an accent and a background
   tint.
 - **Per-card opacity** — a global **Card opacity** slider tints card surfaces
@@ -178,7 +205,9 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   image URL — per-board overrides supported.
 - **Independent tile sizing** — tiles live on a fine CSS grid (44 px cells,
   4 px snap), each with its own column and row span. Drag the corner grip to
-  resize; drag the tile body to reorder. The default tile is a 2×2 cell block.
+  resize; drag the tile body to **drop it anywhere on the card** (it pins to
+  that spot; double-click to release it back to auto-flow). The default tile
+  is a 2×2 cell block.
 - **Granular card sizing** — numeric width/height per card, plus a configurable
   row height for fine vertical control.
 - **Fit to page** — lock the dashboard to one screen (no scroll) or let it
@@ -274,7 +303,7 @@ into `<vault>/.obsidian/plugins/hearth/`.
 - Vault statistics, saved search, activity heatmap
 - Bookmarks, favorites, recent files, links/launchpad, commands
 - CSS-grid tiles with independent column/row spans, drag-to-reorder,
-  corner-grip resize
+  corner-grip resize, live reflow during drag (phone-widget style)
 - Clock & greeting (digital/analogue, custom formats, playful greetings)
 - Text / jot-down card
 - Multiple dashboards with switcher, per-board overrides, pinned cards,

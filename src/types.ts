@@ -31,6 +31,10 @@ export interface CommandItem {
 	/** Legacy single per-tile pixel size (drove width and height together).
 	 * Migrated to sizeW/sizeH on first read; new code writes those instead. */
 	size?: number;
+	/** Free-form grid position (1-based grid line). See LinkItem.col. */
+	col?: number;
+	/** Free-form grid row (1-based). See LinkItem.row. */
+	row?: number;
 }
 
 /** Per-card configuration for a "tasks" card. */
@@ -137,6 +141,12 @@ export interface LinkItem {
 	/** Legacy single per-tile pixel size (drove width and height together).
 	 * Migrated to sizeW/sizeH on first read; new code writes those instead. */
 	size?: number;
+	/** Free-form grid position (1-based grid line). When omitted the tile
+	 * auto-flows into the first available cell. Set explicitly when a tile is
+	 * dragged to a spot so it stays there. */
+	col?: number;
+	/** Free-form grid row (1-based). See `col`. */
+	row?: number;
 }
 
 export interface DashboardCard {
@@ -189,6 +199,12 @@ export interface DashboardCard {
 	/** kind === "commands": pixel size of the command tiles (min column width).
 	 * Omitted means the default tile size. */
 	tileSize?: number;
+
+	/** kind === "links" / "commands" (beta): when true, tiles auto-shift out
+	 * of the way (swap with a placeholder) as one is dragged, so the layout
+	 * reorders live like phone widgets. Default off — tiles are pure
+	 * free-form and may overlap. */
+	tileAutoFlow?: boolean;
 
 	/** kind === "daily": show a button that opens today's note in the editor.
 	 * Defaults to shown; set false to hide. */

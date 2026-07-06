@@ -16,6 +16,7 @@ import { ClockConfig, CommandItem, DashboardCard, LinkItem, TasksConfig } from "
 import { EXCALIDRAW_PLUGIN_ID, iconForFile, isExcalidraw } from "./filetypes";
 import { QueryHit, runQuery, searchFileContents } from "./query";
 import { makeClickable } from "./ui";
+import { parseNaturalDate, formatRelativeDate } from "./dates";
 
 /**
  * moment is bundled with Obsidian, not a direct dependency, so it's imported
@@ -36,10 +37,11 @@ interface Moment {
 	day(value: number): Moment;
 	date(): number;
 	month(): number;
+	year(): number;
 	diff(other: Moment, unit?: string): number;
 }
 interface MomentFn {
-	(input?: Date): Moment;
+	(input?: Date | string): Moment;
 	localeData(): { firstDayOfWeek(): number };
 }
 const moment: MomentFn = createMoment as unknown as MomentFn;
@@ -238,6 +240,7 @@ function renderEmbed(
 	}
 
 	const host = body.createDiv("hearth-embed markdown-rendered");
+	body.addClass("is-embed-host");
 	// Optional zoom: scale the rendered content and widen it inversely so it
 	// still fills the card width before scaling (the body handles overflow).
 	const scale = card.scale && card.scale > 0 ? card.scale : 1;
@@ -297,6 +300,7 @@ function renderEditableEmbed(
 	component: Component,
 ): void {
 	const wrap = body.createDiv("hearth-jot");
+	body.addClass("is-jot-host");
 	const preview = wrap.createDiv("hearth-embed markdown-rendered hearth-jot-preview");
 	preview.setAttribute("title", "Double-click to edit");
 	const area = wrap.createEl("textarea", {
@@ -449,10 +453,13 @@ function renderDaily(
 		return;
 	}
 
-	// Optional button to open today's note in the editor (hideable).
+	// Optional button to open today's note in the editor (hideable). Rendered
+	// as a floating overlay on the card element (not the body) so it doesn't
+	// affect the body's scroll/flow.
 	if (card.showOpenButton !== false) {
-		const actions = body.createDiv("hearth-card-actions-overlay");
-		const open = actions.createEl("button", {
+		const cardEl = body.closest(".hearth-card");
+		const overlay = (cardEl ?? body).createDiv("hearth-card-actions-overlay");
+		const open = overlay.createEl("button", {
 			cls: "hearth-open-btn",
 			attr: { "aria-label": "Open today's note" },
 		});
@@ -468,6 +475,7 @@ function renderDaily(
 	}
 
 	const host = body.createDiv("hearth-embed markdown-rendered");
+	body.addClass("is-embed-host");
 	void renderMarkdownFile(view, file, host, component);
 }
 
@@ -1010,6 +1018,7 @@ function renderText(
 	component: Component,
 ): void {
 	const wrap = body.createDiv("hearth-jot");
+	body.addClass("is-jot-host");
 	const preview = wrap.createDiv("hearth-jot-preview markdown-rendered");
 	preview.setAttribute("title", "Double-click to edit");
 	const area = wrap.createEl("textarea", {
@@ -1109,7 +1118,7 @@ function renderLinks(view: HomeView, card: DashboardCard, body: HTMLElement): vo
 	if (view.arrangeMode) body.addClass("hearth-tiles-arrange");
 	for (const link of links) {
 		const tile = grid.createDiv("hearth-link-tile");
-		applyTileSize(tile, link.sizeW, link.sizeH, link.size, baseTile);
+		applyTileSize(tile, link.sizeW, link.sizeH, link.size, baseTile, link.col, link.row);
 		setIcon(tile.createDiv("hearth-link-icon"), link.icon || "link");
 		tile.createDiv({ cls: "hearth-link-label", text: link.label || link.target });
 		const open = () => openLink(view, link);
@@ -1130,21 +1139,29 @@ function renderLinks(view: HomeView, card: DashboardCard, body: HTMLElement): vo
 			}, () => link.size, (v) => {
 				link.size = v;
 			});
-			makeTileDraggable(view, grid, tile, links, link);
+			makeTileDraggable(view, grid, tile, links, link, card.tileAutoFlow === true);
 		}
 	}
+
+	// Flag tiles obscured behind a sibling so the overlap is visible (always,
+	// not just in arrange mode — a hidden tile is a problem either way).
+	markOverlappingTiles(grid);
 }
 
 /** Apply a per-tile size: converts pixel width/height into grid column/row
  * spans (relative to the fine cell size). Each tile is placed on the grid
  * spanning N columns × M rows, so it can independently span multiple rows
- * without its row's height being governed by the tallest tile. */
+ * without its row's height being governed by the tallest tile. When the tile
+ * has an explicit free-form position (col/row), it's pinned to that grid line
+ * instead of auto-flowing. */
 function applyTileSize(
 	tile: HTMLElement,
 	sizeW: number | undefined,
 	sizeH: number | undefined,
 	legacySize: number | undefined,
 	baseTile: number,
+	col?: number,
+	row?: number,
 ): void {
 	// Migrate a legacy single `size` into independent width/height on read.
 	const w = sizeW ?? legacySize;
@@ -1156,6 +1173,12 @@ function applyTileSize(
 	const rs = h && h > 0 ? Math.max(1, Math.round(h / rowH)) : DEFAULT_TILE_RS;
 	tile.style.setProperty("--hearth-tile-cs", String(cs));
 	tile.style.setProperty("--hearth-tile-rs", String(rs));
+	// Free-form position: pin to a grid line (1-based). When either is missing
+	// the tile auto-flows into the next available cell.
+	if (col != null && col > 0) tile.style.setProperty("--hearth-tile-col", String(col));
+	else tile.style.removeProperty("--hearth-tile-col");
+	if (row != null && row > 0) tile.style.setProperty("--hearth-tile-row", String(row));
+	else tile.style.removeProperty("--hearth-tile-row");
 }
 
 /** Default span for a tile with no explicit size: 2 columns × 2 rows on the
@@ -1260,30 +1283,69 @@ function snap(value: number, grid: number): number {
 	return Math.round(value / grid) * grid;
 }
 
-/** Make a tile draggable (to reorder it within its card) in arrange mode. Uses
- *  pointer events (not HTML5 DnD) so it coexists with the resize handle and
- *  doesn't trigger the card's drag engine. Swaps the tile's data item with its
- *  neighbours as the pointer moves over them. */
-function makeTileDraggable<T extends { id: string }>(
+/** Make a tile draggable (to reposition it within its card) in arrange mode.
+ *  Uses pointer events (not HTML5 DnD) so it coexists with the resize handle
+ *  and doesn't trigger the card's drag engine.
+ *
+ *  Two modes:
+ *  - Free-form (default, `autoFlow = false`): the tile floats under the
+ *    pointer and lands on the cell under it on drop. Tiles may overlap and
+ *    be placed anywhere; siblings never move. Overlapping tiles are flagged
+ *    with a glow (see `markOverlappingTiles`) so a hidden tile is visible.
+ *  - Auto-shift (beta, `autoFlow = true`): a dashed placeholder occupies the
+ *    target slot and siblings swap aside live (phone-widget style). See
+ *    `makeTileAutoFlowDrag`. */
+function makeTileDraggable<T extends { id: string; col?: number; row?: number }>(
 	view: HomeView,
 	container: HTMLElement,
 	tile: HTMLElement,
 	items: T[],
 	item: T,
+	autoFlow: boolean,
 ): void {
-	// A drag handle that covers the whole tile body (except the resize grip).
-	// The tile is grabbable anywhere in arrange mode.
+	if (autoFlow) {
+		makeTileAutoFlowDrag(view, container, tile, item);
+	} else {
+		makeTileFreeFormDrag(view, container, tile, item);
+	}
+	tile.setAttribute("data-tile-id", item.id);
+	// Double-click a pinned tile to clear its position and let it auto-flow.
+	if (item.col != null || item.row != null) {
+		tile.addEventListener("dblclick", (e) => {
+			e.stopPropagation();
+			delete item.col;
+			delete item.row;
+			void view.plugin.saveData(view.plugin.settings);
+			view.render();
+		});
+	}
+}
+
+/** Free-form drag: the tile floats under the pointer via a transform (delta
+ *  from the grab point) and lands on whatever cell the pointer is over on
+ *  drop. Siblings don't move; tiles may overlap. A dashed ghost outline
+ *  follows the pointer so the drop target is visible. Overlapping tiles glow
+ *  so a hidden tile stays visible (an undesirable state worth flagging).
+ *  Using a transform (not absolute positioning) avoids any offset/jump —
+ *  the tile simply translates by the pointer delta from its grid slot. */
+function makeTileFreeFormDrag<T extends { id: string; col?: number; row?: number }>(
+	view: HomeView,
+	container: HTMLElement,
+	tile: HTMLElement,
+	item: T,
+): void {
 	let dragging = false;
 	let startX = 0;
 	let startY = 0;
 	let moved = false;
 	let pointerId = -1;
 	const DRAG_THRESHOLD = 5;
+	// Dashed ghost showing the drop target cell under the pointer.
+	let ghost: HTMLElement | null = null;
 
 	tile.addEventListener("pointerdown", (e) => {
-		// Don't start a tile drag from the resize handle.
 		if ((e.target as HTMLElement).closest(".hearth-tile-resize")) return;
-		e.stopPropagation(); // don't reach the card drag overlay
+		e.stopPropagation();
 		startX = e.clientX;
 		startY = e.clientY;
 		dragging = true;
@@ -1303,34 +1365,178 @@ function makeTileDraggable<T extends { id: string }>(
 			moved = true;
 			tile.addClass("is-tile-dragging");
 			tile.closest(".hearth-card")?.addClass("has-tile-gesture");
+			// Insert a dashed ghost outline that will follow the pointer.
+			ghost = container.createDiv("hearth-tile-ghost");
+			const cs = tile.style.getPropertyValue("--hearth-tile-cs") || String(DEFAULT_TILE_CS);
+			const rs = tile.style.getPropertyValue("--hearth-tile-rs") || String(DEFAULT_TILE_RS);
+			ghost.style.setProperty("--hearth-tile-cs", cs);
+			ghost.style.setProperty("--hearth-tile-rs", rs);
 		}
-		// Find the tile under the pointer (not the dragged one) by hiding the
-		// dragged tile from hit-testing for a moment.
-		tile.addClass("is-hit-testing");
-		const over = container.ownerDocument.elementFromPoint(e.clientX, e.clientY);
-		tile.removeClass("is-hit-testing");
-		const target = over?.closest(".hearth-link-tile") as HTMLElement | null;
-		if (target && target !== tile) {
-			// Swap the data items; the DOM follows on the next render.
-			const fromIdx = items.indexOf(item);
-			const targetId = target.getAttribute("data-tile-id");
-			const toIdx = items.findIndex((it) => it.id === targetId);
-			if (toIdx >= 0 && toIdx !== fromIdx) {
-				const [m] = items.splice(fromIdx, 1);
-				items.splice(toIdx, 0, m);
-				// Persist + re-render once to reflect the new order. Don't keep
-				// dragging the old tile element (it's gone after render); the
-				// user can pick it up again from its new position.
-				dragging = false;
-				tile.removeClass("is-tile-dragging");
-				tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
-				try {
-					tile.releasePointerCapture(pointerId);
-				} catch {
-					// already released
+		// Float the tile by the pointer delta — no position/size changes, so
+		// there's no offset or jump. The grid slot stays reserved.
+		tile.setCssStyles({ transform: `translate(${dx}px, ${dy}px)` });
+		// Move the ghost outline to the cell under the pointer.
+		if (ghost) {
+			const cell = pickGridCell(container, e.clientX, e.clientY, tile);
+			if (cell) {
+				ghost.style.setProperty("--hearth-tile-col", String(cell.col));
+				ghost.style.setProperty("--hearth-tile-row", String(cell.row));
+			}
+		}
+		// Live-flag tiles the dragged tile is covering so overlaps are visible
+		// as it moves (the dragged tile is on top and ignored by the marker).
+		markOverlappingTiles(container);
+	});
+
+	const end = (e: PointerEvent) => {
+		if (!dragging || e.pointerId !== pointerId) return;
+		dragging = false;
+		const wasMoved = moved;
+		moved = false;
+		tile.removeClass("is-tile-dragging");
+		tile.setCssStyles({});
+		if (ghost) {
+			ghost.remove();
+			ghost = null;
+		}
+		tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
+		try {
+			tile.releasePointerCapture(e.pointerId);
+		} catch {
+			// already released
+		}
+		if (!wasMoved) return;
+		// Drop on the cell under the pointer (free-form; may overlap others).
+		const cell = pickGridCell(container, e.clientX, e.clientY, tile);
+		if (cell) {
+			item.col = cell.col;
+			item.row = cell.row;
+		}
+		void view.plugin.saveData(view.plugin.settings);
+		view.render();
+	};
+	tile.addEventListener("pointerup", end);
+	tile.addEventListener("pointercancel", end);
+}
+
+/** Auto-shift drag (beta): a dashed placeholder occupies the dragged tile's
+ *  target slot and siblings swap aside live, like phone widgets. On drop,
+ *  only the dragged tile's `col`/`row` is persisted; siblings revert to
+ *  their stored positions (a full re-render follows), so a tile that was
+ *  shoved aside comes back if its slot wasn't taken. */
+function makeTileAutoFlowDrag<T extends { id: string; col?: number; row?: number }>(
+	view: HomeView,
+	container: HTMLElement,
+	tile: HTMLElement,
+	item: T,
+): void {
+	let dragging = false;
+	let startX = 0;
+	let startY = 0;
+	let moved = false;
+	let pointerId = -1;
+	const DRAG_THRESHOLD = 5;
+
+	// The tile's offset within the container at drag start, so we can position
+	// it absolutely without a jump (delta-based movement).
+	let baseLeft = 0;
+	let baseTop = 0;
+	let baseWidth = 0;
+	let baseHeight = 0;
+
+	let placeholder: HTMLElement | null = null;
+	let placeholderPos: { col: number; row: number } | null = null;
+
+	tile.addEventListener("pointerdown", (e) => {
+		if ((e.target as HTMLElement).closest(".hearth-tile-resize")) return;
+		e.stopPropagation();
+		startX = e.clientX;
+		startY = e.clientY;
+		dragging = true;
+		moved = false;
+		pointerId = e.pointerId;
+		tile.setPointerCapture(e.pointerId);
+	});
+
+	tile.addEventListener("pointermove", (e) => {
+		if (!dragging || e.pointerId !== pointerId) return;
+		const dx = e.clientX - startX;
+		const dy = e.clientY - startY;
+		if (!moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
+		e.preventDefault();
+		e.stopPropagation();
+		if (!moved) {
+			moved = true;
+			tile.addClass("is-tile-dragging");
+			tile.closest(".hearth-card")?.addClass("has-tile-gesture");
+			// Measure the tile's position relative to the container BEFORE
+			// removing it from flow, so we can place it absolutely at the
+			// same spot (then move by the pointer delta — no jump).
+			const rect = tile.getBoundingClientRect();
+			const containerRect = container.getBoundingClientRect();
+			baseLeft = rect.left - containerRect.left;
+			baseTop = rect.top - containerRect.top;
+			baseWidth = rect.width;
+			baseHeight = rect.height;
+			placeholderPos = getTileCell(tile, container) ?? {
+				col: item.col ?? 1,
+				row: item.row ?? 1,
+			};
+			placeholder = container.createDiv("hearth-tile-placeholder");
+			const cs = tile.style.getPropertyValue("--hearth-tile-cs") || String(DEFAULT_TILE_CS);
+			const rs = tile.style.getPropertyValue("--hearth-tile-rs") || String(DEFAULT_TILE_RS);
+			placeholder.style.setProperty("--hearth-tile-cs", cs);
+			placeholder.style.setProperty("--hearth-tile-rs", rs);
+			placeholder.style.setProperty("--hearth-tile-col", String(placeholderPos.col));
+			placeholder.style.setProperty("--hearth-tile-row", String(placeholderPos.row));
+			// Freeze every sibling tile to its current cell so a swap with the
+			// placeholder moves exactly one tile.
+			const siblings = Array.from(
+				container.querySelectorAll<HTMLElement>(".hearth-link-tile"),
+			);
+			for (const sib of siblings) {
+				if (sib === tile) continue;
+				const cell = getTileCell(sib, container);
+				if (cell) {
+					sib.style.setProperty("--hearth-tile-col", String(cell.col));
+					sib.style.setProperty("--hearth-tile-row", String(cell.row));
 				}
-				void view.plugin.saveData(view.plugin.settings);
-				view.render();
+			}
+			// Take the tile out of flow and immediately pin it to its current
+			// spot so it doesn't jump before the first delta is applied.
+			tile.setCssStyles({
+				position: "absolute",
+				width: `${rect.width}px`,
+				height: `${rect.height}px`,
+				left: `${baseLeft}px`,
+				top: `${baseTop}px`,
+			});
+		}
+		// Move by the pointer delta from the grab point — no offset issues.
+		tile.setCssStyles({
+			position: "absolute",
+			width: `${baseWidth}px`,
+			height: `${baseHeight}px`,
+			left: `${baseLeft + dx}px`,
+			top: `${baseTop + dy}px`,
+		});
+		if (!placeholder || !placeholderPos) return;
+		const other = findTileUnderPointer(container, e.clientX, e.clientY, tile);
+		if (other) {
+			const otherPos = getTileCell(other, container);
+			if (otherPos) {
+				other.style.setProperty("--hearth-tile-col", String(placeholderPos.col));
+				other.style.setProperty("--hearth-tile-row", String(placeholderPos.row));
+				placeholder.style.setProperty("--hearth-tile-col", String(otherPos.col));
+				placeholder.style.setProperty("--hearth-tile-row", String(otherPos.row));
+				placeholderPos = otherPos;
+			}
+		} else {
+			const cell = pickGridCell(container, e.clientX, e.clientY, tile);
+			if (cell) {
+				placeholder.style.setProperty("--hearth-tile-col", String(cell.col));
+				placeholder.style.setProperty("--hearth-tile-row", String(cell.row));
+				placeholderPos = cell;
 			}
 		}
 	});
@@ -1338,20 +1544,157 @@ function makeTileDraggable<T extends { id: string }>(
 	const end = (e: PointerEvent) => {
 		if (!dragging || e.pointerId !== pointerId) return;
 		dragging = false;
+		const wasMoved = moved;
 		moved = false;
 		tile.removeClass("is-tile-dragging");
+		tile.setCssStyles({});
 		tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
+		const dropPos = placeholderPos;
+		if (placeholder) {
+			placeholder.remove();
+			placeholder = null;
+		}
+		const siblings = Array.from(
+			container.querySelectorAll<HTMLElement>(".hearth-link-tile"),
+		);
+		for (const sib of siblings) {
+			if (sib === tile) continue;
+			sib.style.removeProperty("--hearth-tile-col");
+			sib.style.removeProperty("--hearth-tile-row");
+		}
 		try {
 			tile.releasePointerCapture(e.pointerId);
 		} catch {
 			// already released
 		}
+		if (!wasMoved) return;
+		if (dropPos) {
+			item.col = dropPos.col;
+			item.row = dropPos.row;
+		}
+		void view.plugin.saveData(view.plugin.settings);
+		view.render();
 	};
 	tile.addEventListener("pointerup", end);
 	tile.addEventListener("pointercancel", end);
+}
 
-	// Tag the tile so we can find it by id during drag swap.
-	tile.setAttribute("data-tile-id", item.id);
+/** Mark tiles that are obscured behind another tile in the same card, so the
+ *  user can see (and fix) the undesirable overlap. A tile counts as obscured
+ *  when another sibling tile's rect covers a meaningful part of it. The
+ *  actively-dragged tile is skipped (it's on top, so it can't be "obscured"),
+ *  but a tile it covers IS flagged. Only runs in arrange mode. */
+function markOverlappingTiles(container: HTMLElement): void {
+	const tiles = Array.from(container.querySelectorAll<HTMLElement>(".hearth-link-tile"));
+	for (const t of tiles) t.removeClass("is-obscured");
+	const rects = tiles.map((t) => ({
+		t,
+		r: t.getBoundingClientRect(),
+		dragging: t.classList.contains("is-tile-dragging"),
+	}));
+	for (let i = 0; i < rects.length; i++) {
+		const a = rects[i];
+		if (a.dragging) continue; // the dragged tile floats on top — never obscured
+		// A tile is obscured if any other tile (drawn later, i.e. on top in
+		// DOM order, or the floating dragged tile) overlaps more than a sliver
+		// of its area.
+		for (let j = i + 1; j < rects.length; j++) {
+			const b = rects[j];
+			const ix = Math.max(0, Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left));
+			const iy = Math.max(0, Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top));
+			const overlap = ix * iy;
+			const aArea = a.r.width * a.r.height;
+			// Flag `a` (the lower-DOM, i.e. underneath) tile when `b` covers
+			// more than 15% of it.
+			if (aArea > 0 && overlap / aArea > 0.15) {
+				a.t.addClass("is-obscured");
+			}
+		}
+	}
+}
+
+/** Read a tile's current grid cell from the DOM. Prefers the inline
+ *  `--hearth-tile-col/row` (set for pinned tiles), falling back to the tile's
+ *  rendered position mapped onto the grid's metrics. Returns null when the
+ *  metrics can't be measured reliably. */
+function getTileCell(
+	tile: HTMLElement,
+	container: HTMLElement,
+): { col: number; row: number } | null {
+	const colAttr = tile.style.getPropertyValue("--hearth-tile-col");
+	const rowAttr = tile.style.getPropertyValue("--hearth-tile-row");
+	if (colAttr && rowAttr) {
+		const col = parseInt(colAttr, 10);
+		const row = parseInt(rowAttr, 10);
+		if (Number.isFinite(col) && Number.isFinite(row)) return { col, row };
+	}
+	const rect = tile.getBoundingClientRect();
+	const cRect = container.getBoundingClientRect();
+	if (cRect.width <= 0) return null;
+	const gap = 6;
+	const columns = Math.max(1, Math.floor((cRect.width + gap) / (TILE_CELL + gap)));
+	const colW = (cRect.width - (columns - 1) * gap) / columns;
+	const rowH = Math.round(TILE_CELL * 0.78);
+	const relX = rect.left - cRect.left;
+	const relY = rect.top - cRect.top;
+	const col = Math.max(1, Math.round(relX / (colW + gap)) + 1);
+	const row = Math.max(1, Math.round(relY / (rowH + gap)) + 1);
+	return { col, row };
+}
+
+/** Find the `.hearth-link-tile` under a pointer, excluding the dragged tile
+ *  (and anything inside it, like its resize handle). The dragged tile has
+ *  pointer-events: none while dragging, so elementFromPoint already skips it,
+ *  but we also guard against its descendants in case a child overrides. */
+function findTileUnderPointer(
+	container: HTMLElement,
+	clientX: number,
+	clientY: number,
+	except: HTMLElement,
+): HTMLElement | null {
+	const el = activeDocument.elementFromPoint(clientX, clientY) as HTMLElement | null;
+	if (!el) return null;
+	if (except.contains(el)) return null;
+	const tile = el.closest<HTMLElement>(".hearth-link-tile");
+	if (!tile || tile === except || !container.contains(tile)) return null;
+	return tile;
+}
+
+/** Work out the (col, row) grid cell under a pointer, relative to the card's
+ *  tile grid. `container` is the `.hearth-links` grid element. Returns null
+ *  when the metrics can't be measured reliably. Clamps to the grid's bounds
+ *  so a tile dropped near the edge lands on the last valid cell, not off-board.
+ *  `tile` is the dragged element (its span is used so the drop keeps the tile
+ *  fully inside the grid — the column count limits the start column). */
+function pickGridCell(
+	container: HTMLElement,
+	clientX: number,
+	clientY: number,
+	tile: HTMLElement,
+): { col: number; row: number } | null {
+	const rect = container.getBoundingClientRect();
+	if (rect.width <= 0) return null;
+	const gap = 6;
+	// auto-fill column count at the current card width (matches the CSS
+	// `repeat(auto-fill, minmax(44px, 1fr))` grid).
+	const columns = Math.max(1, Math.floor((rect.width + gap) / (TILE_CELL + gap)));
+	// Actual column width (the 1fr columns expand past the 44px minimum, so
+	// use the real width to map the pointer to a column line).
+	const colW = (rect.width - (columns - 1) * gap) / columns;
+	// The dragged tile's column span, so we keep its start within bounds.
+	const cs = parseInt(
+		tile.style.getPropertyValue("--hearth-tile-cs") || String(DEFAULT_TILE_CS),
+		10,
+	) || DEFAULT_TILE_CS;
+	const rowH = Math.round(TILE_CELL * 0.78);
+	// Pointer relative to the grid's content box, in cells (1-based lines).
+	const relX = clientX - rect.left;
+	const relY = clientY - rect.top;
+	let col = Math.round(relX / (colW + gap)) + 1;
+	let row = Math.round(relY / (rowH + gap)) + 1;
+	col = Math.max(1, Math.min(col, Math.max(1, columns - cs + 1)));
+	row = Math.max(1, row);
+	return { col, row };
 }
 
 function openLink(view: HomeView, link: LinkItem): void {
@@ -1389,7 +1732,7 @@ function renderCommands(view: HomeView, card: DashboardCard, body: HTMLElement):
 		// A per-tile size overrides the card default: it drives the tile's own
 		// height/icon (via --hearth-tile) and, when larger than the base, makes
 		// the tile span proportionally more grid columns so it's wider too.
-		applyTileSize(tile, cmd.sizeW, cmd.sizeH, cmd.size, baseTile);
+		applyTileSize(tile, cmd.sizeW, cmd.sizeH, cmd.size, baseTile, cmd.col, cmd.row);
 		setIcon(tile.createDiv("hearth-link-icon"), cmd.icon || "terminal-square");
 		tile.createDiv({ cls: "hearth-link-label", text: cmd.name || cmd.id });
 		const run = () => runCommand(view, cmd);
@@ -1407,9 +1750,13 @@ function renderCommands(view: HomeView, card: DashboardCard, body: HTMLElement):
 			}, () => cmd.size, (v) => {
 				cmd.size = v;
 			});
-			makeTileDraggable(view, grid, tile, commands, cmd);
+			makeTileDraggable(view, grid, tile, commands, cmd, card.tileAutoFlow === true);
 		}
 	}
+
+	// Flag tiles obscured behind a sibling so the overlap is visible (always,
+	// not just in arrange mode — a hidden tile is a problem either way).
+	markOverlappingTiles(grid);
 }
 
 function runCommand(view: HomeView, cmd: CommandItem): void {
@@ -1426,6 +1773,9 @@ interface TaskHit {
 	text: string;
 	done: boolean;
 	due: string | null;
+	/** The original due text as written (e.g. "tomorrow"), kept so the display
+	 * can show the user's natural-language wording next to the parsed date. */
+	dueRaw: string | null;
 	/** TaskNotes "scheduled" date (frontmatter), used as a fallback for sorting
 	 * when no due date is set. */
 	scheduled: string | null;
@@ -1435,6 +1785,10 @@ interface TaskHit {
 	 * When present the task is recurring; shown as a ↻ badge next to the due
 	 * date so the date isn't mistaken for a one-off. */
 	recurrence?: string;
+	/** TaskNotes complete_instances: the YYYY-MM-DD dates already completed for
+	 * a recurring task. Used to mark today's instance done and to reflect an
+	 * already-checked checkbox without re-completing. */
+	completeInstances?: string[];
 	/** Raw TaskNotes status value, shown as a badge instead of a checkbox
 	 * since it may not be a simple open/done binary. */
 	status?: string;
@@ -1520,14 +1874,15 @@ function effectiveDate(hit: TaskHit): string | null {
 	return hit.due ?? hit.scheduled ?? null;
 }
 
-/** Format a due/next-occurrence date for display. Recurring tasks append a ↻
- * symbol so the date isn't mistaken for a one-off and the user knows it's the
- * next occurrence. The raw datetime is normalized to YYYY-MM-DD. */
+/** Format a due/next-occurrence date for display as a short, human-relative
+ * label ("Today", "Tomorrow", "Yesterday", "Friday", "Next Friday", "15 Jul").
+ * Recurring tasks append a ↻ symbol so the date isn't mistaken for a one-off
+ * and the user knows it's the next occurrence. */
 function formatDueLabel(hit: TaskHit): string | null {
 	const raw = hit.recurrence ? hit.due ?? hit.scheduled : hit.due;
 	if (!raw) return hit.recurrence ? "↻" : null;
-	const date = raw.slice(0, 10);
-	return hit.recurrence ? `${date} ↻` : date;
+	const tail = hit.recurrence ? " ↻" : "";
+	return `${formatRelativeDate(raw)}${tail}`;
 }
 
 /** Map a raw priority value to a coarse level for coloring the indicator. */
@@ -1648,6 +2003,11 @@ function renderTaskRow(
 				refresh();
 			});
 		});
+	} else if (hit.recurrence) {
+		// Recurring TaskNotes tasks complete per-occurrence (complete_instances +
+		// next scheduled), not by flipping status — a checkbox does that without
+		// needing a status column to drag into.
+		renderRecurringCheckbox(view, hit, today, row, refresh);
 	} else if (hit.status) {
 		row.createDiv({ cls: "hearth-task-status", text: hit.status });
 	}
@@ -1765,6 +2125,14 @@ function renderTaskKanban(
 				refresh();
 			});
 		} else {
+			// Recurring TaskNotes tasks complete per-occurrence, not by status:
+			// dragging one into the "done" column marks today's instance done and
+			// advances its scheduled date instead of setting status=done (which
+			// would wrongly retire the whole recurring task).
+			if (hit.recurrence && col.key === doneValue.toLowerCase()) {
+				void completeRecurringInstance(view, hit).then(refresh);
+				return;
+			}
 			const value = col.label === "No status" ? "" : col.label;
 			void setTaskNotesStatus(view, hit, value).then(refresh);
 		}
@@ -1864,7 +2232,15 @@ function renderTaskKanban(
 				}
 				moveTo(from, col);
 			});
-			cardEl.createDiv({ cls: "hearth-kanban-card-text", text: hit.text || hit.file.basename });
+		// Recurring TaskNotes tasks get a per-occurrence completion checkbox
+		// inline with the task text (in a row), in addition to drag: checking
+		// it completes today's instance and advances scheduled without
+		// retiring the task.
+		const textRow = cardEl.createDiv("hearth-kanban-card-row");
+		if (source !== "checkbox" && hit.recurrence) {
+			renderRecurringCheckbox(view, hit, today, textRow, refresh);
+		}
+		textRow.createDiv({ cls: "hearth-kanban-card-text", text: hit.text || hit.file.basename });
 			const meta = cardEl.createDiv("hearth-kanban-card-meta");
 			if (hit.priority) renderPriority(meta, hit.priority);
 			const dueLabel = formatDueLabel(hit);
@@ -1897,13 +2273,23 @@ async function collectCheckboxTasks(view: HomeView, cfg: TasksConfig): Promise<T
 			const match = /^\s*[-*+]\s\[([ xX])\]\s*(.*)$/.exec(line);
 			if (!match) return;
 			const text = match[2].trim();
-			const dueMatch = /📅\s*(\d{4}-\d{2}-\d{2})/.exec(text);
+			// The Tasks-plugin emoji convention: `📅 <date>` for the due date.
+			// The date can be YYYY-MM-DD or any natural-language wording
+			// (today, next friday, in 3 days, …) which we resolve to a date.
+			const dueExpr = readEmojiField(text, "📅");
+			let due: string | null = null;
+			let dueRaw: string | null = null;
+			if (dueExpr) {
+				dueRaw = dueExpr;
+				due = /^\d{4}-\d{2}-\d{2}$/.test(dueExpr) ? dueExpr : parseNaturalDate(dueExpr);
+			}
 		hits.push({
 			file,
 			line: i,
 			text,
 			done: match[1].toLowerCase() === "x",
-			due: dueMatch ? dueMatch[1] : null,
+			due,
+			dueRaw,
 			scheduled: null,
 			created: file.stat.ctime,
 			recurrence: undefined,
@@ -1932,7 +2318,17 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 		const fm = cache?.frontmatter;
 		if (!fm || !(statusField in fm)) continue;
 		const status = String(fm[statusField] ?? "");
-		const due: string | null = typeof fm[dueField] === "string" ? String(fm[dueField]) : null;
+		const dueRawVal: unknown = fm[dueField];
+		// TaskNotes stores due as YYYY-MM-DD by convention, but users may have
+		// written a natural-language date — resolve either to YYYY-MM-DD and
+		// keep the raw wording for display.
+		let due: string | null = null;
+		let dueRaw: string | null = null;
+		if (typeof dueRawVal === "string" && dueRawVal.trim()) {
+			const expr = dueRawVal.trim();
+			dueRaw = expr;
+			due = /^\d{4}-\d{2}-\d{2}$/.test(expr) ? expr : parseNaturalDate(expr);
+		}
 		// TaskNotes' scheduled field is conventionally "scheduled"; read it as
 		// a fallback sort key when no due date is set.
 		const scheduledRaw: unknown = fm["scheduled"];
@@ -1944,20 +2340,44 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 		const recurrenceRaw: unknown = fm["recurrence"];
 		const recurrence =
 			recurrenceRaw == null || recurrenceRaw === "" ? undefined : String(recurrenceRaw);
+		// TaskNotes records each completed occurrence of a recurring task as a
+		// YYYY-MM-DD entry in "complete_instances". Read it so the completion
+		// checkbox can reflect today's state and avoid double-completing.
+		const ciRaw: unknown = fm["complete_instances"];
+		const completeInstances: string[] = Array.isArray(ciRaw)
+			? ciRaw.map((v) => String(v)).filter(Boolean)
+			: [];
 		hits.push({
 			file,
 			line: -1,
 			text: String(fm.title ?? file.basename),
 			done: status.toLowerCase() === doneValue,
 			due,
+			dueRaw,
 			scheduled,
 			created: file.stat.ctime,
 			recurrence,
+			completeInstances,
 			status,
 			priority,
 		});
 	}
 	return hits;
+}
+
+/** Read the value of a Tasks-plugin emoji field from a checkbox line, e.g.
+ * `📅 tomorrow` or `📅 2024-01-15`. Returns the trimmed value up to the next
+ * known emoji marker (⏳ 🛫 🔁 ✅ ➕ ⏫ 🔼 🔽) or end of line, or null when the
+ * marker isn't present. */
+function readEmojiField(text: string, emoji: string): string | null {
+	const idx = text.indexOf(emoji);
+	if (idx < 0) return null;
+	let rest = text.slice(idx + emoji.length);
+	// Stop at the next emoji marker (any of the Tasks-plugin conventions).
+	const next = rest.search(/[⏳🛫🔁✅➕⏫🔼🔽]/u);
+	if (next >= 0) rest = rest.slice(0, next);
+	const value = rest.trim();
+	return value || null;
 }
 
 /** The checkbox marker at the start of a list item, capturing the state char so
@@ -1986,7 +2406,7 @@ async function setCheckboxState(view: HomeView, hit: TaskHit, done: boolean): Pr
 	if (!match) return false; // line no longer a checkbox — file changed under us
 	// Confirm it's still the same task, comparing text with any 📅 due date
 	// stripped (dates can shift without changing the task).
-	const strip = (t: string) => t.replace(/📅\s*\d{4}-\d{2}-\d{2}/, "").trim();
+	const strip = (t: string) => t.replace(/📅\s*[^\n\r⏳🛫🔁✅➕⏫🔼🔽]*/u, "").trim();
 	if (strip(line.slice(match[0].length)) !== strip(hit.text)) return false;
 	lines[hit.line] = line.replace(
 		CHECKBOX_MARKER,
@@ -2007,6 +2427,165 @@ async function setTaskNotesStatus(view: HomeView, hit: TaskHit, value: string): 
 	} catch {
 		new Notice("Hearth: couldn't update the task status.");
 	}
+}
+
+/** Compute the next occurrence date (YYYY-MM-DD) of a TaskNotes recurrence
+ * rule strictly after `fromDate` (YYYY-MM-DD). Handles the common FREQ values
+ * (DAILY/WEEKLY/MONTHLY/YEARLY) with INTERVAL and BYDAY; weeks are aligned to
+ * the rule's DTSTART so a "weekly on Monday, every 1 week" anchored on a
+ * Monday keeps landing on Mondays. Returns null when the rule can't be parsed
+ * or no occurrence is found within a sane horizon (~2 years). */
+function nextOccurrence(rule: string, fromDate: string): string | null {
+	if (!rule || !fromDate) return null;
+	const r = rule.replace(/^RRULE:/i, "");
+	const dtRaw = /DTSTART[:=](\d{8})/i.exec(r)?.[1];
+	const freq = /FREQ=([A-Z]+)/i.exec(r)?.[1]?.toUpperCase();
+	if (!freq) return null;
+	const interval = Math.max(1, parseInt(/INTERVAL=(\d+)/i.exec(r)?.[1] ?? "1", 10) || 1);
+	const bydayRaw = /BYDAY=([A-Z,]+)/i.exec(r)?.[1];
+	const dtstart = dtRaw
+		? moment(`${dtRaw.slice(0, 4)}-${dtRaw.slice(4, 6)}-${dtRaw.slice(6, 8)}`)
+		: null;
+	const from = moment(fromDate);
+	const wdMap: Record<string, number> = { MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, SU: 0 };
+	const weekdays = bydayRaw
+		? bydayRaw
+				.split(",")
+				.map((d) => wdMap[d.trim().toUpperCase()] ?? -1)
+				.filter((w) => w >= 0)
+		: dtstart
+			? [dtstart.day()]
+			: [];
+
+	const cursor = from.clone().add(1, "day");
+	const limit = 730;
+	for (let i = 0; i < limit; i++) {
+		const daysSince = dtstart ? cursor.diff(dtstart, "days") : 0;
+		if (daysSince < 0) {
+			cursor.add(1, "day");
+			continue;
+		}
+		if (freq === "DAILY") {
+			if (daysSince % interval === 0) return cursor.format("YYYY-MM-DD");
+		} else if (freq === "WEEKLY") {
+			if (weekdays.length === 0) {
+				if (Math.floor(daysSince / 7) % interval === 0) return cursor.format("YYYY-MM-DD");
+			} else if (weekdays.includes(cursor.day())) {
+				if (Math.floor(daysSince / 7) % interval === 0) return cursor.format("YYYY-MM-DD");
+			}
+		} else if (freq === "MONTHLY") {
+			if (dtstart && cursor.date() === dtstart.date()) {
+				const monthsSince =
+					(cursor.year() - dtstart.year()) * 12 + (cursor.month() - dtstart.month());
+				if (monthsSince >= 0 && monthsSince % interval === 0)
+					return cursor.format("YYYY-MM-DD");
+			}
+		} else if (freq === "YEARLY") {
+			if (
+				dtstart &&
+				cursor.date() === dtstart.date() &&
+				cursor.month() === dtstart.month()
+			) {
+				const yearsSince = cursor.year() - dtstart.year();
+				if (yearsSince >= 0 && yearsSince % interval === 0)
+					return cursor.format("YYYY-MM-DD");
+			}
+		}
+		cursor.add(1, "day");
+	}
+	return null;
+}
+
+/** Mark today's occurrence of a recurring TaskNotes task complete the way
+ * TaskNotes does: append today's YYYY-MM-DD to `complete_instances` (deduped,
+ * kept sorted) and advance `scheduled` to the next occurrence derived from the
+ * recurrence rule. The task's `status` is left untouched — a recurring task
+ * stays open and just rolls forward to its next due date. */
+async function completeRecurringInstance(view: HomeView, hit: TaskHit): Promise<void> {
+	if (!hit.recurrence) return;
+	const today: string = moment().format("YYYY-MM-DD");
+	const next = nextOccurrence(hit.recurrence, today);
+	try {
+		await view.app.fileManager.processFrontMatter(hit.file, (fm) => {
+			const cur = typeof fm["scheduled"] === "string" ? String(fm["scheduled"]) : null;
+			const timeMatch = cur ? /T(\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z?)\s*$/.exec(cur) : null;
+			const instances = Array.isArray(fm["complete_instances"])
+				? fm["complete_instances"].map((v: unknown) => String(v))
+				: [];
+			if (!instances.includes(today)) {
+				instances.push(today);
+				instances.sort();
+				fm["complete_instances"] = instances;
+			}
+			if (next) {
+				fm["scheduled"] = timeMatch ? `${next}T${timeMatch[1]}` : next;
+			}
+		});
+	} catch {
+		new Notice("Hearth: couldn't mark the recurring task instance complete.");
+	}
+}
+
+/** Undo today's completion of a recurring TaskNotes task: remove today from
+ * `complete_instances` and roll `scheduled` back to today (the occurrence we
+ * just un-completed). Used when the user unchecks the box to cancel a
+ * mistaken completion. */
+async function uncompleteRecurringInstance(view: HomeView, hit: TaskHit): Promise<void> {
+	if (!hit.recurrence) return;
+	const today: string = moment().format("YYYY-MM-DD");
+	try {
+		await view.app.fileManager.processFrontMatter(hit.file, (fm) => {
+			const cur = typeof fm["scheduled"] === "string" ? String(fm["scheduled"]) : null;
+			const timeMatch = cur ? /T(\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z?)\s*$/.exec(cur) : null;
+			const instances = Array.isArray(fm["complete_instances"])
+				? fm["complete_instances"].map((v: unknown) => String(v)).filter((d) => d !== today)
+				: [];
+			fm["complete_instances"] = instances;
+			// Restore the occurrence date the checkbox represents (today),
+			// keeping any time component the task already had.
+			fm["scheduled"] = timeMatch ? `${today}T${timeMatch[1]}` : today;
+		});
+	} catch {
+		new Notice("Hearth: couldn't undo the recurring task completion.");
+	}
+}
+
+/** Render a small checkbox that completes today's occurrence of a recurring
+ * TaskNotes task on check, and undoes it on uncheck (removes today from
+ * complete_instances and rolls scheduled back to today). Pre-checked when
+ * today is already in complete_instances. Stops propagation so it never
+ * triggers the row/card click or drag. Rendered as the first child of `parent`
+ * so it sits before the task text. */
+function renderRecurringCheckbox(
+	view: HomeView,
+	hit: TaskHit,
+	today: string,
+	parent: HTMLElement,
+	refresh: () => void,
+): void {
+	const check = parent.createEl("input", {
+		cls: "hearth-task-check hearth-task-check-recurring",
+		attr: { type: "checkbox", "aria-label": "Mark today's occurrence complete" },
+	});
+	// Move it to the very front so it leads the task text regardless of what
+	// the caller appends afterwards.
+	parent.insertBefore(check, parent.firstChild);
+	check.checked = (hit.completeInstances ?? []).includes(today);
+	const stop = (e: Event) => e.stopPropagation();
+	check.addEventListener("click", stop);
+	check.addEventListener("mousedown", stop);
+	check.addEventListener("pointerdown", stop);
+	check.addEventListener("change", () => {
+		const wasChecked = (hit.completeInstances ?? []).includes(today);
+		if (check.checked && !wasChecked) {
+			void completeRecurringInstance(view, hit).then(refresh);
+		} else if (!check.checked && wasChecked) {
+			void uncompleteRecurringInstance(view, hit).then(refresh);
+		} else {
+			// State already matches the data — keep the checkbox in sync.
+			check.checked = wasChecked;
+		}
+	});
 }
 
 /** Best-effort: open a TaskNotes task in TaskNotes' own editor rather than the

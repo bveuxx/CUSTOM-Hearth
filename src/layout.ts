@@ -102,6 +102,10 @@ function sanitizeLink(raw: unknown): LinkItem | null {
 		type,
 	};
 	if (typeof r.size === "number") link.size = r.size;
+	if (typeof r.sizeW === "number") link.sizeW = r.sizeW;
+	if (typeof r.sizeH === "number") link.sizeH = r.sizeH;
+	if (typeof r.col === "number" && r.col >= 0) link.col = r.col;
+	if (typeof r.row === "number" && r.row >= 0) link.row = r.row;
 	return link;
 }
 
@@ -137,6 +141,7 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 	if (typeof r.refreshSec === "number") card.refreshSec = r.refreshSec;
 	if (typeof r.editable === "boolean") card.editable = r.editable;
 	if (typeof r.tileSize === "number") card.tileSize = r.tileSize;
+	if (typeof r.tileAutoFlow === "boolean") card.tileAutoFlow = r.tileAutoFlow;
 	if (typeof r.showOpenButton === "boolean") card.showOpenButton = r.showOpenButton;
 	if (typeof r.sandboxTrusted === "boolean") card.sandboxTrusted = r.sandboxTrusted;
 	if (typeof r.pinned === "boolean") card.pinned = r.pinned;
@@ -175,6 +180,10 @@ function sanitizeCommand(raw: unknown): CommandItem | null {
 	if (!id) return null;
 	const cmd: CommandItem = { id, name: str(r.name) ?? id, icon: str(r.icon) };
 	if (typeof r.size === "number") cmd.size = r.size;
+	if (typeof r.sizeW === "number") cmd.sizeW = r.sizeW;
+	if (typeof r.sizeH === "number") cmd.sizeH = r.sizeH;
+	if (typeof r.col === "number" && r.col >= 0) cmd.col = r.col;
+	if (typeof r.row === "number" && r.row >= 0) cmd.row = r.row;
 	return cmd;
 }
 

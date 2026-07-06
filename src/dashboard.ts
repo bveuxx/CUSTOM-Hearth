@@ -19,6 +19,7 @@ import {
 } from "./types";
 import {
 	applyCardPosition,
+	applyEdgeMerging,
 	clampCardToBoard,
 	enableDragResize,
 	ensureFreeform,
@@ -127,6 +128,16 @@ export function renderDashboard(
 			enableDragResize(view, el, grid, card, gridLayout, component, commit);
 		}
 	}
+
+	// Sharpen touching corners between neighbouring cards so adjacent cards
+	// read as one merged tile. Recomputed after every drag/resize commit and
+	// on viewport resize (handled below) since card positions reflow.
+	applyEdgeMerging(grid);
+
+	// Recompute edge merging whenever the board reflows (pane resize, zoom,
+	// dashboard switch) — fractional widths shift which edges touch.
+	const remerge = () => applyEdgeMerging(grid);
+	component.registerDomEvent(window, "resize", debounce(remerge, 120, true));
 }
 
 /** Render a card's body. Each (re)draw renders under a fresh child component so
@@ -330,6 +341,28 @@ function renderToolbar(view: HomeView, container: HTMLElement): void {
 				);
 			}
 			menu.showAtMouseEvent(evt);
+		});
+
+		// Toggle the per-card headers (title input + actions) off so each
+		// card's full body is visible while arranging. Only available while
+		// arranging; the headers come back automatically when arranging ends.
+		const hideHdr = bar.createEl("button", { cls: "hearth-tool-btn" });
+		hideHdr.toggleClass("is-active", view.hideHeaderInArrange);
+		setIcon(
+			hideHdr.createSpan("hearth-tool-icon"),
+			view.hideHeaderInArrange ? "eye-off" : "eye",
+		);
+		hideHdr.createSpan({
+			cls: "hearth-tool-label",
+			text: view.hideHeaderInArrange ? "Show titles" : "Hide titles",
+		});
+		hideHdr.setAttribute(
+			"aria-label",
+			view.hideHeaderInArrange ? "Show card headers" : "Hide card headers",
+		);
+		hideHdr.addEventListener("click", () => {
+			view.hideHeaderInArrange = !view.hideHeaderInArrange;
+			view.render();
 		});
 	}
 
