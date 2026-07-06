@@ -119,6 +119,33 @@ export function parseNaturalDate(input: string): string | null {
 	return null;
 }
 
+/** Format a YYYY-MM-DD (or datetime) as a short, human-relative label for the
+ *  tasks card: "Today", "Tomorrow", "Yesterday", the weekday name for the
+ *  rest of the week ("Friday"), "Next Friday" / "Last Friday" for the week
+ *  after that, and a compact "D MMM" (e.g. "15 Jul") beyond. The caller adds
+ *  the ↻ recurring suffix and the overdue tint; this returns only the date
+ *  wording. Falls back to the raw string when it can't be parsed as a date. */
+export function formatRelativeDate(dateStr: string): string {
+	const iso = dateStr.slice(0, 10);
+	const target = moment(iso);
+	if (!target.isValid) return dateStr;
+	const today = moment().startOf("day");
+	const m = target.startOf("day");
+	const diff = Math.round(m.diff(today, "day"));
+	if (diff === 0) return "Today";
+	if (diff === 1) return "Tomorrow";
+	if (diff === -1) return "Yesterday";
+	if (diff >= 2 && diff <= 6) return capitalize(m.format("dddd"));
+	if (diff <= -2 && diff >= -6) return `${Math.abs(diff)} days ago`;
+	if (diff >= 7 && diff <= 13) return `Next ${capitalize(m.format("dddd"))}`;
+	if (diff <= -7 && diff >= -13) return `Last ${capitalize(m.format("dddd"))}`;
+	return m.format("D MMM");
+}
+
+function capitalize(s: string): string {
+	return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
 /** The next occurrence of weekday `target` (ISO 1..7). If `target` equals
  * today's weekday, `minForward` controls whether it rolls to next week (1) or
  * stays today (0). */

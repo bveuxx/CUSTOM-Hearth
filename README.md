@@ -7,11 +7,13 @@ launcher in one. Hearth turns your vault into a welcoming front page with a fast
 fuzzy search, quick file-type filters, and a fully arrangeable grid of live
 cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
 
-> **v1.6** — natural-language task due dates (today, next friday, in 3 days…),
-> free-form launchpad tiles you can drop anywhere on the card (not just the
-> top-to-bottom flow), centred mobile search, and edge-merging cards: two
-> cards snapped together lose their shared border and sharpen their touching
-> corners so they read as one continuous tile.
+> **v1.6** — task due dates show as short relative labels ("Today", "Tomorrow",
+> "Yesterday", "Friday", "Next Friday", "15 Jul"), free-form launchpad tiles
+> you can drop anywhere on the card (not just the top-to-bottom flow), centred
+> mobile search, and edge-merging cards: two cards snapped together lose their
+> shared border and sharpen their touching corners so they read as one
+> continuous tile. Task due dates also accept natural-language input (`📅
+> tomorrow`, `📅 next friday`, `📅 in 3 days`…).
 
 > **v1.5** — a redesigned dashboard experience: a CSS-grid tile layout with
 > independent column/row spans and drag-to-reorder, an ambient default
@@ -105,11 +107,12 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   click-to-toggle, click-to-open at the line) or reads TaskNotes task notes via
   frontmatter. Folder whitelist/blacklist for scope. Click **+** (top-right,
   TaskNotes source) to create a new task via TaskNotes' own command. Tasks are
-  sorted by **due → scheduled → priority → created**. Due dates accept
-  **natural language**: write `📅 tomorrow`, `📅 next friday`, `📅 in 3 days`,
-  `📅 end of month` (or the same wording in a TaskNotes `due` field) and Hearth
-  resolves it to a date — the wording is shown next to the parsed date so you
-  keep recognising what you typed.
+  sorted by **due → scheduled → priority → created**. Due dates show as short
+  relative labels (**Today**, **Tomorrow**, **Yesterday**, the weekday for the
+  rest of the week, **Next Friday** / **Last Friday** for the week after, then
+  a compact "15 Jul"). They also accept **natural-language input**: write
+  `📅 tomorrow`, `📅 next friday`, `📅 in 3 days`, `📅 end of month` (or the same
+  wording in a TaskNotes `due` field) and Hearth resolves it to a date.
 - **Recurring tasks** — TaskNotes tasks with a `recurrence` RRULE show a **↻**
   badge next to the next-occurrence date (read from `scheduled`), tinted with
   the accent color so recurring items stand out at a glance. Hovering the date
