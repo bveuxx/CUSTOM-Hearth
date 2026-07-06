@@ -240,6 +240,7 @@ function renderEmbed(
 	}
 
 	const host = body.createDiv("hearth-embed markdown-rendered");
+	body.addClass("is-embed-host");
 	// Optional zoom: scale the rendered content and widen it inversely so it
 	// still fills the card width before scaling (the body handles overflow).
 	const scale = card.scale && card.scale > 0 ? card.scale : 1;
@@ -299,6 +300,7 @@ function renderEditableEmbed(
 	component: Component,
 ): void {
 	const wrap = body.createDiv("hearth-jot");
+	body.addClass("is-jot-host");
 	const preview = wrap.createDiv("hearth-embed markdown-rendered hearth-jot-preview");
 	preview.setAttribute("title", "Double-click to edit");
 	const area = wrap.createEl("textarea", {
@@ -455,7 +457,7 @@ function renderDaily(
 	// as a floating overlay on the card element (not the body) so it doesn't
 	// affect the body's scroll/flow.
 	if (card.showOpenButton !== false) {
-		const cardEl = body.closest(".hearth-card") as HTMLElement | null;
+		const cardEl = body.closest(".hearth-card");
 		const overlay = (cardEl ?? body).createDiv("hearth-card-actions-overlay");
 		const open = overlay.createEl("button", {
 			cls: "hearth-open-btn",
@@ -473,6 +475,7 @@ function renderDaily(
 	}
 
 	const host = body.createDiv("hearth-embed markdown-rendered");
+	body.addClass("is-embed-host");
 	void renderMarkdownFile(view, file, host, component);
 }
 
@@ -1015,6 +1018,7 @@ function renderText(
 	component: Component,
 ): void {
 	const wrap = body.createDiv("hearth-jot");
+	body.addClass("is-jot-host");
 	const preview = wrap.createDiv("hearth-jot-preview markdown-rendered");
 	preview.setAttribute("title", "Double-click to edit");
 	const area = wrap.createEl("textarea", {
@@ -1370,8 +1374,7 @@ function makeTileFreeFormDrag<T extends { id: string; col?: number; row?: number
 		}
 		// Float the tile by the pointer delta — no position/size changes, so
 		// there's no offset or jump. The grid slot stays reserved.
-		tile.style.transform = `translate(${dx}px, ${dy}px)`;
-		tile.style.zIndex = "20";
+		tile.setCssStyles({ transform: `translate(${dx}px, ${dy}px)` });
 		// Move the ghost outline to the cell under the pointer.
 		if (ghost) {
 			const cell = pickGridCell(container, e.clientX, e.clientY, tile);
@@ -1391,8 +1394,7 @@ function makeTileFreeFormDrag<T extends { id: string; col?: number; row?: number
 		const wasMoved = moved;
 		moved = false;
 		tile.removeClass("is-tile-dragging");
-		tile.style.transform = "";
-		tile.style.zIndex = "";
+		tile.setCssStyles({});
 		if (ghost) {
 			ghost.remove();
 			ghost = null;
@@ -1439,6 +1441,8 @@ function makeTileAutoFlowDrag<T extends { id: string; col?: number; row?: number
 	// it absolutely without a jump (delta-based movement).
 	let baseLeft = 0;
 	let baseTop = 0;
+	let baseWidth = 0;
+	let baseHeight = 0;
 
 	let placeholder: HTMLElement | null = null;
 	let placeholderPos: { col: number; row: number } | null = null;
@@ -1472,6 +1476,8 @@ function makeTileAutoFlowDrag<T extends { id: string; col?: number; row?: number
 			const containerRect = container.getBoundingClientRect();
 			baseLeft = rect.left - containerRect.left;
 			baseTop = rect.top - containerRect.top;
+			baseWidth = rect.width;
+			baseHeight = rect.height;
 			placeholderPos = getTileCell(tile, container) ?? {
 				col: item.col ?? 1,
 				row: item.row ?? 1,
@@ -1498,15 +1504,22 @@ function makeTileAutoFlowDrag<T extends { id: string; col?: number; row?: number
 			}
 			// Take the tile out of flow and immediately pin it to its current
 			// spot so it doesn't jump before the first delta is applied.
-			tile.style.position = "absolute";
-			tile.style.width = `${rect.width}px`;
-			tile.style.height = `${rect.height}px`;
-			tile.style.left = `${baseLeft}px`;
-			tile.style.top = `${baseTop}px`;
+			tile.setCssStyles({
+				position: "absolute",
+				width: `${rect.width}px`,
+				height: `${rect.height}px`,
+				left: `${baseLeft}px`,
+				top: `${baseTop}px`,
+			});
 		}
 		// Move by the pointer delta from the grab point — no offset issues.
-		tile.style.left = `${baseLeft + dx}px`;
-		tile.style.top = `${baseTop + dy}px`;
+		tile.setCssStyles({
+			position: "absolute",
+			width: `${baseWidth}px`,
+			height: `${baseHeight}px`,
+			left: `${baseLeft + dx}px`,
+			top: `${baseTop + dy}px`,
+		});
 		if (!placeholder || !placeholderPos) return;
 		const other = findTileUnderPointer(container, e.clientX, e.clientY, tile);
 		if (other) {
@@ -1534,12 +1547,7 @@ function makeTileAutoFlowDrag<T extends { id: string; col?: number; row?: number
 		const wasMoved = moved;
 		moved = false;
 		tile.removeClass("is-tile-dragging");
-		tile.style.position = "";
-		tile.style.left = "";
-		tile.style.top = "";
-		tile.style.width = "";
-		tile.style.height = "";
-		tile.style.zIndex = "";
+		tile.setCssStyles({});
 		tile.closest(".hearth-card")?.removeClass("has-tile-gesture");
 		const dropPos = placeholderPos;
 		if (placeholder) {
@@ -1644,10 +1652,10 @@ function findTileUnderPointer(
 	clientY: number,
 	except: HTMLElement,
 ): HTMLElement | null {
-	const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
+	const el = activeDocument.elementFromPoint(clientX, clientY) as HTMLElement | null;
 	if (!el) return null;
 	if (except.contains(el)) return null;
-	const tile = el.closest(".hearth-link-tile") as HTMLElement | null;
+	const tile = el.closest<HTMLElement>(".hearth-link-tile");
 	if (!tile || tile === except || !container.contains(tile)) return null;
 	return tile;
 }
@@ -2366,7 +2374,7 @@ function readEmojiField(text: string, emoji: string): string | null {
 	if (idx < 0) return null;
 	let rest = text.slice(idx + emoji.length);
 	// Stop at the next emoji marker (any of the Tasks-plugin conventions).
-	const next = rest.search(/[⏳🛫🔁✅➕⏫🔼🔽]/);
+	const next = rest.search(/[⏳🛫🔁✅➕⏫🔼🔽]/u);
 	if (next >= 0) rest = rest.slice(0, next);
 	const value = rest.trim();
 	return value || null;
@@ -2398,7 +2406,7 @@ async function setCheckboxState(view: HomeView, hit: TaskHit, done: boolean): Pr
 	if (!match) return false; // line no longer a checkbox — file changed under us
 	// Confirm it's still the same task, comparing text with any 📅 due date
 	// stripped (dates can shift without changing the task).
-	const strip = (t: string) => t.replace(/📅\s*[^\n\r⏳🛫🔁✅➕⏫🔼🔽]*/, "").trim();
+	const strip = (t: string) => t.replace(/📅\s*[^\n\r⏳🛫🔁✅➕⏫🔼🔽]*/u, "").trim();
 	if (strip(line.slice(match[0].length)) !== strip(hit.text)) return false;
 	lines[hit.line] = line.replace(
 		CHECKBOX_MARKER,
@@ -2565,8 +2573,8 @@ function renderRecurringCheckbox(
 	check.checked = (hit.completeInstances ?? []).includes(today);
 	const stop = (e: Event) => e.stopPropagation();
 	check.addEventListener("click", stop);
-	check.addEventListener("mousedown", stop as EventListener);
-	check.addEventListener("pointerdown", stop as EventListener);
+	check.addEventListener("mousedown", stop);
+	check.addEventListener("pointerdown", stop);
 	check.addEventListener("change", () => {
 		const wasChecked = (hit.completeInstances ?? []).includes(today);
 		if (check.checked && !wasChecked) {

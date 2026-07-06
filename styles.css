@@ -458,8 +458,8 @@
  * scroll, so it can't stack a second scrollbar next to the embed's. The same
  * applies to the editable embed wrapper (.hearth-jot), whose preview/textarea
  * handle their own scrolling. */
-.hearth-card-body:has(> .hearth-embed),
-.hearth-card-body:has(> .hearth-jot) {
+.hearth-card-body.is-embed-host,
+.hearth-card-body.is-jot-host {
 	overflow: hidden;
 }
 
