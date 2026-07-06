@@ -7,6 +7,12 @@ launcher in one. Hearth turns your vault into a welcoming front page with a fast
 fuzzy search, quick file-type filters, and a fully arrangeable grid of live
 cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
 
+> **v1.6** — natural-language task due dates (today, next friday, in 3 days…),
+> free-form launchpad tiles you can drop anywhere on the card (not just the
+> top-to-bottom flow), centred mobile search, and edge-merging cards: two
+> cards snapped together lose their shared border and sharpen their touching
+> corners so they read as one continuous tile.
+
 > **v1.5** — a redesigned dashboard experience: a CSS-grid tile layout with
 > independent column/row spans and drag-to-reorder, an ambient default
 > background, an overhauled starter dashboard, recurring TaskNotes tasks with
@@ -99,7 +105,11 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   click-to-toggle, click-to-open at the line) or reads TaskNotes task notes via
   frontmatter. Folder whitelist/blacklist for scope. Click **+** (top-right,
   TaskNotes source) to create a new task via TaskNotes' own command. Tasks are
-  sorted by **due → scheduled → priority → created**.
+  sorted by **due → scheduled → priority → created**. Due dates accept
+  **natural language**: write `📅 tomorrow`, `📅 next friday`, `📅 in 3 days`,
+  `📅 end of month` (or the same wording in a TaskNotes `due` field) and Hearth
+  resolves it to a date — the wording is shown next to the parsed date so you
+  keep recognising what you typed.
 - **Recurring tasks** — TaskNotes tasks with a `recurrence` RRULE show a **↻**
   badge next to the next-occurrence date (read from `scheduled`), tinted with
   the accent color so recurring items stand out at a glance. Hovering the date
@@ -127,8 +137,11 @@ toolbar; configure each one from the card itself (title, content, colors, size).
 - **Recent files** — your recently opened files (configurable count).
 - **Links / launchpad** — a grid of tiles opening notes, URLs or commands.
   Tiles live on a **CSS grid** with independent **column and row spans**, so a
-  tile can be 2×2, 4×1, or any proportion. In arrange mode, drag tiles to
-  **reorder** them, and resize each tile independently via a corner grip.
+  tile can be 2×2, 4×1, or any proportion. In arrange mode, drag a tile to
+  **drop it anywhere** on the card — it pins to that spot instead of being
+  forced into a top-to-bottom, left-to-right flow (double-click a pinned tile
+  to release it back to auto-flow), and resize each tile independently via a
+  corner grip.
 - **Commands** — tiles that run any command-palette command, on the same grid
   with adjustable per-tile size.
 - **Clock & greeting** — digital or **analogue** face, several date formats
@@ -164,6 +177,10 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   anywhere) and resize them from **any edge or corner**. Placement is fully
   free-form: cards sit and size anywhere, with **magnetic alignment** — edges
   and centres snap to neighbouring cards and the board, showing guide lines.
+- **Edge-merging cards** — when two cards are snapped together (touching edges),
+  their shared border drops out and the touching corners sharpen so the pair
+  reads as **one continuous tile** — like grouped Android notifications. The
+  merge follows the live layout, so it updates as you drag cards together.
 - **On-board management** — in arrange mode each card header is editable:
   rename inline, swap the embedded file via a fuzzy picker, or remove the card.
   **Add card** (toolbar) drops in a new card from the library.
@@ -178,7 +195,9 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   image URL — per-board overrides supported.
 - **Independent tile sizing** — tiles live on a fine CSS grid (44 px cells,
   4 px snap), each with its own column and row span. Drag the corner grip to
-  resize; drag the tile body to reorder. The default tile is a 2×2 cell block.
+  resize; drag the tile body to **drop it anywhere on the card** (it pins to
+  that spot; double-click to release it back to auto-flow). The default tile
+  is a 2×2 cell block.
 - **Granular card sizing** — numeric width/height per card, plus a configurable
   row height for fine vertical control.
 - **Fit to page** — lock the dashboard to one screen (no scroll) or let it

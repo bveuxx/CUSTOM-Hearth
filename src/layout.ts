@@ -102,6 +102,10 @@ function sanitizeLink(raw: unknown): LinkItem | null {
 		type,
 	};
 	if (typeof r.size === "number") link.size = r.size;
+	if (typeof r.sizeW === "number") link.sizeW = r.sizeW;
+	if (typeof r.sizeH === "number") link.sizeH = r.sizeH;
+	if (typeof r.col === "number" && r.col >= 0) link.col = r.col;
+	if (typeof r.row === "number" && r.row >= 0) link.row = r.row;
 	return link;
 }
 
@@ -175,6 +179,10 @@ function sanitizeCommand(raw: unknown): CommandItem | null {
 	if (!id) return null;
 	const cmd: CommandItem = { id, name: str(r.name) ?? id, icon: str(r.icon) };
 	if (typeof r.size === "number") cmd.size = r.size;
+	if (typeof r.sizeW === "number") cmd.sizeW = r.sizeW;
+	if (typeof r.sizeH === "number") cmd.sizeH = r.sizeH;
+	if (typeof r.col === "number" && r.col >= 0) cmd.col = r.col;
+	if (typeof r.row === "number" && r.row >= 0) cmd.row = r.row;
 	return cmd;
 }
 
