@@ -882,6 +882,19 @@
 	pointer-events: none;
 }
 
+/* Dashed placeholder that occupies the dragged tile's target grid cell, so
+ * the user sees where it will land and siblings swap around it live like
+ * phone widgets. */
+.hearth-tile-placeholder {
+	grid-column: var(--hearth-tile-col, auto) / span var(--hearth-tile-cs, 1);
+	grid-row: var(--hearth-tile-row, auto) / span var(--hearth-tile-rs, 1);
+	border-radius: 12px;
+	border: 2px dashed var(--interactive-accent);
+	background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
+	pointer-events: none;
+	opacity: 0.7;
+}
+
 /* Briefly hide a dragged tile from hit-testing so elementFromPoint() can find
  * the tile underneath it during a reorder. */
 .hearth-link-tile.is-hit-testing {
