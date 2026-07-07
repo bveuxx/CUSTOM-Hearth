@@ -118,13 +118,10 @@ export class HomeSettingTab extends PluginSettingTab {
 		const body = wrap.createDiv("hearth-section-body");
 		render(body);
 
+		// Persist the collapsed state per-section and per-vault via Obsidian's
+		// vault-scoped local storage.
 		const key = `hearth-section-${title}`;
-		let collapsed = false;
-		try {
-			collapsed = localStorage.getItem(key) === "1";
-		} catch {
-			// localStorage can throw in locked-down contexts; default to open.
-		}
+		let collapsed = this.app.loadLocalStorage(key) === "1";
 		const apply = () => {
 			wrap.toggleClass("is-collapsed", collapsed);
 			body.style.display = collapsed ? "none" : "";
@@ -135,11 +132,7 @@ export class HomeSettingTab extends PluginSettingTab {
 		apply();
 		head.addEventListener("click", () => {
 			collapsed = !collapsed;
-			try {
-				localStorage.setItem(key, collapsed ? "1" : "0");
-			} catch {
-				// ignore — non-persistent folding is fine as a fallback.
-			}
+			this.app.saveLocalStorage(key, collapsed ? "1" : null);
 			apply();
 		});
 		head.addEventListener("keydown", (e) => {
@@ -153,20 +146,19 @@ export class HomeSettingTab extends PluginSettingTab {
 	// ---- Slider reset helper -------------------------------------------
 
 	/** Add a reset (rotate-ccw) extra button to a slider Setting that restores
-	 * the factory default from DEFAULT_SETTINGS. The slider keeps a dynamic
-	 * tooltip showing the live value. */
+	 * the factory default from DEFAULT_SETTINGS. The slider value is shown inline
+	 * next to it by Obsidian. */
 	private addSliderReset(
 		setting: Setting,
 		sl: SliderComponent,
 		key: NumericSettingKey,
 	): void {
-		sl.setDynamicTooltip();
 		setting.addExtraButton((b) =>
 			b
 				.setIcon("rotate-ccw")
 				.setTooltip(t().settings.resetSlider)
 				.onClick(async () => {
-					const def = DEFAULT_SETTINGS[key] as number;
+					const def = DEFAULT_SETTINGS[key];
 					(this.plugin.settings as unknown as Record<string, number>)[key] = def;
 					sl.setValue(def);
 					await this.save();

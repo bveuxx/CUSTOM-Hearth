@@ -4,6 +4,12 @@ import { BackgroundConfig, BackgroundKind, Dashboard, newDashboardId, cloneCard 
 import { confirmAction } from "./ui";
 import { t } from "./i18n";
 
+/** Factory defaults for a per-dashboard background's opacity and blur — the
+ * values a freshly-enabled dashboard background starts at, and what the reset
+ * buttons restore. */
+const DEFAULT_DASH_BG_OPACITY = 0.15;
+const DEFAULT_DASH_BG_BLUR = 0;
+
 /**
  * The top-left dashboard switcher: a button per dashboard (its emoji/icon or its
  * 1-based number) plus a "+" to add one. Clicking switches to it; right-clicking
@@ -287,7 +293,6 @@ class DashboardSettingsModal extends Modal {
 				sl
 					.setLimits(min, max, step)
 					.setValue(current)
-					.setDynamicTooltip()
 					.onChange((v) => set(v)),
 			);
 		}
@@ -311,8 +316,8 @@ class DashboardSettingsModal extends Modal {
 						dash.background = {
 							kind: v as BackgroundKind,
 							value: bg?.value ?? "",
-							opacity: bg?.opacity ?? 0.15,
-							blur: bg?.blur ?? 0,
+							opacity: bg?.opacity ?? DEFAULT_DASH_BG_OPACITY,
+							blur: bg?.blur ?? DEFAULT_DASH_BG_BLUR,
 						};
 					}
 					this.commit();
@@ -340,10 +345,12 @@ class DashboardSettingsModal extends Modal {
 				);
 		}
 
-		this.bgNumber(containerEl, t().dashboards.modal.opacity, bg, "opacity", 0, 1, 0.05);
-		this.bgNumber(containerEl, t().dashboards.modal.blur, bg, "blur", 0, 40, 1);
+		this.bgNumber(containerEl, t().dashboards.modal.opacity, bg, "opacity", 0, 1, 0.05, DEFAULT_DASH_BG_OPACITY);
+		this.bgNumber(containerEl, t().dashboards.modal.blur, bg, "blur", 0, 40, 1, DEFAULT_DASH_BG_BLUR);
 	}
 
+	/** A per-dashboard background slider (opacity/blur) with a reset button that
+	 * restores the factory default `def`. */
 	private bgNumber(
 		containerEl: HTMLElement,
 		name: string,
@@ -352,17 +359,27 @@ class DashboardSettingsModal extends Modal {
 		min: number,
 		max: number,
 		step: number,
+		def: number,
 	): void {
-		new Setting(containerEl).setName(name).addSlider((sl) =>
-			sl
-				.setLimits(min, max, step)
+		const setting = new Setting(containerEl).setName(name);
+		setting.addSlider((sl) => {
+			sl.setLimits(min, max, step)
 				.setValue(bg[key])
-				.setDynamicTooltip()
 				.onChange((v) => {
 					bg[key] = v;
 					this.commit();
-				}),
-		);
+				});
+			setting.addExtraButton((b) =>
+				b
+					.setIcon("rotate-ccw")
+					.setTooltip(t().settings.resetSlider)
+					.onClick(() => {
+						bg[key] = def;
+						sl.setValue(def);
+						this.commit();
+					}),
+			);
+		});
 	}
 
 	onClose(): void {

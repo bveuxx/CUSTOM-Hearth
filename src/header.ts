@@ -82,7 +82,7 @@ function searchOnline(bar: HTMLElement): void {
 
 /** The original New-note button: creates a new note on click. */
 function createNewNoteButton(view: HomeView): HTMLElement {
-	const btn = document.createElement("button");
+	const btn = activeDocument.createElement("button");
 	btn.className = "hearth-newnote";
 	btn.setAttribute("aria-label", t().header.newNoteAria);
 	setIcon(btn.createSpan("hearth-newnote-icon"), "plus");
@@ -95,7 +95,7 @@ function createNewNoteButton(view: HomeView): HTMLElement {
 
 /** The Search-online button: runs a web search for the current query. */
 function createSearchOnlineButton(bar: HTMLElement): HTMLElement {
-	const btn = document.createElement("button");
+	const btn = activeDocument.createElement("button");
 	btn.className = "hearth-newnote hearth-newnote-search";
 	btn.setAttribute("aria-label", t().header.searchOnlineAria);
 	setIcon(btn.createSpan("hearth-newnote-icon"), "globe");
