@@ -1173,12 +1173,22 @@ function applyTileSize(
 	const rs = h && h > 0 ? Math.max(1, Math.round(h / rowH)) : DEFAULT_TILE_RS;
 	tile.style.setProperty("--hearth-tile-cs", String(cs));
 	tile.style.setProperty("--hearth-tile-rs", String(rs));
+	applyTileIconOnly(tile, cs, rs);
 	// Free-form position: pin to a grid line (1-based). When either is missing
 	// the tile auto-flows into the next available cell.
 	if (col != null && col > 0) tile.style.setProperty("--hearth-tile-col", String(col));
 	else tile.style.removeProperty("--hearth-tile-col");
 	if (row != null && row > 0) tile.style.setProperty("--hearth-tile-row", String(row));
 	else tile.style.removeProperty("--hearth-tile-row");
+}
+
+/** Toggle icon-only mode when a tile is too small to show its label. Below two
+ * fine rows there's no vertical room for text, and at a single column there's
+ * no horizontal room; in both cases the label ellipsises away to nothing while
+ * still reserving its line + gap, which pushes the icon off-centre. Dropping
+ * the label (and its gap) then lets the icon sit dead-centre. */
+function applyTileIconOnly(tile: HTMLElement, cs: number, rs: number): void {
+	tile.toggleClass("is-icon-only", rs <= 1 || cs <= 1);
 }
 
 /** Default span for a tile with no explicit size: 2 columns × 2 rows on the
@@ -1260,6 +1270,7 @@ function makeTileResizable(
 		const rs = Math.max(1, Math.round(h / rowH));
 		tile.style.setProperty("--hearth-tile-cs", String(cs));
 		tile.style.setProperty("--hearth-tile-rs", String(rs));
+		applyTileIconOnly(tile, cs, rs);
 	});
 
 	const end = (e: PointerEvent) => {
