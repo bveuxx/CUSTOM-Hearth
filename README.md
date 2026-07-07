@@ -7,27 +7,6 @@ launcher in one. Hearth turns your vault into a welcoming front page with a fast
 fuzzy search, quick file-type filters, and a fully arrangeable grid of live
 cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
 
-> **v1.6** — task due dates show as short relative labels ("Today", "Tomorrow",
-> "Yesterday", "Friday", "Next Friday", "15 Jul"), free-form launchpad tiles
-> you can drop anywhere on the card (not just the top-to-bottom flow), centred
-> mobile search, and edge-merging cards: two cards snapped together lose their
-> shared border and sharpen their touching corners so they read as one
-> continuous tile. Task due dates also accept natural-language input (`📅
-> tomorrow`, `📅 next friday`, `📅 in 3 days`…). Launchpad tiles are now pure
-> free-form: they can be placed anywhere and may overlap — a hidden tile glows
-> so the overlap is easy to spot and fix. An optional **Auto-shift tiles**
-> (beta) per-card toggle makes tiles shove each other aside live while
-> dragging (phone-widget style). In arrange mode the per-card headers can be
-> toggled off so each card's full body is visible.
-
-> **v1.5** — a redesigned dashboard experience: a CSS-grid tile layout with
-> independent column/row spans and drag-to-reorder, an ambient default
-> background, an overhauled starter dashboard, recurring TaskNotes tasks with
-> a ↻ badge and human-readable recurrence tooltip, smarter task sorting
-> (due → scheduled → priority → created), kanban drop outlines, calendar
-> today outline under the heatmap, search layout polish, and many fit-to-page
-> and card-drag fixes.
-
 ## Screenshots
 
 ![Dashboard](assets/4.png)
@@ -279,50 +258,28 @@ npm run typecheck
 To test in a vault, symlink or copy `main.js`, `manifest.json` and `styles.css`
 into `<vault>/.obsidian/plugins/hearth/`.
 
-## Roadmap
+## Shipped:
 
-### Shipped
+> **v1.6** — task due dates show as short relative labels ("Today", "Tomorrow",
+> "Yesterday", "Friday", "Next Friday", "15 Jul"), free-form launchpad tiles
+> you can drop anywhere on the card (not just the top-to-bottom flow), centred
+> mobile search, and edge-merging cards: two cards snapped together lose their
+> shared border and sharpen their touching corners so they read as one
+> continuous tile. Task due dates also accept natural-language input (`📅
+> tomorrow`, `📅 next friday`, `📅 in 3 days`…). Launchpad tiles are now pure
+> free-form: they can be placed anywhere and may overlap — a hidden tile glows
+> so the overlap is easy to spot and fix. An optional **Auto-shift tiles**
+> (beta) per-card toggle makes tiles shove each other aside live while
+> dragging (phone-widget style). In arrange mode the per-card headers can be
+> toggled off so each card's full body is visible.
 
-- Free-form layout with magnetic alignment and guide lines
-- Drag & resize cards from any edge or corner
-- Per-card accent and background colors; global card opacity (cascading)
-- Ambient default background
-- Card library / templates
-- Embeds: notes, images, canvas, `.base`, Excalidraw, web (iframe)
-- Editable Markdown embeds (rendered → double-click to edit)
-- Embed zoom; per-card auto-refresh
-- Live embeds (vault-event driven, cursor-preserving for editable notes)
-- Tasks card (checkboxes or TaskNotes frontmatter, folder scope)
-- Recurring TaskNotes tasks (↻ badge, next-occurrence date, recurrence tooltip)
-- Task sorting (due → scheduled → priority → created)
-- Kanban tasks (drag between status columns, reorder/hide columns, priority,
-  drop outline)
-- TaskNotes quick-add button
-- Mini calendar (week numbers, heatmap tint, click-empty-day to create,
-  today outline under the heatmap)
-- Vault statistics, saved search, activity heatmap
-- Bookmarks, favorites, recent files, links/launchpad, commands
-- CSS-grid tiles with independent column/row spans, drag-to-reorder,
-  corner-grip resize, live reflow during drag (phone-widget style)
-- Clock & greeting (digital/analogue, custom formats, playful greetings)
-- Text / jot-down card
-- Multiple dashboards with switcher, per-board overrides, pinned cards,
-  Lucide dashboard icons, duplicate dashboard
-- Fit-to-page (global and per-board, default-on, auto card recovery)
-- Layout import / export
-- Mobile mode (search-only) with customizable action bar
-- Tag search, frontmatter property search, command mode, full-text search
-- Auto-detected file-type filters (incl. Excalidraw, `.usheet`, "Other")
-- Search autocomplete with click-outside dismiss
-- Match highlighting; recent-files history in empty search
-- Keyboard-operable results, filters, cards, calendar and switcher
-- Dashboard keyboard shortcuts (switch by position, next/previous)
-- Reorder dashboards by dragging switcher buttons
-- Real app icon shipped in the bundle
-
-### Planned
-
-- [ ] Drag tasks between days on the calendar
+> **v1.5** — a redesigned dashboard experience: a CSS-grid tile layout with
+> independent column/row spans and drag-to-reorder, an ambient default
+> background, an overhauled starter dashboard, recurring TaskNotes tasks with
+> a ↻ badge and human-readable recurrence tooltip, smarter task sorting
+> (due → scheduled → priority → created), kanban drop outlines, calendar
+> today outline under the heatmap, search layout polish, and many fit-to-page
+> and card-drag fixes.
 
 ## License
 
