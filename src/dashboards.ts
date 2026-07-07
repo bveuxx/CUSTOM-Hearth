@@ -287,6 +287,7 @@ class DashboardSettingsModal extends Modal {
 				sl
 					.setLimits(min, max, step)
 					.setValue(current)
+					.setDynamicTooltip()
 					.onChange((v) => set(v)),
 			);
 		}
@@ -356,6 +357,7 @@ class DashboardSettingsModal extends Modal {
 			sl
 				.setLimits(min, max, step)
 				.setValue(bg[key])
+				.setDynamicTooltip()
 				.onChange((v) => {
 					bg[key] = v;
 					this.commit();

@@ -199,6 +199,62 @@
 	display: flex;
 }
 
+/* The split New-note pill: two joined halves (Search online + New note) that
+   read as one compact pill the size of the old single button. Each half stacks
+   its icon over its label vertically, so the joined width stays close to the
+   original single-button width instead of doubling it. */
+.hearth-newnote-pill {
+	display: flex;
+	align-items: stretch;
+	height: 52px;
+	border-radius: 14px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	overflow: hidden;
+}
+
+.hearth-newnote-pill .hearth-newnote {
+	height: 100%;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	gap: 2px;
+	padding: 0 12px;
+	border: none;
+	border-radius: 0;
+	box-shadow: none;
+	background: transparent;
+	font-size: 0.7rem;
+	line-height: 1;
+}
+
+.hearth-newnote-pill .hearth-newnote-icon svg {
+	width: 18px;
+	height: 18px;
+}
+
+.hearth-newnote-pill .hearth-newnote-label {
+	white-space: nowrap;
+	line-height: 1;
+}
+
+/* The divider between the two halves — kept visible so the split reads clearly
+   even at low contrast. */
+.hearth-newnote-pill .hearth-newnote-search {
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+.hearth-newnote-pill .hearth-newnote:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* `hearth-newnote-joined` is the opt-in to the pill's joined look; it's also
+   applied when a single half is shown standalone so spacing stays consistent. */
+.hearth-newnote-joined {
+	border-radius: 0;
+}
+
+
 /* ---- Search results dropdown --------------------------------------- */
 
 .hearth-search-results {
@@ -644,6 +700,71 @@
 	font-family: var(--font-monospace);
 	font-size: 0.8rem;
 	resize: vertical;
+}
+
+/* ---- Settings tab: foldable sections --------------------------------
+   These styles apply in Obsidian's settings UI (not the home view), so they're
+   not scoped under .hearth-view. Each section is a .hearth-section with a
+   clickable heading (.hearth-section-head) that toggles the body below it. */
+
+.hearth-section {
+	margin-bottom: 8px;
+}
+
+/* The heading row mirrors Obsidian's own .setting-item-heading look but is
+   interactive (click to fold). */
+.hearth-section-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 14px 0 10px;
+	cursor: pointer;
+	user-select: none;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.hearth-section-head:hover .hearth-section-title {
+	color: var(--interactive-accent);
+}
+
+.hearth-section-titles {
+	flex: 1;
+	min-width: 0;
+}
+
+.hearth-section-title {
+	font-size: var(--font-ui-medium);
+	font-weight: 600;
+	color: var(--text-normal);
+	transition: color 120ms ease;
+}
+
+.hearth-section-desc {
+	margin-top: 4px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+/* The chevron rotates to indicate collapsed state. */
+.hearth-section-chevron {
+	display: flex;
+	color: var(--text-muted);
+	transition: transform 180ms ease;
+}
+
+.hearth-section-chevron.is-rotated {
+	transform: rotate(-90deg);
+}
+
+.hearth-section-body {
+	/* Smooth collapse/expand. Only height animates; display:none is the real
+	   toggle (so inputs don't remain focusable when hidden). */
+	transition: opacity 150ms ease;
+}
+
+.hearth-section.is-collapsed .hearth-section-head {
+	border-bottom-color: transparent;
 }
 
 /* Lists (bookmarks) */

@@ -1,11 +1,19 @@
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import { App, Notice, PluginSettingTab, setIcon, Setting, SliderComponent } from "obsidian";
 import type HearthPlugin from "./main";
 import { FILE_TYPE_GROUPS, fileTypeLabel } from "./filetypes";
 import { CommandPickerModal } from "./pickers";
-import { BackgroundKind, defaultMobileActionButtons, MobileActionButton } from "./types";
+import { BackgroundKind, DEFAULT_SETTINGS, defaultMobileActionButtons, MobileActionButton } from "./types";
 import { exportLayout, importLayout } from "./layout";
 import { confirmAction } from "./ui";
 import { t } from "./i18n";
+
+/** Keys of HomeSettings whose default lives in DEFAULT_SETTINGS as a number —
+ * used to reset slider-backed settings back to their factory value. */
+type NumericSettingKey =
+	| "maxWidth"
+	| "backgroundOpacity"
+	| "backgroundBlur"
+	| "cardOpacity";
 
 export class HomeSettingTab extends PluginSettingTab {
 	plugin: HearthPlugin;
@@ -25,14 +33,41 @@ export class HomeSettingTab extends PluginSettingTab {
 
 		this.fileDatalist(containerEl);
 
-		this.appearanceSection(containerEl);
-		this.backgroundSection(containerEl);
-		this.behaviourSection(containerEl);
-		this.mobileActionsSection(containerEl);
-		this.tasksSection(containerEl);
-		this.filtersSection(containerEl);
-		this.dashboardSection(containerEl);
-		this.layoutSection(containerEl);
+		// Each section is wrapped in a foldable container whose collapsed state
+		// is remembered across sessions in localStorage.
+		this.section(containerEl, t().settings.appearance.heading, (body) =>
+			this.appearanceSection(body),
+		);
+		this.section(containerEl, t().settings.background.heading, (body) =>
+			this.backgroundSection(body),
+		);
+		this.section(containerEl, t().settings.behaviour.heading, (body) =>
+			this.behaviourSection(body),
+		);
+		this.section(
+			containerEl,
+			t().settings.mobileActions.heading,
+			t().settings.mobileActions.headingDesc,
+			(body) => this.mobileActionsSection(body),
+		);
+		this.section(
+			containerEl,
+			t().settings.tasks.heading,
+			t().settings.tasks.headingDesc,
+			(body) => this.tasksSection(body),
+		);
+		this.section(
+			containerEl,
+			t().settings.filters.heading,
+			t().settings.filters.headingDesc,
+			(body) => this.filtersSection(body),
+		);
+		this.section(containerEl, t().settings.dashboard.heading, (body) =>
+			this.dashboardSection(body),
+		);
+		this.section(containerEl, t().settings.layout.heading, t().settings.layout.headingDesc, (body) =>
+			this.layoutSection(body),
+		);
 	}
 
 	/** A shared <datalist> of vault files used by file-path inputs. */
@@ -45,10 +80,103 @@ export class HomeSettingTab extends PluginSettingTab {
 		}
 	}
 
+	// ---- Foldable section wrapper --------------------------------------
+
+	/** Wrap a section in a collapsible block. The heading toggles visibility of
+	 * the body; the collapsed state is persisted per-section in localStorage so
+	 * long settings panels can be tamed and stay tamed. */
+	private section(
+		containerEl: HTMLElement,
+		title: string,
+		desc: string | undefined,
+		render: (body: HTMLElement) => void,
+	): void;
+	private section(
+		containerEl: HTMLElement,
+		title: string,
+		render: (body: HTMLElement) => void,
+	): void;
+	private section(
+		containerEl: HTMLElement,
+		title: string,
+		descOrRender: string | undefined | ((body: HTMLElement) => void),
+		maybeRender?: (body: HTMLElement) => void,
+	): void {
+		const desc = typeof descOrRender === "string" ? descOrRender : undefined;
+		const render = typeof descOrRender === "function" ? descOrRender : maybeRender!;
+
+		const wrap = containerEl.createDiv("hearth-section");
+		const head = wrap.createDiv("hearth-section-head");
+		head.setAttribute("role", "button");
+		head.setAttribute("tabindex", "0");
+		const titles = head.createDiv("hearth-section-titles");
+		titles.createDiv({ cls: "hearth-section-title", text: title });
+		if (desc) titles.createDiv({ cls: "hearth-section-desc", text: desc });
+		const chevron = head.createDiv("hearth-section-chevron");
+		setIcon(chevron, "chevron-down");
+
+		const body = wrap.createDiv("hearth-section-body");
+		render(body);
+
+		const key = `hearth-section-${title}`;
+		let collapsed = false;
+		try {
+			collapsed = localStorage.getItem(key) === "1";
+		} catch {
+			// localStorage can throw in locked-down contexts; default to open.
+		}
+		const apply = () => {
+			wrap.toggleClass("is-collapsed", collapsed);
+			body.style.display = collapsed ? "none" : "";
+			chevron.toggleClass("is-rotated", collapsed);
+			head.setAttribute("aria-expanded", String(!collapsed));
+			head.setAttribute("aria-label", collapsed ? t().settings.expandSection : t().settings.collapseSection);
+		};
+		apply();
+		head.addEventListener("click", () => {
+			collapsed = !collapsed;
+			try {
+				localStorage.setItem(key, collapsed ? "1" : "0");
+			} catch {
+				// ignore — non-persistent folding is fine as a fallback.
+			}
+			apply();
+		});
+		head.addEventListener("keydown", (e) => {
+			if (e.key === "Enter" || e.key === " ") {
+				e.preventDefault();
+				head.click();
+			}
+		});
+	}
+
+	// ---- Slider reset helper -------------------------------------------
+
+	/** Add a reset (rotate-ccw) extra button to a slider Setting that restores
+	 * the factory default from DEFAULT_SETTINGS. The slider keeps a dynamic
+	 * tooltip showing the live value. */
+	private addSliderReset(
+		setting: Setting,
+		sl: SliderComponent,
+		key: NumericSettingKey,
+	): void {
+		sl.setDynamicTooltip();
+		setting.addExtraButton((b) =>
+			b
+				.setIcon("rotate-ccw")
+				.setTooltip(t().settings.resetSlider)
+				.onClick(async () => {
+					const def = DEFAULT_SETTINGS[key] as number;
+					(this.plugin.settings as unknown as Record<string, number>)[key] = def;
+					sl.setValue(def);
+					await this.save();
+				}),
+		);
+	}
+
 	// ---- Appearance -----------------------------------------------------
 
 	private appearanceSection(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName(t().settings.appearance.heading).setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
@@ -109,23 +237,36 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName(t().settings.appearance.contentWidth)
-			.setDesc(t().settings.appearance.contentWidthDesc)
-			.addSlider((sl) =>
-				sl
-					.setLimits(700, 1600, 20)
-					.setValue(s.maxWidth)
+			.setName(t().settings.appearance.newNoteButtonMode)
+			.setDesc(t().settings.appearance.newNoteButtonModeDesc)
+			.addDropdown((d) => {
+				d.addOption("split", t().settings.appearance.newNoteButtonModeSplit)
+					.addOption("newNote", t().settings.appearance.newNoteButtonModeNewNote)
+					.addOption("searchOnline", t().settings.appearance.newNoteButtonModeSearchOnline)
+					.setValue(s.newNoteButtonMode)
 					.onChange(async (v) => {
-						s.maxWidth = v;
+						s.newNoteButtonMode = v as typeof s.newNoteButtonMode;
 						await this.save();
-					}),
-			);
+					});
+			});
+
+		const width = new Setting(containerEl)
+			.setName(t().settings.appearance.contentWidth)
+			.setDesc(t().settings.appearance.contentWidthDesc);
+		width.addSlider((sl) => {
+			sl.setLimits(700, 1600, 20)
+				.setValue(s.maxWidth)
+				.onChange(async (v) => {
+					s.maxWidth = v;
+					await this.save();
+				});
+			this.addSliderReset(width, sl, "maxWidth");
+		});
 	}
 
 	// ---- Background -----------------------------------------------------
 
 	private backgroundSection(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName(t().settings.background.heading).setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
@@ -167,37 +308,36 @@ export class HomeSettingTab extends PluginSettingTab {
 
 		// Opacity/blur apply to every background except "none".
 		if (s.backgroundKind !== "none") {
-			new Setting(containerEl)
-				.setName(t().settings.background.opacity)
-				.addSlider((sl) =>
-					sl
-						.setLimits(0, 1, 0.05)
-						.setValue(s.backgroundOpacity)
-						.onChange(async (v) => {
-							s.backgroundOpacity = v;
-							await this.save();
-						}),
-				);
+			const opacity = new Setting(containerEl)
+				.setName(t().settings.background.opacity);
+			opacity.addSlider((sl) => {
+				sl.setLimits(0, 1, 0.05)
+					.setValue(s.backgroundOpacity)
+					.onChange(async (v) => {
+						s.backgroundOpacity = v;
+						await this.save();
+					});
+				this.addSliderReset(opacity, sl, "backgroundOpacity");
+			});
 
-			new Setting(containerEl)
+			const blur = new Setting(containerEl)
 				.setName(t().settings.background.blur)
-				.setDesc(t().settings.background.blurDesc)
-				.addSlider((sl) =>
-					sl
-						.setLimits(0, 40, 1)
-						.setValue(s.backgroundBlur)
-						.onChange(async (v) => {
-							s.backgroundBlur = v;
-							await this.save();
-						}),
-				);
+				.setDesc(t().settings.background.blurDesc);
+			blur.addSlider((sl) => {
+				sl.setLimits(0, 40, 1)
+					.setValue(s.backgroundBlur)
+					.onChange(async (v) => {
+						s.backgroundBlur = v;
+						await this.save();
+					});
+				this.addSliderReset(blur, sl, "backgroundBlur");
+			});
 		}
 	}
 
 	// ---- Behaviour ------------------------------------------------------
 
 	private behaviourSection(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName(t().settings.behaviour.heading).setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
@@ -234,10 +374,6 @@ export class HomeSettingTab extends PluginSettingTab {
 	// ---- Mobile action bar ----------------------------------------------
 
 	private mobileActionsSection(containerEl: HTMLElement): void {
-		new Setting(containerEl)
-			.setName(t().settings.mobileActions.heading)
-			.setDesc(t().settings.mobileActions.headingDesc)
-			.setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
@@ -266,7 +402,7 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 			row.addExtraButton((b) =>
 				b
-					.setIcon("terminal-square")
+					.setIcon("terminal square")
 					.setTooltip(btn.commandId ? t().settings.mobileActions.commandTooltip(btn.commandId) : t().settings.mobileActions.pickCommand)
 					.onClick(() => {
 						new CommandPickerModal(this.app, (command) => {
@@ -310,7 +446,7 @@ export class HomeSettingTab extends PluginSettingTab {
 						buttons.push({
 							id: `action-${Date.now().toString(36)}`,
 							label: command.name,
-							icon: "terminal-square",
+							icon: "terminal square",
 							commandId: command.id,
 						});
 						void this.save();
@@ -342,10 +478,6 @@ export class HomeSettingTab extends PluginSettingTab {
 	// ---- Tasks / TaskNotes ------------------------------------------------
 
 	private tasksSection(containerEl: HTMLElement): void {
-		new Setting(containerEl)
-			.setName(t().settings.tasks.heading)
-			.setDesc(t().settings.tasks.headingDesc)
-			.setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
@@ -389,10 +521,6 @@ export class HomeSettingTab extends PluginSettingTab {
 	// ---- Filters --------------------------------------------------------
 
 	private filtersSection(containerEl: HTMLElement): void {
-		new Setting(containerEl)
-			.setName(t().settings.filters.heading)
-			.setDesc(t().settings.filters.headingDesc)
-			.setHeading();
 		const s = this.plugin.settings;
 		const hidden = new Set(s.hiddenFilters);
 
@@ -413,7 +541,6 @@ export class HomeSettingTab extends PluginSettingTab {
 	// ---- Dashboard / cards ---------------------------------------------
 
 	private dashboardSection(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName(t().settings.dashboard.heading).setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
@@ -436,18 +563,18 @@ export class HomeSettingTab extends PluginSettingTab {
 				}),
 			);
 
-		new Setting(containerEl)
+		const cardOpacity = new Setting(containerEl)
 			.setName(t().settings.dashboard.cardOpacity)
-			.setDesc(t().settings.dashboard.cardOpacityDesc)
-			.addSlider((sl) =>
-				sl
-				.setLimits(0, 1, 0.05)
+			.setDesc(t().settings.dashboard.cardOpacityDesc);
+		cardOpacity.addSlider((sl) => {
+			sl.setLimits(0, 1, 0.05)
 				.setValue(s.cardOpacity)
 				.onChange(async (v) => {
 					s.cardOpacity = v;
 					await this.save();
-				}),
-			);
+				});
+			this.addSliderReset(cardOpacity, sl, "cardOpacity");
+		});
 
 		new Setting(containerEl)
 			.setName(t().settings.dashboard.cards)
@@ -457,10 +584,6 @@ export class HomeSettingTab extends PluginSettingTab {
 	// ---- Layout import / export ----------------------------------------
 
 	private layoutSection(containerEl: HTMLElement): void {
-		new Setting(containerEl)
-			.setName(t().settings.layout.heading)
-			.setDesc(t().settings.layout.headingDesc)
-			.setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
