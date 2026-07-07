@@ -199,6 +199,43 @@
 	display: flex;
 }
 
+/* The split New-note pill: two joined halves (Search online + New note) that
+   look like a single pill. Each half is a .hearth-newnote button; the wrapper
+   just rounds the outer corners and removes the inner border so they read as
+   one control with a faint divider between them. */
+.hearth-newnote-pill {
+	display: flex;
+	align-items: stretch;
+	height: 52px;
+	border-radius: 14px;
+	/* Subtle outer ring so the joined pill keeps a crisp silhouette even though
+	   the inner button borders are stripped. */
+	box-shadow: 0 0 0 1px var(--background-modifier-border);
+	overflow: hidden;
+}
+
+.hearth-newnote-pill .hearth-newnote {
+	height: 100%;
+	border-radius: 0;
+	border: none;
+	box-shadow: none;
+}
+
+.hearth-newnote-pill .hearth-newnote-search {
+	/* A faint divider on the inner edge instead of a full border. */
+	box-shadow: inset 1px 0 0 var(--background-modifier-border);
+}
+
+.hearth-newnote-pill .hearth-newnote:hover {
+	background: var(--background-modifier-hover);
+}
+
+/* `hearth-newnote-joined` is the opt-in to the pill's joined look; it's also
+   applied when a single half is shown standalone so spacing stays consistent. */
+.hearth-newnote-joined {
+	border-radius: 0;
+}
+
 /* ---- Search results dropdown --------------------------------------- */
 
 .hearth-search-results {
@@ -644,6 +681,71 @@
 	font-family: var(--font-monospace);
 	font-size: 0.8rem;
 	resize: vertical;
+}
+
+/* ---- Settings tab: foldable sections --------------------------------
+   These styles apply in Obsidian's settings UI (not the home view), so they're
+   not scoped under .hearth-view. Each section is a .hearth-section with a
+   clickable heading (.hearth-section-head) that toggles the body below it. */
+
+.hearth-section {
+	margin-bottom: 8px;
+}
+
+/* The heading row mirrors Obsidian's own .setting-item-heading look but is
+   interactive (click to fold). */
+.hearth-section-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 14px 0 10px;
+	cursor: pointer;
+	user-select: none;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.hearth-section-head:hover .hearth-section-title {
+	color: var(--interactive-accent);
+}
+
+.hearth-section-titles {
+	flex: 1;
+	min-width: 0;
+}
+
+.hearth-section-title {
+	font-size: var(--font-ui-medium);
+	font-weight: 600;
+	color: var(--text-normal);
+	transition: color 120ms ease;
+}
+
+.hearth-section-desc {
+	margin-top: 4px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+/* The chevron rotates to indicate collapsed state. */
+.hearth-section-chevron {
+	display: flex;
+	color: var(--text-muted);
+	transition: transform 180ms ease;
+}
+
+.hearth-section-chevron.is-rotated {
+	transform: rotate(-90deg);
+}
+
+.hearth-section-body {
+	/* Smooth collapse/expand. Only height animates; display:none is the real
+	   toggle (so inputs don't remain focusable when hidden). */
+	transition: opacity 150ms ease;
+}
+
+.hearth-section.is-collapsed .hearth-section-head {
+	border-bottom-color: transparent;
 }
 
 /* Lists (bookmarks) */

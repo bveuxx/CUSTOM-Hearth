@@ -289,6 +289,9 @@ export interface HomeSettings {
 	logo: string;
 	searchPlaceholder: string;
 	showNewNoteButton: boolean;
+	/** How the button beside the search bar renders: split into two halves
+	 * (Search online + New note), or just one of the two. */
+	newNoteButtonMode: "split" | "newNote" | "searchOnline";
 	/** Also search inside note bodies (full-text), not just names/tags/properties. */
 	searchContents: boolean;
 
@@ -359,6 +362,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	logo: "",
 	searchPlaceholder: "Search or command",
 	showNewNoteButton: true,
+	newNoteButtonMode: "split",
 	searchContents: true,
 
 	backgroundKind: "default",

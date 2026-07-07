@@ -62,6 +62,8 @@ export const en = {
 	header: {
 		newNote: "New note",
 		newNoteAria: "Create new note",
+		searchOnline: "Search online",
+		searchOnlineAria: "Search the web for the current query",
 	},
 	search: {
 		placeholder: "Search the vault",
@@ -160,6 +162,10 @@ export const en = {
 
 	// ---- Plugin settings tab -------------------------------------------
 	settings: {
+		/** Shared across every slider/section control. */
+		resetSlider: "Reset to default",
+		collapseSection: "Collapse section",
+		expandSection: "Expand section",
 		appearance: {
 			heading: "Appearance",
 			showTitle: "Show title",
@@ -174,6 +180,12 @@ export const en = {
 				"Also match text inside note bodies, not just names, tags and " +
 				"properties. Body matches appear after name matches with a snippet.",
 			showNewNoteButton: "Show “New note” button",
+			newNoteButtonMode: "New-note button",
+			newNoteButtonModeDesc:
+				"Split the button into “Search online” + “New note”, or show just one of them.",
+			newNoteButtonModeSplit: "Split: Search online + New note",
+			newNoteButtonModeNewNote: "New note only",
+			newNoteButtonModeSearchOnline: "Search online only",
 			contentWidth: "Content width",
 			contentWidthDesc: "Maximum width of the home content, in pixels.",
 		},
