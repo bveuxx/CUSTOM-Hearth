@@ -110,34 +110,54 @@ export function applyCardPosition(el: HTMLElement, card: DashboardCard): void {
 	el.style.height = `${Math.max(MIN_H_PX, card.fh ?? MIN_H_PX)}px`;
 }
 
-/** Position a card, visually clamped into a fit-to-page board of the given
- * height, WITHOUT mutating or persisting the card's stored geometry.
+/** Position a card in a fit-to-page board, WITHOUT mutating or persisting the
+ * card's stored geometry. `vScale` (0..1) proportionally shrinks the vertical
+ * layout when the cards are taller than the board (see fitVerticalScale); pass
+ * 1 to leave the vertical placement untouched.
  *
- * This is deliberately non-destructive. Fitting used to clamp the stored
- * fy/fh and save them, but the clamp bound came from a *measured* board height.
- * On a PC start, plugin update or full sync the workspace restores panes before
- * they reach their final size, so the board is briefly short; clamping to that
+ * This is deliberately non-destructive. Fitting used to clamp the stored fy/fh
+ * and save them, but the clamp bound came from a *measured* board height. On a
+ * PC start, plugin update or full sync the workspace restores panes before they
+ * reach their final size, so the board is briefly short; clamping to that
  * transient height (and only ever upward) permanently shoved the bottom cards
  * up and — because the true positions were overwritten — the drift compounded
- * and never recovered. Keeping the clamp render-only means a wrong transient
+ * and never recovered. Keeping this render-only means a wrong transient
  * measurement can't corrupt anything: once the pane reaches its real height the
- * next call repositions every card from its untouched stored geometry. */
+ * next call repositions every card from its untouched stored geometry.
+ *
+ * Vertical fitting scales rather than clamps so it mirrors the horizontal axis
+ * (fx/fw are board-width fractions, so cards already scale proportionally as the
+ * pane narrows). Scaling top AND height by the same factor is a linear map, so
+ * cards that didn't overlap before still don't afterwards — clamping each card
+ * independently, as an earlier version did, piled them at the top and made them
+ * overlap when the window was made short. */
 export function applyCardPositionFitted(
 	el: HTMLElement,
 	card: DashboardCard,
-	boardHeight: number | null,
+	vScale: number,
 ): void {
 	// Horizontal placement (fx/fw, board-width fractions) is resolution- and
 	// timing-independent, so always apply it straight from the stored values.
 	applyCardPosition(el, card);
-	if (boardHeight == null || boardHeight <= 0) return;
+	if (!(vScale < 1)) return;
 
-	// Vertically nudge the rendered box inside the visible board. Stored fy/fh
-	// stay put — only the inline top/height shown this frame are adjusted.
-	const fh = Math.min(Math.max(MIN_H_PX, card.fh ?? MIN_H_PX), boardHeight);
-	const top = Math.min(Math.max(0, card.fy ?? 0), Math.max(0, boardHeight - fh));
+	// Squeeze the vertical layout to fit. Stored fy/fh stay put — only the inline
+	// top/height shown this frame are scaled, preserving relative spacing.
+	const top = Math.max(0, card.fy ?? 0) * vScale;
+	const height = (card.fh ?? MIN_H_PX) * vScale;
 	el.style.top = `${top}px`;
-	el.style.height = `${fh}px`;
+	el.style.height = `${height}px`;
+}
+
+/** The proportional vertical scale (0..1] that fits every card's stored layout
+ * inside `boardHeight`. Returns 1 when the cards already fit (never enlarges).
+ * Returns 1 for a non-positive/zero board height so a not-yet-laid-out pane
+ * leaves the layout untouched. */
+export function fitVerticalScale(cards: DashboardCard[], boardHeight: number): number {
+	if (boardHeight <= 0) return 1;
+	const contentHeight = layoutHeight(cards);
+	if (contentHeight <= boardHeight) return 1;
+	return boardHeight / contentHeight;
 }
 
 /** Total pixel height the board needs to show every card. */

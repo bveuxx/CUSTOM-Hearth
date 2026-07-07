@@ -24,6 +24,7 @@ import {
 	enableDragResize,
 	ensureFreeform,
 	ensureLayout,
+	fitVerticalScale,
 	GridLayout,
 	GRID_GAP,
 	layoutHeight,
@@ -124,9 +125,10 @@ export function renderDashboard(
 	const remerge = () => applyEdgeMerging(grid);
 	component.registerDomEvent(window, "resize", debounce(remerge, 120, true));
 
-	// In fit-to-page mode the board is locked to one screen, so a card placed
-	// (or imported) below the fold would be clipped. Nudge every card's rendered
-	// box inside the current board height so nothing hides off-screen.
+	// In fit-to-page mode the board is locked to one screen, so cards taller than
+	// the board would spill below the fold. Proportionally squeeze the vertical
+	// layout so everything fits, matching how the horizontal axis already scales
+	// with the pane width (fx/fw are board-width fractions).
 	//
 	// This is purely visual — it never writes back to the stored geometry. An
 	// earlier version clamped and persisted against the measured board height,
@@ -141,11 +143,13 @@ export function renderDashboard(
 	if (fit) {
 		const refit = () => {
 			if (!grid.isConnected) return;
-			const boardH = grid.clientHeight;
-			if (boardH <= 0) return;
+			// One shared scale keeps relative spacing intact, so cards never
+			// overlap when the window is made short (clamping each card on its own
+			// piled them at the top).
+			const vScale = fitVerticalScale(cards, grid.clientHeight);
 			for (const card of cards) {
 				const el = gridLayout.elements.get(card);
-				if (el) applyCardPositionFitted(el, card, boardH);
+				if (el) applyCardPositionFitted(el, card, vScale);
 			}
 			applyEdgeMerging(grid);
 		};
