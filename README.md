@@ -1,6 +1,6 @@
 # Hearth
 
-![banner](assets/3.png)
+![banner](assets/2.png)
 
 A beautiful, customizable **home screen for Obsidian** — search, dashboard, and
 launcher in one. Hearth turns your vault into a welcoming front page with a fast
