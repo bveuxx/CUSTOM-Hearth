@@ -15,6 +15,7 @@ import {
 	TasksConfig,
 	activeDashboard,
 } from "./types";
+import { t } from "./i18n";
 
 /** Current dashboard-layout export schema version. v2 carries every dashboard
  * (with per-board overrides and backgrounds) plus pinned cards and globals;
@@ -305,10 +306,10 @@ export function importLayout(s: HomeSettings, json: string): string | null {
 	try {
 		parsed = JSON.parse(json);
 	} catch {
-		return "That isn't valid JSON.";
+		return t().layout.invalidJson;
 	}
 	if (!parsed || typeof parsed !== "object") {
-		return "Layout must be a JSON object.";
+		return t().layout.notAnObject;
 	}
 	const data = parsed as Record<string, unknown>;
 
@@ -317,7 +318,7 @@ export function importLayout(s: HomeSettings, json: string): string | null {
 		const dashboards = data.dashboards
 			.map((d, i) => sanitizeDashboard(d, s, i))
 			.filter((d): d is Dashboard => d !== null);
-		if (dashboards.length === 0) return "Layout contained no valid dashboards.";
+		if (dashboards.length === 0) return t().layout.noValidDashboards;
 		s.dashboards = dashboards;
 		if (Array.isArray(data.pinnedCards)) {
 			s.pinnedCards = data.pinnedCards
@@ -336,13 +337,13 @@ export function importLayout(s: HomeSettings, json: string): string | null {
 		const cards = data.cards
 			.map((c, i) => sanitizeCard(c, i))
 			.filter((c): c is DashboardCard => c !== null);
-		if (cards.length === 0) return "Layout contained no valid cards.";
+		if (cards.length === 0) return t().layout.noValidCards;
 		activeDashboard(s).cards = cards;
 		applyGlobals(s, data);
 		return null;
 	}
 
-	return "Not a Hearth layout — no \"dashboards\" or \"cards\" array found.";
+	return t().layout.notAHearthLayout;
 }
 
 /** Apply the global (non-per-board) settings carried by a layout, clamped. */

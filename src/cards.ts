@@ -17,6 +17,7 @@ import { EXCALIDRAW_PLUGIN_ID, iconForFile, isExcalidraw } from "./filetypes";
 import { QueryHit, runQuery, searchFileContents } from "./query";
 import { makeClickable } from "./ui";
 import { parseNaturalDate, formatRelativeDate } from "./dates";
+import { t } from "./i18n";
 
 /**
  * moment is bundled with Obsidian, not a direct dependency, so it's imported
@@ -113,7 +114,7 @@ function renderSavedSearch(view: HomeView, card: DashboardCard, body: HTMLElemen
 	const cfg = card.savedSearch ?? {};
 	const query = (cfg.query ?? "").trim();
 	if (!query) {
-		emptyState(body, "search", "Set a query in card settings");
+		emptyState(body, "search", t().cards.empty.searchNoQuery);
 		return;
 	}
 	const limit = cfg.count && cfg.count > 0 ? cfg.count : 12;
@@ -124,7 +125,7 @@ function renderSavedSearch(view: HomeView, card: DashboardCard, body: HTMLElemen
 	const render = (all: QueryHit[]) => {
 		const list = all.slice(0, limit);
 		if (list.length === 0) {
-			emptyState(body, "search-x", "No matches");
+			emptyState(body, "search-x", t().cards.empty.searchNoMatches);
 			return;
 		}
 		body.empty();
@@ -194,7 +195,7 @@ function renderEmbed(
 ): void {
 	const target = card.target?.trim();
 	if (!target) {
-		emptyState(body, "file-plus", "Pick a file to embed in settings");
+		emptyState(body, "file-plus", t().cards.empty.embedPickFile);
 		return;
 	}
 	const file = view.app.vault.getAbstractFileByPath(target);
@@ -207,7 +208,7 @@ function renderEmbed(
 	if (file.extension.toLowerCase() === "base") {
 		const bases = view.app.internalPlugins.getPluginById("bases");
 		if (!bases?.enabled) {
-			emptyState(body, "database", "Enable the core Bases plugin to embed .base files");
+			emptyState(body, "database", t().cards.empty.embedEnableBases);
 			return;
 		}
 	}
@@ -216,7 +217,7 @@ function renderEmbed(
 	if (file.extension.toLowerCase() === "canvas") {
 		const canvas = view.app.internalPlugins.getPluginById("canvas");
 		if (!canvas?.enabled) {
-			emptyState(body, "layout-dashboard", "Enable the core Canvas plugin to embed canvases");
+			emptyState(body, "layout-dashboard", t().cards.empty.embedEnableCanvas);
 			return;
 		}
 	}
@@ -224,7 +225,7 @@ function renderEmbed(
 	// Excalidraw drawings render through the community Excalidraw plugin.
 	if (isExcalidraw(file)) {
 		if (!view.app.plugins.enabledPlugins.has(EXCALIDRAW_PLUGIN_ID)) {
-			emptyState(body, "pen-tool", "Install the Excalidraw plugin to embed drawings");
+			emptyState(body, "pen-tool", t().cards.empty.embedInstallExcalidraw);
 			return;
 		}
 	}
@@ -302,10 +303,10 @@ function renderEditableEmbed(
 	const wrap = body.createDiv("hearth-jot");
 	body.addClass("is-jot-host");
 	const preview = wrap.createDiv("hearth-embed markdown-rendered hearth-jot-preview");
-	preview.setAttribute("title", "Double-click to edit");
+	preview.setAttribute("title", t().cards.embed.editHint);
 	const area = wrap.createEl("textarea", {
 		cls: "hearth-text hearth-embed-edit hearth-jot-edit",
-		attr: { placeholder: "Empty note…" },
+		attr: { placeholder: t().cards.embed.emptyNotePlaceholder },
 	});
 	area.hide();
 
@@ -339,7 +340,7 @@ function renderEditableEmbed(
 			const md = stripFrontmatter(raw);
 			if (!md.trim()) {
 				preview.addClass("is-empty");
-				preview.setText("Empty note — double-click to edit");
+				preview.setText(t().cards.embed.emptyNoteHint);
 				return;
 			}
 			preview.removeClass("is-empty");
@@ -462,7 +463,7 @@ function renderDaily(
 ): void {
 	const options = dailyNotesOptions(view);
 	if (!options) {
-		emptyState(body, "calendar", "Enable the core Daily notes plugin");
+		emptyState(body, "calendar", t().cards.empty.dailyEnable);
 		return;
 	}
 
@@ -472,16 +473,16 @@ function renderDaily(
 	if (!(file instanceof TFile)) {
 		const empty = body.createDiv("hearth-card-empty");
 		setIcon(empty.createDiv("hearth-card-empty-icon"), "calendar-plus");
-		empty.createDiv({ cls: "hearth-card-empty-text", text: "No note for today yet" });
+		empty.createDiv({ cls: "hearth-card-empty-text", text: t().cards.daily.noNoteYet });
 		const create = empty.createEl("button", {
 			cls: "hearth-daily-create",
-			text: "Create today's note",
+			text: t().cards.daily.createToday,
 		});
 		create.addEventListener("click", () => {
 			// The core "Open today's daily note" command creates it from the
 			// configured template and opens it.
 			if (!view.app.commands.executeCommandById("daily-notes")) {
-				new Notice("Hearth: couldn't open today's daily note.");
+				new Notice(t().notices.couldNotOpenDaily);
 			}
 		});
 		return;
@@ -495,7 +496,7 @@ function renderDaily(
 		const overlay = (cardEl ?? body).createDiv("hearth-card-actions-overlay");
 		const open = overlay.createEl("button", {
 			cls: "hearth-open-btn",
-			attr: { "aria-label": "Open today's note" },
+			attr: { "aria-label": t().cards.daily.openToday },
 		});
 		setIcon(open, "square-pen");
 		open.addEventListener("click", () => {
@@ -535,7 +536,7 @@ export function watchedCardPath(view: HomeView, card: DashboardCard): string | n
 function renderCalendar(view: HomeView, card: DashboardCard, body: HTMLElement): void {
 	const options = dailyNotesOptions(view);
 	if (!options) {
-		emptyState(body, "calendar-days", "Enable the core Daily notes plugin");
+		emptyState(body, "calendar-days", t().cards.empty.dailyEnable);
 		return;
 	}
 
@@ -572,15 +573,15 @@ function renderCalendarHead(
 	handlers: { onPrev: () => void; onNext: () => void; onToday: () => void },
 ): void {
 	const head = wrap.createDiv("hearth-calendar-head");
-	const prev = head.createEl("button", { cls: "hearth-calendar-nav", attr: { "aria-label": "Previous month" } });
+	const prev = head.createEl("button", { cls: "hearth-calendar-nav", attr: { "aria-label": t().cards.calendar.previousMonth } });
 	setIcon(prev, "chevron-left");
 	prev.addEventListener("click", handlers.onPrev);
 
 	const label = head.createDiv({ cls: "hearth-calendar-label", text: cursor.format("MMMM YYYY") });
-	label.setAttribute("title", "Back to today");
+	label.setAttribute("title", t().cards.calendar.backToToday);
 	label.addEventListener("click", handlers.onToday);
 
-	const next = head.createEl("button", { cls: "hearth-calendar-nav", attr: { "aria-label": "Next month" } });
+	const next = head.createEl("button", { cls: "hearth-calendar-nav", attr: { "aria-label": t().cards.calendar.nextMonth } });
 	setIcon(next, "chevron-right");
 	next.addEventListener("click", handlers.onNext);
 }
@@ -639,7 +640,7 @@ function renderCalendarGrid(
 			const count = activity.get(day.format("YYYY-MM-DD")) ?? 0;
 			cell.style.setProperty("--heat", count > 0 ? String(heatLevel(count, peak)) : "0");
 			cell.toggleClass("has-heat", count > 0);
-			cell.setAttribute("aria-label", `${day.format("MMM D")}: ${count} edited`);
+			cell.setAttribute("aria-label", t().cards.calendar.dayEdited(day.format("MMM D"), count));
 		}
 		cell.createDiv({ cls: "hearth-calendar-daynum", text: String(day.date()) });
 		if (file instanceof TFile) cell.createDiv("hearth-calendar-dot");
@@ -649,13 +650,13 @@ function renderCalendarGrid(
 				void view.app.workspace.getLeaf(true).openFile(file);
 			} else if (isToday) {
 				if (!view.app.commands.executeCommandById("daily-notes")) {
-					new Notice("Hearth: couldn't open today's daily note.");
+					new Notice(t().notices.couldNotOpenDaily);
 				}
 			} else {
 				// Offer to create the missing daily note for that day.
 				void createDailyNoteAt(view, day, options).then((created) => {
 					if (created) void view.app.workspace.getLeaf(true).openFile(created);
-					else new Notice(`Hearth: couldn't create a note for ${day.format("MMM D, YYYY")}.`);
+					else new Notice(t().notices.couldNotCreateNoteForDay(day.format("MMM D, YYYY")));
 				});
 			}
 		};
@@ -764,13 +765,13 @@ function renderStats(view: HomeView, body: HTMLElement): void {
 	}
 
 	const grid = body.createDiv("hearth-stats");
-	addStat(grid, "file-text", notes, "Notes");
-	addStat(grid, "paperclip", attachments, "Attachments");
-	addStat(grid, "folder", folders, "Folders");
-	addStat(grid, "tag", tags.size, "Tags");
+	addStat(grid, "file-text", notes, t().cards.stats.notes);
+	addStat(grid, "paperclip", attachments, t().cards.stats.attachments);
+	addStat(grid, "folder", folders, t().cards.stats.folders);
+	addStat(grid, "tag", tags.size, t().cards.stats.tags);
 
 	const streak = dailyNoteStreak(view);
-	if (streak !== null) addStat(grid, "flame", streak, "Day streak");
+	if (streak !== null) addStat(grid, "flame", streak, t().cards.stats.dayStreak);
 }
 
 function addStat(grid: HTMLElement, icon: string, value: number, label: string): void {
@@ -843,7 +844,7 @@ function renderHeatmap(view: HomeView, card: DashboardCard, body: HTMLElement): 
 			const count = activity.get(key) ?? 0;
 			cellEl.style.setProperty("--heat", String(heatLevel(count, peak)));
 			cellEl.toggleClass("has-heat", count > 0);
-			cellEl.setAttribute("aria-label", `${day.format("MMM D, YYYY")}: ${count} ${metric}`);
+			cellEl.setAttribute("aria-label", t().cards.calendar.dayMetric(day.format("MMM D, YYYY"), count, metric));
 			cellEl.setAttribute("title", `${day.format("MMM D, YYYY")} · ${count} ${metric}`);
 			if (options) {
 				const activate = () => {
@@ -859,13 +860,13 @@ function renderHeatmap(view: HomeView, card: DashboardCard, body: HTMLElement): 
 
 	// A small Less→More legend.
 	const legend = wrap.createDiv("hearth-heatmap-legend");
-	legend.createSpan({ cls: "hearth-heatmap-legend-label", text: "Less" });
+	legend.createSpan({ cls: "hearth-heatmap-legend-label", text: t().cards.heatmap.less });
 	for (let l = 0; l <= 4; l++) {
 		const sq = legend.createDiv("hearth-heatmap-cell");
 		sq.style.setProperty("--heat", String(l));
 		if (l > 0) sq.addClass("has-heat");
 	}
-	legend.createSpan({ cls: "hearth-heatmap-legend-label", text: "More" });
+	legend.createSpan({ cls: "hearth-heatmap-legend-label", text: t().cards.heatmap.more });
 }
 
 // ---- Web / iframe embed -------------------------------------------------
@@ -873,7 +874,7 @@ function renderHeatmap(view: HomeView, card: DashboardCard, body: HTMLElement): 
 function renderWeb(card: DashboardCard, body: HTMLElement, component: Component): void {
 	const url = card.url?.trim();
 	if (!url) {
-		emptyState(body, "globe", "Set a web URL in settings");
+		emptyState(body, "globe", t().cards.empty.webNoUrl);
 		return;
 	}
 	// Only allow http(s) URLs into the iframe.
@@ -902,7 +903,7 @@ function renderWeb(card: DashboardCard, body: HTMLElement, component: Component)
 	const openExternally = () => window.open(url, "_blank");
 	const ext = body.createEl("button", {
 		cls: "hearth-web-external",
-		attr: { "aria-label": "Open in browser" },
+		attr: { "aria-label": t().cards.web.openInBrowser },
 	});
 	setIcon(ext, "external-link");
 	ext.addEventListener("click", openExternally);
@@ -921,9 +922,9 @@ function renderWeb(card: DashboardCard, body: HTMLElement, component: Component)
 		setIcon(fallback.createDiv("hearth-card-empty-icon"), "globe");
 		fallback.createDiv({
 			cls: "hearth-card-empty-text",
-			text: "This site may refuse to be embedded.",
+			text: t().cards.web.mayRefuse,
 		});
-		const open = fallback.createEl("button", { cls: "hearth-daily-create", text: "Open in browser" });
+		const open = fallback.createEl("button", { cls: "hearth-daily-create", text: t().cards.web.openInBrowser });
 		open.addEventListener("click", openExternally);
 	}, 4000);
 	component.register(() => window.clearTimeout(timer));
@@ -948,7 +949,7 @@ function renderBookmarks(view: HomeView, body: HTMLElement): void {
 		| undefined;
 
 	if (!plugin?.enabled || !instance?.getBookmarks) {
-		emptyState(body, "bookmark", "Enable the core Bookmarks plugin");
+		emptyState(body, "bookmark", t().cards.empty.bookmarksEnable);
 		return;
 	}
 
@@ -956,7 +957,7 @@ function renderBookmarks(view: HomeView, body: HTMLElement): void {
 	flattenBookmarks(instance.getBookmarks() ?? [], items);
 
 	if (items.length === 0) {
-		emptyState(body, "bookmark", "No bookmarks yet");
+		emptyState(body, "bookmark", t().cards.empty.bookmarksEmpty);
 		return;
 	}
 
@@ -967,7 +968,7 @@ function renderBookmarks(view: HomeView, body: HTMLElement): void {
 			item.path ||
 			item.url ||
 			item.query ||
-			"Untitled";
+			t().cards.bookmarks.untitled;
 		const row = list.createDiv("hearth-list-item");
 		const iconEl = row.createDiv("hearth-list-icon");
 		if (item.type === "url" && item.url) {
@@ -1021,7 +1022,7 @@ function openBookmark(view: HomeView, item: BookmarkItem): void {
 function renderFavorites(view: HomeView, body: HTMLElement): void {
 	const paths = view.plugin.settings.favorites;
 	if (!paths.length) {
-		emptyState(body, "star", "Add favorites in settings");
+		emptyState(body, "star", t().cards.empty.favoritesEmpty);
 		return;
 	}
 
@@ -1054,14 +1055,14 @@ function renderText(
 	const wrap = body.createDiv("hearth-jot");
 	body.addClass("is-jot-host");
 	const preview = wrap.createDiv("hearth-jot-preview markdown-rendered");
-	preview.setAttribute("title", "Double-click to edit");
+	preview.setAttribute("title", t().cards.embed.editHint);
 	const area = wrap.createEl("textarea", {
 		cls: "hearth-text hearth-jot-edit",
-		attr: { placeholder: "Jot something down…" },
+		attr: { placeholder: t().cards.text.placeholder },
 	});
 	area.hide();
 
-	const placeholder = "Jot something down…";
+	const placeholder = t().cards.text.placeholder;
 	const renderPreview = () => {
 		preview.empty();
 		const text = card.text ?? "";
@@ -1120,7 +1121,7 @@ function renderRecent(view: HomeView, card: DashboardCard, body: HTMLElement): v
 		.slice(0, count);
 
 	if (files.length === 0) {
-		emptyState(body, "history", "No recent files");
+		emptyState(body, "history", t().cards.empty.recentEmpty);
 		return;
 	}
 
@@ -1140,7 +1141,7 @@ function renderRecent(view: HomeView, card: DashboardCard, body: HTMLElement): v
 function renderLinks(view: HomeView, card: DashboardCard, body: HTMLElement): void {
 	const links = card.links ?? [];
 	if (links.length === 0) {
-		emptyState(body, "layout-grid", "Add links in settings");
+		emptyState(body, "layout-grid", t().cards.empty.linksEmpty);
 		return;
 	}
 
@@ -1764,7 +1765,7 @@ function openLink(view: HomeView, link: LinkItem): void {
 function renderCommands(view: HomeView, card: DashboardCard, body: HTMLElement): void {
 	const commands = card.commands ?? [];
 	if (commands.length === 0) {
-		emptyState(body, "terminal", "Add commands in card settings");
+		emptyState(body, "terminal", t().cards.empty.commandsEmpty);
 		return;
 	}
 
@@ -1878,14 +1879,14 @@ function renderTaskNotesAddButton(view: HomeView, container: HTMLElement): void 
 	const head = container.createDiv("hearth-tasks-head");
 	const btn = head.createEl("button", {
 		cls: "hearth-task-add",
-		attr: { "aria-label": "Create new task", title: "Create new task" },
+		attr: { "aria-label": t().cards.tasks.createNewTask, title: t().cards.tasks.createNewTask },
 	});
 	setIcon(btn, "plus");
 	btn.addEventListener("click", (e) => {
 		e.stopPropagation();
 		const id = taskNotesCreateCommandId(view);
 		if (!view.app.commands.executeCommandById(id)) {
-			new Notice("Hearth: couldn't run TaskNotes: Create new task.");
+			new Notice(t().notices.taskNotesCreateFailed);
 		}
 	});
 }
@@ -1897,20 +1898,20 @@ function recurrenceLabel(rule: string | undefined): string | null {
 	if (!rule) return null;
 	const r = rule.replace(/^RRULE:/i, "");
 	const freq = /FREQ=([A-Z]+)/i.exec(r)?.[1]?.toLowerCase();
-	if (!freq) return "Repeats";
+	if (!freq) return t().recurrence.repeats;
 	const interval = parseInt(/INTERVAL=(\d+)/i.exec(r)?.[1] ?? "1", 10);
+	const units = t().recurrence.units;
 	const unit =
 		freq === "daily"
-			? "day"
+			? units.day
 			: freq === "weekly"
-				? "week"
+				? units.week
 				: freq === "monthly"
-					? "month"
+					? units.month
 					: freq === "yearly"
-						? "year"
+						? units.year
 						: freq;
-	const plural = interval > 1 ? `${interval} ${unit}s` : unit;
-	return `Repeats every ${plural}`;
+	return interval > 1 ? t().recurrence.everyMany(interval, unit) : t().recurrence.everyOne(unit);
 }
 
 /** The date used for display/sorting — `due` wins, but recurring tasks use
@@ -1993,7 +1994,7 @@ async function loadAndRenderTasks(
 	let hits: TaskHit[];
 	if (source === "tasknotes") {
 		if (!view.app.plugins.enabledPlugins.has(TASKNOTES_PLUGIN_ID)) {
-			emptyState(container, "list-todo", "Enable the TaskNotes plugin, or switch source to checkboxes");
+			emptyState(container, "list-todo", t().cards.empty.tasksEnable);
 			return;
 		}
 		// A quick "+" to create a new task via TaskNotes' own command.
@@ -2016,7 +2017,7 @@ async function loadAndRenderTasks(
 	list = list.slice(0, limit);
 
 	if (list.length === 0) {
-		emptyState(container, "list-todo", "No open tasks");
+		emptyState(container, "list-todo", t().cards.empty.tasksEmpty);
 		return;
 	}
 
@@ -2044,7 +2045,7 @@ function renderTaskRow(
 		check.addEventListener("click", (e) => e.stopPropagation());
 		check.addEventListener("change", () => {
 			void toggleCheckboxTask(view, hit).then((ok) => {
-				if (!ok) new Notice("Hearth: that task changed on disk — refreshed.");
+				if (!ok) new Notice(t().notices.taskChangedOnDisk);
 				refresh();
 			});
 		});
@@ -2104,14 +2105,14 @@ function renderTaskKanban(
 	};
 
 	if (source === "checkbox") {
-		ensure("open", "To do");
-		ensure("done", "Done");
+		ensure("open", t().cards.tasks.toDo);
+		ensure("done", t().cards.tasks.done);
 		for (const hit of hits) columnFor.get(hit.done ? "done" : "open")!.hits.push(hit);
 	} else {
 		// Collect the statuses actually present, then make sure a "done" column
 		// exists so tasks can be completed by dragging.
 		for (const hit of hits) {
-			const status = (hit.status ?? "").trim() || "No status";
+			const status = (hit.status ?? "").trim() || t().cards.tasks.noStatus;
 			ensure(status.toLowerCase(), status).hits.push(hit);
 		}
 		if (!columnFor.has(doneValue.toLowerCase())) ensure(doneValue.toLowerCase(), doneValue);
@@ -2166,7 +2167,7 @@ function renderTaskKanban(
 			const wantDone = col.key === "done";
 			if (hit.done === wantDone) return;
 			void setCheckboxState(view, hit, wantDone).then((ok) => {
-				if (!ok) new Notice("Hearth: that task changed on disk — refreshed.");
+				if (!ok) new Notice(t().notices.taskChangedOnDisk);
 				refresh();
 			});
 		} else {
@@ -2178,7 +2179,7 @@ function renderTaskKanban(
 				void completeRecurringInstance(view, hit).then(refresh);
 				return;
 			}
-			const value = col.label === "No status" ? "" : col.label;
+			const value = col.label === t().cards.tasks.noStatus ? "" : col.label;
 			void setTaskNotesStatus(view, hit, value).then(refresh);
 		}
 	};
@@ -2190,7 +2191,7 @@ function renderTaskKanban(
 		head.createSpan({ cls: "hearth-kanban-col-count", text: String(col.hits.length) });
 		const hideBtn = head.createEl("button", {
 			cls: "hearth-kanban-col-hide",
-			attr: { "aria-label": `Hide "${col.label}" column` },
+			attr: { "aria-label": t().cards.tasks.hideColumn(col.label) },
 		});
 		setIcon(hideBtn, "eye-off");
 		hideBtn.addEventListener("click", (e) => {
@@ -2295,7 +2296,7 @@ function renderTaskKanban(
 				due.toggleClass("is-overdue", !hit.done && !!ed && ed.slice(0, 10) < today);
 				if (hit.recurrence) {
 					due.addClass("is-recurring");
-					due.setAttribute("title", recurrenceLabel(hit.recurrence) ?? "Recurring");
+					due.setAttribute("title", recurrenceLabel(hit.recurrence) ?? t().cards.tasks.recurring);
 				}
 			}
 			const open = () => void openTask(view, hit);
@@ -2470,7 +2471,7 @@ async function setTaskNotesStatus(view: HomeView, hit: TaskHit, value: string): 
 			fm[field] = value;
 		});
 	} catch {
-		new Notice("Hearth: couldn't update the task status.");
+		new Notice(t().notices.couldNotUpdateTaskStatus);
 	}
 }
 
@@ -2567,7 +2568,7 @@ async function completeRecurringInstance(view: HomeView, hit: TaskHit): Promise<
 			}
 		});
 	} catch {
-		new Notice("Hearth: couldn't mark the recurring task instance complete.");
+		new Notice(t().notices.couldNotCompleteRecurring);
 	}
 }
 
@@ -2591,7 +2592,7 @@ async function uncompleteRecurringInstance(view: HomeView, hit: TaskHit): Promis
 			fm["scheduled"] = timeMatch ? `${today}T${timeMatch[1]}` : today;
 		});
 	} catch {
-		new Notice("Hearth: couldn't undo the recurring task completion.");
+		new Notice(t().notices.couldNotUndoRecurring);
 	}
 }
 
@@ -2610,7 +2611,7 @@ function renderRecurringCheckbox(
 ): void {
 	const check = parent.createEl("input", {
 		cls: "hearth-task-check hearth-task-check-recurring",
-		attr: { type: "checkbox", "aria-label": "Mark today's occurrence complete" },
+		attr: { type: "checkbox", "aria-label": t().cards.tasks.markOccurrence },
 	});
 	// Move it to the very front so it leads the task text regardless of what
 	// the caller appends afterwards.
@@ -2686,21 +2687,11 @@ function greetingBucket(hour: number): number {
 	return 5; // night
 }
 
-/** Playful, mildly cheeky greetings per bucket (opt-in). */
-const PLAYFUL_GREETINGS: string[][] = [
-	["Late night session?", "Burning the midnight oil?", "The vault never sleeps, huh?", "You should probably be asleep."],
-	["Working this early already?", "Up with the sun, are we?", "Coffee first, surely?", "Bold of you to be up."],
-	["Morning. Let's pretend we're productive.", "The notes missed you.", "Back at it.", "Another day, another vault."],
-	["Afternoon grind.", "Still going?", "Post-lunch productivity — ambitious.", "Halfway there, probably."],
-	["You again?", "Evening. Wrapping up, or just starting?", "One more note, then?", "The day's winding down. You aren't."],
-	["Late again?", "The day's over, the ideas aren't.", "Shouldn't you be resting?", "Burning the candle at both ends."],
-];
-
 function pickGreeting(hour: number, playful: boolean): string {
 	if (!playful) {
-		return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+		return hour < 12 ? t().clock.greetingMorning : hour < 18 ? t().clock.greetingAfternoon : t().clock.greetingEvening;
 	}
-	const pool = PLAYFUL_GREETINGS[greetingBucket(hour)];
+	const pool = t().clock.playfulGreetings[greetingBucket(hour)];
 	return pool[Math.floor(Math.random() * pool.length)];
 }
 

@@ -1,7 +1,8 @@
 import { Command, Component, debounce, Platform, setIcon, TAbstractFile, TFile, TFolder } from "obsidian";
 import type { HomeView } from "./view";
-import { FILE_TYPE_GROUPS, FileTypeGroup, groupForFile, iconForFile, OTHER_GROUP_ID } from "./filetypes";
+import { FILE_TYPE_GROUPS, FileTypeGroup, fileTypeLabel, groupForFile, iconForFile, OTHER_GROUP_ID } from "./filetypes";
 import { QueryHit, runQuery, searchFileContents } from "./query";
+import { t } from "./i18n";
 
 /** Recently opened-via-search files, kept in the vault's local storage (never
  * in settings/data.json) so it stays out of the settings UI and layout
@@ -56,7 +57,7 @@ export class SearchSection {
 			cls: "hearth-search-input",
 			attr: {
 				type: "text",
-				placeholder: this.view.plugin.settings.searchPlaceholder || "Search the vault",
+				placeholder: this.view.plugin.settings.searchPlaceholder || t().search.placeholder,
 				spellcheck: "false",
 				role: "combobox",
 				"aria-expanded": "false",
@@ -133,7 +134,7 @@ export class SearchSection {
 			const chip = row.createDiv("hearth-filter");
 			chip.toggleClass("is-active", this.activeFilter === group.id);
 			setIcon(chip.createDiv("hearth-filter-icon"), group.icon);
-			chip.setAttribute("aria-label", group.label);
+			chip.setAttribute("aria-label", fileTypeLabel(group));
 			chip.setAttribute("role", "button");
 			chip.setAttribute("tabindex", "0");
 			chip.setAttribute("aria-pressed", String(this.activeFilter === group.id));
@@ -276,7 +277,7 @@ export class SearchSection {
 	private renderCommandRows(commands: Command[]): void {
 		this.beginResults();
 		if (commands.length === 0) {
-			this.showEmpty("No matching commands");
+			this.showEmpty(t().search.noMatchingCommands);
 			return;
 		}
 		commands.forEach((command, i) => {
@@ -319,7 +320,7 @@ export class SearchSection {
 		if (cursor < name.length) el.appendText(name.slice(cursor));
 	}
 
-	private showEmpty(text = "No matches"): void {
+	private showEmpty(text: string = t().search.noMatches): void {
 		this.resultsEl.createDiv("hearth-search-empty").setText(text);
 		this.resultsEl.show();
 		this.inputEl.setAttribute("aria-expanded", "true");

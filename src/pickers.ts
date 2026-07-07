@@ -1,4 +1,5 @@
 import { App, Command, FuzzySuggestModal, TFile } from "obsidian";
+import { t } from "./i18n";
 
 /**
  * A fuzzy file picker used to choose (or swap) the file embedded by a card
@@ -10,7 +11,7 @@ export class FilePickerModal extends FuzzySuggestModal<TFile> {
 	constructor(app: App, onChoose: (file: TFile) => void, placeholder?: string) {
 		super(app);
 		this.onChoose = onChoose;
-		this.setPlaceholder(placeholder ?? "Pick a file to embed…");
+		this.setPlaceholder(placeholder ?? t().pickers.fileToEmbed);
 	}
 
 	getItems(): TFile[] {
@@ -36,7 +37,7 @@ export class CommandPickerModal extends FuzzySuggestModal<Command> {
 	constructor(app: App, onChoose: (command: Command) => void) {
 		super(app);
 		this.onChoose = onChoose;
-		this.setPlaceholder("Pick a command…");
+		this.setPlaceholder(t().pickers.command);
 	}
 
 	getItems(): Command[] {

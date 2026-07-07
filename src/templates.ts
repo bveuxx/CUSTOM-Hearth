@@ -1,4 +1,5 @@
 import { DashboardCard } from "./types";
+import { t } from "./i18n";
 
 /** A ready-made card preset offered by the "Add card" picker. */
 export interface CardTemplate {
@@ -126,6 +127,13 @@ export const CARD_TEMPLATES: CardTemplate[] = [
 		build: () => ({ kind: "text", title: "Notes", text: "", w: 4, h: 2 }),
 	},
 ];
+
+/** The template's localized display name for the "Add card" menu. Falls back to
+ * the English `name` baked into the template if a locale is missing the key. */
+export function templateName(template: CardTemplate): string {
+	const names = t().templates as Record<string, string>;
+	return names[template.id] ?? template.name;
+}
 
 export function cardFromTemplate(template: CardTemplate): DashboardCard {
 	return {
