@@ -62,6 +62,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           tag="${{ steps.tag.outputs.tag }}"
+          # Pre-release versions (e.g. 1.6.1-beta) must not become the repo's
+          # "latest" release — mark them as pre-releases so stable stays latest.
+          flags=""
+          case "$tag" in
+            *-beta|*-alpha|*-rc*) flags="--prerelease" ;;
+          esac
           # Assets must be attached as individual files (not zipped) so BRAT can
           # fetch manifest.json, main.js and styles.css directly. Idempotent so
           # re-runs just refresh the assets.
@@ -71,6 +77,7 @@ jobs:
             gh release create "$tag" \
               --target "$GITHUB_SHA" \
               --title "$tag" \
+              $flags \
               --generate-notes \
               main.js manifest.json styles.css
           fi

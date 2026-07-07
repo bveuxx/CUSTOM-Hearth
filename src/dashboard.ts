@@ -67,21 +67,6 @@ export function renderDashboard(
 	// to fit its cards.
 	if (!fit) grid.style.minHeight = `${layoutHeight(cards) + GRID_GAP}px`;
 
-	// In fit-to-page mode, recover any card that's stuck outside the visible
-	// board (e.g. from a layout import, a pane resize, or a glitched drag).
-	// The grid's clientHeight isn't final until laid out, so use the dashboard
-	// container's height (the visible area) as the clamp bound.
-	if (fit) {
-		const boardH = container.clientHeight - 40; // minus toolbar row
-		let recovered = false;
-		for (const card of cards) {
-			if (clampCardToBoard(card, boardH > 0 ? boardH : null)) recovered = true;
-		}
-		if (recovered) {
-			void view.plugin.saveData(s);
-		}
-	}
-
 	// An empty board is left blank — no placeholder text or icon. The Arrange
 	// toolbar (with "Add card") is still available above.
 	if (cards.length === 0) return;
@@ -138,6 +123,43 @@ export function renderDashboard(
 	// dashboard switch) — fractional widths shift which edges touch.
 	const remerge = () => applyEdgeMerging(grid);
 	component.registerDomEvent(window, "resize", debounce(remerge, 120, true));
+
+	// In fit-to-page mode, recover any card that's stuck outside the visible
+	// board (e.g. from a layout import, a pane resize, or a glitched drag) by
+	// clamping it back in and persisting.
+	//
+	// This must run against the board's FINAL laid-out height. Doing it
+	// synchronously during render (as before) measured the pane before the
+	// workspace had finished restoring — right after a PC start, plugin update
+	// or full sync — so cards were clamped to a too-small height and their
+	// upward-shifted positions were saved, nudging the whole board up. Instead,
+	// observe the grid's real size and only clamp once it has settled: a
+	// ResizeObserver fires with the final size after layout (and again on
+	// genuine resizes), and the debounce coalesces the startup size thrash so
+	// we never act on a transient measurement. A zero height means "not laid
+	// out yet" — skip it so stored positions are never corrupted.
+	if (fit) {
+		const recoverFit = debounce(() => {
+			if (!grid.isConnected) return;
+			const boardH = grid.clientHeight;
+			if (boardH <= 0) return;
+			let recovered = false;
+			for (const card of cards) {
+				if (clampCardToBoard(card, boardH)) {
+					recovered = true;
+					const el = gridLayout.elements.get(card);
+					if (el) applyCardPosition(el, card);
+				}
+			}
+			if (recovered) {
+				applyEdgeMerging(grid);
+				void view.plugin.saveData(s);
+			}
+		}, 250, false);
+		const observer = new ResizeObserver(() => recoverFit());
+		observer.observe(grid);
+		component.register(() => observer.disconnect());
+	}
 }
 
 /** Render a card's body. Each (re)draw renders under a fresh child component so

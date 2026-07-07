@@ -310,17 +310,32 @@ function renderEditableEmbed(
 	area.hide();
 
 	// `saving` guards against reacting to our own writes; `editing` tracks whether
-	// the raw editor is open.
+	// the raw editor is open; `lastSaved` is the content we last wrote so a
+	// no-op leave doesn't trigger a redundant write (and modify event).
 	let saving = false;
 	let editing = false;
+	let lastSaved: string | null = null;
 	let previewChild: Component | null = null;
+	// Monotonic token so overlapping renders (e.g. leaveEdit + a modify event
+	// firing together) can't clobber each other. Only the latest render creates
+	// a component and touches the DOM; stale in-flight renders bail out. Without
+	// this, an earlier render could finish against a component that a later
+	// render already unloaded, which drops async content like fenced code blocks.
+	let renderToken = 0;
 
 	const renderPreview = () => {
-		if (previewChild) component.removeChild(previewChild);
-		previewChild = new Component();
-		component.addChild(previewChild);
-		preview.empty();
+		const token = ++renderToken;
+		if (previewChild) {
+			component.removeChild(previewChild);
+			previewChild = null;
+		}
 		void view.app.vault.cachedRead(file).then((raw) => {
+			// A newer render superseded this one — leave the DOM to the winner.
+			if (token !== renderToken) return;
+			// The card was torn down while we were reading — don't render into a
+			// detached node.
+			if (!preview.isConnected) return;
+			preview.empty();
 			const md = stripFrontmatter(raw);
 			if (!md.trim()) {
 				preview.addClass("is-empty");
@@ -328,14 +343,31 @@ function renderEditableEmbed(
 				return;
 			}
 			preview.removeClass("is-empty");
-			void MarkdownRenderer.render(view.app, md, preview, file.path, previewChild!);
+			// Render into a FRESH child node each time rather than into `preview`
+			// itself. Some third-party code-block processors dedupe re-renders by
+			// the block's parent element — e.g. Numerals keeps a
+			// WeakMap<parentEl, source> and, on seeing the same source under the
+			// same parent, removes the block instead of rendering it. Reusing
+			// `preview` (we only empty() it) kept the parent identical across
+			// renders, so leaving raw edit made the math block dedupe itself away
+			// until an unrelated full re-render built a new preview node. A new
+			// content node per render gives each block a fresh parent.
+			const content = preview.createDiv("markdown-rendered");
+			previewChild = new Component();
+			component.addChild(previewChild);
+			void MarkdownRenderer.render(view.app, md, content, file.path, previewChild);
 		});
 	};
 
 	const flush = () => {
+		// Nothing changed since our last write — skip it, so a bare
+		// double-click-then-leave doesn't fire a self-modify event that races
+		// the leaveEdit re-render.
+		if (lastSaved !== null && area.value === lastSaved) return;
 		const current = view.app.vault.getAbstractFileByPath(file.path);
 		if (current instanceof TFile) {
 			saving = true;
+			lastSaved = area.value;
 			void view.app.vault.modify(current, area.value).finally(() => {
 				saving = false;
 			});
@@ -345,6 +377,7 @@ function renderEditableEmbed(
 	const enterEdit = () => {
 		void view.app.vault.read(file).then((content) => {
 			area.value = content;
+			lastSaved = content;
 			editing = true;
 			preview.hide();
 			area.show();
@@ -373,6 +406,7 @@ function renderEditableEmbed(
 				if (area.ownerDocument.activeElement !== area) {
 					void view.app.vault.read(file).then((content) => {
 						area.value = content;
+						lastSaved = content;
 					});
 				}
 			} else {
@@ -1173,12 +1207,22 @@ function applyTileSize(
 	const rs = h && h > 0 ? Math.max(1, Math.round(h / rowH)) : DEFAULT_TILE_RS;
 	tile.style.setProperty("--hearth-tile-cs", String(cs));
 	tile.style.setProperty("--hearth-tile-rs", String(rs));
+	applyTileIconOnly(tile, cs, rs);
 	// Free-form position: pin to a grid line (1-based). When either is missing
 	// the tile auto-flows into the next available cell.
 	if (col != null && col > 0) tile.style.setProperty("--hearth-tile-col", String(col));
 	else tile.style.removeProperty("--hearth-tile-col");
 	if (row != null && row > 0) tile.style.setProperty("--hearth-tile-row", String(row));
 	else tile.style.removeProperty("--hearth-tile-row");
+}
+
+/** Toggle icon-only mode when a tile is too small to show its label. Below two
+ * fine rows there's no vertical room for text, and at a single column there's
+ * no horizontal room; in both cases the label ellipsises away to nothing while
+ * still reserving its line + gap, which pushes the icon off-centre. Dropping
+ * the label (and its gap) then lets the icon sit dead-centre. */
+function applyTileIconOnly(tile: HTMLElement, cs: number, rs: number): void {
+	tile.toggleClass("is-icon-only", rs <= 1 || cs <= 1);
 }
 
 /** Default span for a tile with no explicit size: 2 columns × 2 rows on the
@@ -1260,6 +1304,7 @@ function makeTileResizable(
 		const rs = Math.max(1, Math.round(h / rowH));
 		tile.style.setProperty("--hearth-tile-cs", String(cs));
 		tile.style.setProperty("--hearth-tile-rs", String(rs));
+		applyTileIconOnly(tile, cs, rs);
 	});
 
 	const end = (e: PointerEvent) => {

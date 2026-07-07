@@ -421,17 +421,51 @@ export class CardSettingsModal extends Modal {
 				d.setValue(link.type).onChange((v) => {
 					link.type = v as LinkItem["type"];
 					this.opts.save();
+					// The target control differs by type (a command picker vs. a
+					// free-text path/URL field), so rebuild the editor to swap it.
+					this.render();
 				});
 			});
-			row.addText((t) =>
-				t
-					.setPlaceholder("Target (path / URL / command id)")
-					.setValue(link.target)
-					.onChange((v) => {
-						link.target = v;
-						this.opts.save();
-					}),
-			);
+			if (link.type === "command") {
+				// Commands are addressed by an opaque id (e.g. "editor:toggle-bold")
+				// that users can't be expected to know, so offer a fuzzy picker over
+				// the registered commands instead of a raw text field. This mirrors
+				// how the "commands" card adds tiles and is what makes command links
+				// actually fire.
+				row.addButton((b) => {
+					const current = link.target
+						? this.app.commands.listCommands().find((c) => c.id === link.target)
+						: undefined;
+					b.setButtonText(current ? current.name : "Pick command…");
+					b.onClick(() => {
+						new CommandPickerModal(this.app, (command) => {
+							link.target = command.id;
+							// Prefill an empty label with the command name so the tile
+							// isn't blank; leave a user-set label untouched.
+							if (!link.label) link.label = command.name;
+							// Adopt the command's own icon if the link is still on the
+							// default; a user-chosen icon is left alone.
+							if ((!link.icon || link.icon === "link") && command.icon) {
+								link.icon = command.icon;
+							}
+							this.opts.save();
+							this.render();
+						}).open();
+					});
+				});
+			} else {
+				row.addText((t) =>
+					t
+						.setPlaceholder(
+							link.type === "url" ? "Target (URL)" : "Target (note path)",
+						)
+						.setValue(link.target)
+						.onChange((v) => {
+							link.target = v;
+							this.opts.save();
+						}),
+				);
+			}
 			row.addExtraButton((b) =>
 				b
 					.setIcon("chevron-up")

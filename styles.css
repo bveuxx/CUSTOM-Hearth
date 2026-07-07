@@ -879,6 +879,20 @@
 	height: 24px;
 }
 
+/* When a tile is shrunk too small to show its label (added by applyTileSize),
+ * hide the label and drop the gap so the icon centres exactly. Without this the
+ * empty label + gap keep reserving space and push the icon above centre, so it
+ * reads as offset upward even though no text is visible. Tighter padding lets
+ * the icon fit in short tiles. */
+.hearth-link-tile.is-icon-only {
+	gap: 0;
+	padding: 4px;
+}
+
+.hearth-link-tile.is-icon-only .hearth-link-label {
+	display: none;
+}
+
 /* In arrange mode, tile cards (links/commands) keep their drag overlay active
  * so the card can still be dragged from empty areas of its body. Tiles and
  * their resize handles sit above the overlay so they're interactive. */
@@ -1460,23 +1474,16 @@
  * touching corners sharpen and the shared border drops out so the pair reads
  * as one continuous tile — like grouped Android notifications. The classes
  * are toggled by applyEdgeMerging() after every layout change and during
- * drags, so they only ever reflect the current on-screen adjacency. */
-.hearth-card.merge-top {
-	border-top-left-radius: 0;
-	border-top-right-radius: 0;
-}
-.hearth-card.merge-bottom {
-	border-bottom-left-radius: 0;
-	border-bottom-right-radius: 0;
-}
-.hearth-card.merge-left {
-	border-top-left-radius: 0;
-	border-bottom-left-radius: 0;
-}
-.hearth-card.merge-right {
-	border-top-right-radius: 0;
-	border-bottom-right-radius: 0;
-}
+ * drags, so they only ever reflect the current on-screen adjacency.
+ *
+ * Corner sharpening is per-corner (merge-tl/tr/bl/br) rather than per-edge: a
+ * corner only flattens when a neighbour actually reaches it, so two cards that
+ * share an edge only along part of its length keep the rounded corners that
+ * don't touch anything. */
+.hearth-card.merge-tl { border-top-left-radius: 0; }
+.hearth-card.merge-tr { border-top-right-radius: 0; }
+.hearth-card.merge-bl { border-bottom-left-radius: 0; }
+.hearth-card.merge-br { border-bottom-right-radius: 0; }
 
 .hearth-card.has-accent {
 	border-color: var(--card-accent);

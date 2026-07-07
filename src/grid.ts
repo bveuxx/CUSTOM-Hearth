@@ -469,8 +469,12 @@ export function updateBoardHeight(gridEl: HTMLElement): void {
  *  card is being dragged (its inline position is already current). */
 export function applyEdgeMerging(gridEl: HTMLElement): void {
 	const cards = Array.from(gridEl.querySelectorAll<HTMLElement>(":scope > .hearth-card"));
+	const MERGE_CLASSES = [
+		"merge-top", "merge-bottom", "merge-left", "merge-right",
+		"merge-tl", "merge-tr", "merge-bl", "merge-br",
+	];
 	for (const c of cards) {
-		c.classList.remove("merge-top", "merge-bottom", "merge-left", "merge-right");
+		c.classList.remove(...MERGE_CLASSES);
 	}
 	if (cards.length < 2) return;
 
@@ -480,12 +484,19 @@ export function applyEdgeMerging(gridEl: HTMLElement): void {
 	// that only brush at a corner.
 	const TOUCH = 2;
 	const OVERLAP = 6;
+	// Per-card corner-end coverage. Each flag records whether the given end of
+	// the given edge is reached by a touching neighbour, e.g. `rT` = the top end
+	// of the right edge is covered. A corner sharpens when either edge meeting
+	// at it is covered there; a border drops only when its whole edge is covered
+	// (both ends), so a partially-shared edge keeps its outline.
 	const rects = cards.map((el) => ({
 		el,
 		left: el.offsetLeft,
 		top: el.offsetTop,
 		right: el.offsetLeft + el.offsetWidth,
 		bottom: el.offsetTop + el.offsetHeight,
+		rT: false, rB: false, lT: false, lB: false,
+		tL: false, tR: false, bL: false, bR: false,
 	}));
 
 	for (let i = 0; i < rects.length; i++) {
@@ -499,14 +510,15 @@ export function applyEdgeMerging(gridEl: HTMLElement): void {
 			if (aLeftOfB || bLeftOfA) {
 				const vOverlap = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
 				if (vOverlap > OVERLAP) {
-					if (aLeftOfB) {
-						a.el.classList.add("merge-right");
-						b.el.classList.add("merge-left");
-					}
-					if (bLeftOfA) {
-						b.el.classList.add("merge-right");
-						a.el.classList.add("merge-left");
-					}
+					// L sits to the left of R along the shared edge (L's right
+					// edge meets R's left edge). A corner-end is covered only
+					// where the neighbour actually reaches that end.
+					const L = aLeftOfB ? a : b;
+					const R = aLeftOfB ? b : a;
+					if (R.top <= L.top + TOUCH) L.rT = true;
+					if (R.bottom >= L.bottom - TOUCH) L.rB = true;
+					if (L.top <= R.top + TOUCH) R.lT = true;
+					if (L.bottom >= R.bottom - TOUCH) R.lB = true;
 				}
 			}
 			// Vertical adjacency (stacked): bottom edge meets top edge, with
@@ -516,16 +528,29 @@ export function applyEdgeMerging(gridEl: HTMLElement): void {
 			if (aAboveB || bAboveA) {
 				const hOverlap = Math.min(a.right, b.right) - Math.max(a.left, b.left);
 				if (hOverlap > OVERLAP) {
-					if (aAboveB) {
-						a.el.classList.add("merge-bottom");
-						b.el.classList.add("merge-top");
-					}
-					if (bAboveA) {
-						b.el.classList.add("merge-bottom");
-						a.el.classList.add("merge-top");
-					}
+					// T sits above Bot (T's bottom edge meets Bot's top edge).
+					const T = aAboveB ? a : b;
+					const Bot = aAboveB ? b : a;
+					if (Bot.left <= T.left + TOUCH) T.bL = true;
+					if (Bot.right >= T.right - TOUCH) T.bR = true;
+					if (T.left <= Bot.left + TOUCH) Bot.tL = true;
+					if (T.right >= Bot.right - TOUCH) Bot.tR = true;
 				}
 			}
 		}
+	}
+
+	for (const r of rects) {
+		const cl = r.el.classList;
+		// Sharpen a corner when either edge meeting there is covered at that end.
+		if (r.tL || r.lT) cl.add("merge-tl");
+		if (r.tR || r.rT) cl.add("merge-tr");
+		if (r.bL || r.lB) cl.add("merge-bl");
+		if (r.bR || r.rB) cl.add("merge-br");
+		// Drop a shared border only when the whole edge is covered end-to-end.
+		if (r.tL && r.tR) cl.add("merge-top");
+		if (r.bL && r.bR) cl.add("merge-bottom");
+		if (r.lT && r.lB) cl.add("merge-left");
+		if (r.rT && r.rB) cl.add("merge-right");
 	}
 }
