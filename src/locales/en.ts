@@ -170,6 +170,8 @@ export const en = {
 		expandSection: "Expand section",
 		appearance: {
 			heading: "Appearance",
+			headingDesc:
+				"Title, logo, search bar and overall content width.",
 			showTitle: "Show title",
 			showTitleDesc: "Display the big title/logo at the top.",
 			title: "Title",
@@ -193,6 +195,8 @@ export const en = {
 		},
 		background: {
 			heading: "Background",
+			headingDesc:
+				"The backdrop behind the home view, and how much it shows through.",
 			type: "Background type",
 			value: "Background value",
 			valueColorDesc: "A CSS color, e.g. #1e1e2e or rgb(30,30,46).",
@@ -211,6 +215,8 @@ export const en = {
 		},
 		behaviour: {
 			heading: "Behaviour",
+			headingDesc:
+				"When and where Hearth opens, and the phone/tablet search-only mode.",
 			openOnStartup: "Open on startup",
 			openOnStartupDesc: "Open the home view when the vault loads.",
 			replaceNewTabs: "Replace new tabs",
@@ -258,6 +264,8 @@ export const en = {
 		},
 		dashboard: {
 			heading: "Dashboard",
+			headingDesc:
+				"Sizing and transparency of the card grid. Cards themselves are added and configured on the board.",
 			fitToPage: "Fit to page",
 			fitToPageDesc: "Keep the dashboard to one screen instead of allowing scroll.",
 			compact: "Compact spacing",

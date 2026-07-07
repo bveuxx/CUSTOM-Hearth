@@ -46,15 +46,32 @@ export class HomeSettingTab extends PluginSettingTab {
 		this.fileDatalist(containerEl);
 
 		// Each section is wrapped in a foldable container whose collapsed state
-		// is remembered across sessions in localStorage.
-		this.section(containerEl, t().settings.appearance.heading, (body) =>
-			this.appearanceSection(body),
+		// is remembered across sessions in localStorage. Ordered by concern:
+		// look & feel, then search, then behaviour/mobile, then the dashboard
+		// and its cards, and finally layout backup/restore.
+		this.section(
+			containerEl,
+			t().settings.appearance.heading,
+			t().settings.appearance.headingDesc,
+			(body) => this.appearanceSection(body),
 		);
-		this.section(containerEl, t().settings.background.heading, (body) =>
-			this.backgroundSection(body),
+		this.section(
+			containerEl,
+			t().settings.background.heading,
+			t().settings.background.headingDesc,
+			(body) => this.backgroundSection(body),
 		);
-		this.section(containerEl, t().settings.behaviour.heading, (body) =>
-			this.behaviourSection(body),
+		this.section(
+			containerEl,
+			t().settings.filters.heading,
+			t().settings.filters.headingDesc,
+			(body) => this.filtersSection(body),
+		);
+		this.section(
+			containerEl,
+			t().settings.behaviour.heading,
+			t().settings.behaviour.headingDesc,
+			(body) => this.behaviourSection(body),
 		);
 		this.section(
 			containerEl,
@@ -64,21 +81,21 @@ export class HomeSettingTab extends PluginSettingTab {
 		);
 		this.section(
 			containerEl,
+			t().settings.dashboard.heading,
+			t().settings.dashboard.headingDesc,
+			(body) => this.dashboardSection(body),
+		);
+		this.section(
+			containerEl,
 			t().settings.tasks.heading,
 			t().settings.tasks.headingDesc,
 			(body) => this.tasksSection(body),
 		);
 		this.section(
 			containerEl,
-			t().settings.filters.heading,
-			t().settings.filters.headingDesc,
-			(body) => this.filtersSection(body),
-		);
-		this.section(containerEl, t().settings.dashboard.heading, (body) =>
-			this.dashboardSection(body),
-		);
-		this.section(containerEl, t().settings.layout.heading, t().settings.layout.headingDesc, (body) =>
-			this.layoutSection(body),
+			t().settings.layout.heading,
+			t().settings.layout.headingDesc,
+			(body) => this.layoutSection(body),
 		);
 	}
 
