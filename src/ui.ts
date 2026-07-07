@@ -40,8 +40,11 @@ export class ConfirmModal extends Modal {
 		new Setting(this.contentEl)
 			.addButton((b) => b.setButtonText(t().confirm.cancel).onClick(() => this.close()))
 			.addButton((b) => {
+			// setWarning() is deprecated in favour of setDestructive(), but that
+			// API is @since 1.13.0 and our declared minAppVersion is 1.8.7, so we
+			// keep setWarning() to stay within the supported API surface.
 			b.setButtonText(this.confirmText)
-				.setDestructive()
+				.setWarning()
 				.onClick(() => {
 					this.close();
 					this.onConfirm();
