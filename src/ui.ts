@@ -1,4 +1,5 @@
 import { App, Modal, Setting } from "obsidian";
+import { t } from "./i18n";
 
 /**
  * Make a non-button element behave like a button for keyboard and screen-reader
@@ -30,14 +31,14 @@ export class ConfirmModal extends Modal {
 		super(app);
 		this.titleEl.setText(opts.title);
 		this.message = opts.message;
-		this.confirmText = opts.confirmText ?? "Confirm";
+		this.confirmText = opts.confirmText ?? t().confirm.confirm;
 		this.onConfirm = opts.onConfirm;
 	}
 
 	onOpen(): void {
 		this.contentEl.createEl("p", { text: this.message });
 		new Setting(this.contentEl)
-			.addButton((b) => b.setButtonText("Cancel").onClick(() => this.close()))
+			.addButton((b) => b.setButtonText(t().confirm.cancel).onClick(() => this.close()))
 			.addButton((b) => {
 			b.setButtonText(this.confirmText)
 				.setWarning()

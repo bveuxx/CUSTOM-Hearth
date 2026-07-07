@@ -2,30 +2,7 @@ import { App, Modal, Notice, Setting } from "obsidian";
 import { CommandPickerModal, FilePickerModal } from "./pickers";
 import { CardKind, ClockConfig, DashboardCard, LinkItem, TasksConfig } from "./types";
 import { confirmAction } from "./ui";
-
-const CARD_KIND_LABELS: Record<CardKind, string> = {
-	embed: "Embed (note / image / base)",
-	daily: "Daily note (today)",
-	web: "Web page (iframe)",
-	bookmarks: "Bookmarks",
-	favorites: "Favorites",
-	text: "Text / jot-down",
-	recent: "Recent files",
-	links: "Links / launchpad",
-	commands: "Commands",
-	clock: "Clock & greeting",
-	tasks: "Tasks",
-	calendar: "Mini calendar",
-	stats: "Vault statistics",
-	search: "Query",
-	heatmap: "Activity heatmap",
-};
-
-const LINK_TYPE_LABELS: Record<LinkItem["type"], string> = {
-	note: "Note",
-	url: "URL",
-	command: "Command",
-};
+import { t } from "./i18n";
 
 export interface CardSettingsOptions {
 	/** The global favorites list (shared by all favorites cards). */
@@ -62,7 +39,7 @@ export class CardSettingsModal extends Modal {
 	}
 
 	onOpen(): void {
-		this.titleEl.setText("Card settings");
+		this.titleEl.setText(t().editors.title);
 		this.render();
 	}
 
@@ -71,9 +48,9 @@ export class CardSettingsModal extends Modal {
 		contentEl.empty();
 		const card = this.card;
 
-		new Setting(contentEl).setName("Type").addDropdown((d) => {
-			(Object.keys(CARD_KIND_LABELS) as CardKind[]).forEach((k) => {
-				d.addOption(k, CARD_KIND_LABELS[k]);
+		new Setting(contentEl).setName(t().editors.type).addDropdown((d) => {
+			(Object.keys(t().editors.kinds) as CardKind[]).forEach((k) => {
+				d.addOption(k, t().editors.kinds[k]);
 			});
 			d.setValue(card.kind).onChange((v) => {
 				card.kind = v as CardKind;
@@ -82,8 +59,8 @@ export class CardSettingsModal extends Modal {
 			});
 		});
 
-		new Setting(contentEl).setName("Title").addText((t) =>
-			t.setPlaceholder("Title").setValue(card.title ?? "").onChange((v) => {
+		new Setting(contentEl).setName(t().editors.cardTitle).addText((txt) =>
+			txt.setPlaceholder(t().editors.cardTitlePlaceholder).setValue(card.title ?? "").onChange((v) => {
 				card.title = v;
 				this.opts.save();
 			}),
@@ -97,11 +74,11 @@ export class CardSettingsModal extends Modal {
 
 		new Setting(contentEl)
 			.addButton((b) => {
-				b.setButtonText("Remove card").onClick(() => {
+				b.setButtonText(t().editors.removeCard).onClick(() => {
 					confirmAction(this.app, {
-						title: "Remove card?",
-						message: `Remove "${this.card.title?.trim() || "this card"}" from the dashboard?`,
-						confirmText: "Remove",
+						title: t().editors.removeCardTitle,
+						message: t().editors.removeCardMessage(this.card.title?.trim() || t().editors.thisCard),
+						confirmText: t().editors.removeCardConfirm,
 						onConfirm: () => {
 							this.opts.remove();
 							this.close();
@@ -112,7 +89,7 @@ export class CardSettingsModal extends Modal {
 			})
 			.addButton((b) =>
 				b
-					.setButtonText("Done")
+					.setButtonText(t().editors.done)
 					.setCta()
 					.onClick(() => this.close()),
 			);
@@ -125,11 +102,11 @@ export class CardSettingsModal extends Modal {
 		switch (card.kind) {
 			case "embed": {
 				const setting = new Setting(containerEl)
-					.setName("File to embed")
-					.setDesc("A note, image, canvas or .base file in your vault.");
-				setting.addText((t) =>
-					t
-						.setPlaceholder("File path to embed")
+					.setName(t().editors.embed.file)
+					.setDesc(t().editors.embed.fileDesc);
+				setting.addText((txt) =>
+					txt
+						.setPlaceholder(t().editors.embed.filePlaceholder)
 						.setValue(card.target ?? "")
 						.onChange((v) => {
 							card.target = v;
@@ -139,7 +116,7 @@ export class CardSettingsModal extends Modal {
 				setting.addExtraButton((b) =>
 					b
 						.setIcon("file-symlink")
-						.setTooltip("Pick a file")
+						.setTooltip(t().editors.embed.pickFile)
 						.onClick(() => {
 							new FilePickerModal(this.app, (file) => {
 								card.target = file.path;
@@ -149,8 +126,8 @@ export class CardSettingsModal extends Modal {
 						}),
 				);
 				new Setting(containerEl)
-					.setName("Zoom")
-					.setDesc("Scale the embedded content. Applies when you close this dialog.")
+					.setName(t().editors.embed.zoom)
+					.setDesc(t().editors.embed.zoomDesc)
 					.addSlider((s) =>
 						s
 							.setLimits(50, 200, 10)
@@ -161,8 +138,8 @@ export class CardSettingsModal extends Modal {
 							}),
 					);
 				new Setting(containerEl)
-					.setName("Editable")
-					.setDesc("Edit the embedded note's text in place (Markdown notes only).")
+					.setName(t().editors.embed.editable)
+					.setDesc(t().editors.embed.editableDesc)
 					.addToggle((t) =>
 						t.setValue(card.editable ?? false).onChange((v) => {
 							card.editable = v || undefined;
@@ -173,8 +150,8 @@ export class CardSettingsModal extends Modal {
 			}
 			case "daily":
 				new Setting(containerEl)
-					.setName("Editable")
-					.setDesc("Edit today's note in place instead of read-only. Saves to the vault.")
+					.setName(t().editors.daily.editable)
+					.setDesc(t().editors.daily.editableDesc)
 					.addToggle((t) =>
 						t.setValue(card.editable ?? false).onChange((v) => {
 							card.editable = v || undefined;
@@ -182,8 +159,8 @@ export class CardSettingsModal extends Modal {
 						}),
 					);
 				new Setting(containerEl)
-					.setName("Open button")
-					.setDesc("Show a button to open today's note in the editor.")
+					.setName(t().editors.daily.openButton)
+					.setDesc(t().editors.daily.openButtonDesc)
 					.addToggle((t) =>
 						t.setValue(card.showOpenButton !== false).onChange((v) => {
 							card.showOpenButton = v ? undefined : false;
@@ -191,13 +168,13 @@ export class CardSettingsModal extends Modal {
 						}),
 					);
 				new Setting(containerEl)
-					.setName("Daily notes")
-					.setDesc("Today's note is resolved from the core Daily notes plugin's date format and folder. The card updates live as you edit.");
+					.setName(t().editors.daily.info)
+					.setDesc(t().editors.daily.infoDesc);
 				break;
 			case "web":
-				new Setting(containerEl).setName("URL").addText((t) =>
-					t
-						.setPlaceholder("https://example.com")
+				new Setting(containerEl).setName(t().editors.web.url).addText((txt) =>
+					txt
+						.setPlaceholder(t().editors.web.urlPlaceholder)
 						.setValue(card.url ?? "")
 						.onChange((v) => {
 							card.url = v;
@@ -205,11 +182,8 @@ export class CardSettingsModal extends Modal {
 						}),
 				);
 				new Setting(containerEl)
-					.setName("Trusted site")
-					.setDesc(
-						"Allow the page same-origin access (cookies, storage). Only enable " +
-							"for sites you trust — it relaxes the iframe sandbox.",
-					)
+					.setName(t().editors.web.trusted)
+					.setDesc(t().editors.web.trustedDesc)
 					.addToggle((t) =>
 						t.setValue(card.sandboxTrusted ?? false).onChange((v) => {
 							card.sandboxTrusted = v || undefined;
@@ -220,7 +194,7 @@ export class CardSettingsModal extends Modal {
 				break;
 			case "recent":
 				new Setting(containerEl)
-					.setName("Number of files")
+					.setName(t().editors.recent.count)
 					.addText((t) => {
 						t.setValue(String(card.count ?? 8)).onChange((v) => {
 							const n = parseInt(v, 10);
@@ -261,8 +235,8 @@ export class CardSettingsModal extends Modal {
 	private calendarEditor(containerEl: HTMLElement): void {
 		const cfg = (this.card.calendar ??= {});
 		new Setting(containerEl)
-			.setName("Week numbers")
-			.setDesc("Show an ISO week-number column down the left edge.")
+			.setName(t().editors.calendar.weekNumbers)
+			.setDesc(t().editors.calendar.weekNumbersDesc)
 			.addToggle((t) =>
 				t.setValue(cfg.showWeekNumbers ?? false).onChange((v) => {
 					cfg.showWeekNumbers = v || undefined;
@@ -270,8 +244,8 @@ export class CardSettingsModal extends Modal {
 				}),
 			);
 		new Setting(containerEl)
-			.setName("Heatmap")
-			.setDesc("Tint each day by note activity that day.")
+			.setName(t().editors.calendar.heatmap)
+			.setDesc(t().editors.calendar.heatmapDesc)
 			.addToggle((t) =>
 				t.setValue(cfg.heatmap ?? false).onChange((v) => {
 					cfg.heatmap = v || undefined;
@@ -280,9 +254,9 @@ export class CardSettingsModal extends Modal {
 				}),
 			);
 		if (cfg.heatmap) {
-			new Setting(containerEl).setName("Heatmap counts").addDropdown((d) => {
-				d.addOption("modified", "Notes edited");
-				d.addOption("created", "Notes created");
+			new Setting(containerEl).setName(t().editors.calendar.heatmapCounts).addDropdown((d) => {
+				d.addOption("modified", t().editors.metricOptions.modified);
+				d.addOption("created", t().editors.metricOptions.created);
 				d.setValue(cfg.heatmapMetric ?? "modified").onChange((v) => {
 					cfg.heatmapMetric = v as NonNullable<typeof cfg.heatmapMetric>;
 					this.opts.save();
@@ -293,17 +267,17 @@ export class CardSettingsModal extends Modal {
 
 	private heatmapEditor(containerEl: HTMLElement): void {
 		const cfg = (this.card.heatmap ??= {});
-		new Setting(containerEl).setName("Metric").addDropdown((d) => {
-			d.addOption("modified", "Notes edited");
-			d.addOption("created", "Notes created");
+		new Setting(containerEl).setName(t().editors.heatmap.metric).addDropdown((d) => {
+			d.addOption("modified", t().editors.metricOptions.modified);
+			d.addOption("created", t().editors.metricOptions.created);
 			d.setValue(cfg.metric ?? "modified").onChange((v) => {
 				cfg.metric = v as NonNullable<typeof cfg.metric>;
 				this.opts.save();
 			});
 		});
 		new Setting(containerEl)
-			.setName("Weeks")
-			.setDesc("How many weeks of history to show.")
+			.setName(t().editors.heatmap.weeks)
+			.setDesc(t().editors.heatmap.weeksDesc)
 			.addSlider((s) =>
 				s
 					.setLimits(8, 53, 1)
@@ -318,23 +292,20 @@ export class CardSettingsModal extends Modal {
 	private savedSearchEditor(containerEl: HTMLElement): void {
 		const cfg = (this.card.savedSearch ??= {});
 		new Setting(containerEl)
-			.setName("Query")
-			.setDesc(
-				"Same syntax as the search bar: plain text for names/bodies, #tag for " +
-					"tags, or key:value for a frontmatter property.",
-			)
-			.addText((t) =>
-				t
-					.setPlaceholder("#project or status:active or meeting notes")
+			.setName(t().editors.savedSearch.query)
+			.setDesc(t().editors.savedSearch.queryDesc)
+			.addText((txt) =>
+				txt
+					.setPlaceholder(t().editors.savedSearch.queryPlaceholder)
 					.setValue(cfg.query ?? "")
 					.onChange((v) => {
 						cfg.query = v;
 						this.opts.save();
 					}),
 			);
-		new Setting(containerEl).setName("Display").addDropdown((d) => {
-			d.addOption("list", "List");
-			d.addOption("tiles", "Tiles");
+		new Setting(containerEl).setName(t().editors.savedSearch.display).addDropdown((d) => {
+			d.addOption("list", t().editors.savedSearch.displayList);
+			d.addOption("tiles", t().editors.savedSearch.displayTiles);
 			d.setValue(cfg.view ?? "list").onChange((v) => {
 				cfg.view = v === "list" ? undefined : (v as "tiles");
 				this.opts.save();
@@ -342,7 +313,7 @@ export class CardSettingsModal extends Modal {
 			});
 		});
 		new Setting(containerEl)
-			.setName("Max results")
+			.setName(t().editors.savedSearch.maxResults)
 			.addText((t) => {
 				t.setValue(String(cfg.count ?? 12)).onChange((v) => {
 					const n = parseInt(v, 10);
@@ -368,31 +339,28 @@ export class CardSettingsModal extends Modal {
 	private refreshSetting(containerEl: HTMLElement): void {
 		const card = this.card;
 		new Setting(containerEl)
-			.setName("Auto-refresh")
-			.setDesc("Re-render this card every N seconds to pick up changes. 0 = off.")
-			.addText((t) => {
-				t.setValue(String(card.refreshSec ?? 0)).onChange((v) => {
+			.setName(t().editors.web.autoRefresh)
+			.setDesc(t().editors.web.autoRefreshDesc)
+			.addText((txt) => {
+				txt.setValue(String(card.refreshSec ?? 0)).onChange((v) => {
 					const n = parseInt(v, 10);
 					card.refreshSec = Number.isNaN(n) || n <= 0 ? undefined : n;
 					this.opts.save();
 				});
-				t.inputEl.type = "number";
-				t.inputEl.addClass("hearth-count-input");
-				t.inputEl.setAttribute("aria-label", "Refresh interval in seconds");
+				txt.inputEl.type = "number";
+				txt.inputEl.addClass("hearth-count-input");
+				txt.inputEl.setAttribute("aria-label", t().editors.web.refreshIntervalAria);
 			});
 	}
 
 	private linksEditor(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName("Links").setHeading();
+		new Setting(containerEl).setName(t().editors.links.heading).setHeading();
 		const card = this.card;
 		const links = (card.links ??= []);
 
 		new Setting(containerEl)
-			.setName("Auto-shift tiles (beta)")
-			.setDesc(
-				"When on, tiles shove each other aside as one is dragged (like phone " +
-					"widgets). Off by default — tiles are pure free-form and may overlap.",
-			)
+			.setName(t().editors.links.autoShift)
+			.setDesc(t().editors.links.autoShiftDesc)
 			.addToggle((t) =>
 				t.setValue(card.tileAutoFlow ?? false).onChange((v) => {
 					card.tileAutoFlow = v;
@@ -402,21 +370,21 @@ export class CardSettingsModal extends Modal {
 
 		links.forEach((link, index) => {
 			const row = new Setting(containerEl).setClass("hearth-link-setting");
-			row.addText((t) =>
-				t.setPlaceholder("Label").setValue(link.label).onChange((v) => {
+			row.addText((txt) =>
+				txt.setPlaceholder(t().editors.links.labelPlaceholder).setValue(link.label).onChange((v) => {
 					link.label = v;
 					this.opts.save();
 				}),
 			);
-			row.addText((t) =>
-				t.setPlaceholder("Icon").setValue(link.icon).onChange((v) => {
+			row.addText((txt) =>
+				txt.setPlaceholder(t().editors.links.iconPlaceholder).setValue(link.icon).onChange((v) => {
 					link.icon = v;
 					this.opts.save();
 				}),
 			);
 			row.addDropdown((d) => {
-				(Object.keys(LINK_TYPE_LABELS) as LinkItem["type"][]).forEach((k) => {
-					d.addOption(k, LINK_TYPE_LABELS[k]);
+				(Object.keys(t().editors.linkTypes) as LinkItem["type"][]).forEach((k) => {
+					d.addOption(k, t().editors.linkTypes[k]);
 				});
 				d.setValue(link.type).onChange((v) => {
 					link.type = v as LinkItem["type"];
@@ -436,7 +404,7 @@ export class CardSettingsModal extends Modal {
 					const current = link.target
 						? this.app.commands.listCommands().find((c) => c.id === link.target)
 						: undefined;
-					b.setButtonText(current ? current.name : "Pick command…");
+					b.setButtonText(current ? current.name : t().editors.links.pickCommand);
 					b.onClick(() => {
 						new CommandPickerModal(this.app, (command) => {
 							link.target = command.id;
@@ -454,10 +422,10 @@ export class CardSettingsModal extends Modal {
 					});
 				});
 			} else {
-				row.addText((t) =>
-					t
+				row.addText((txt) =>
+					txt
 						.setPlaceholder(
-							link.type === "url" ? "Target (URL)" : "Target (note path)",
+							link.type === "url" ? t().editors.links.targetUrl : t().editors.links.targetNote,
 						)
 						.setValue(link.target)
 						.onChange((v) => {
@@ -469,21 +437,21 @@ export class CardSettingsModal extends Modal {
 			row.addExtraButton((b) =>
 				b
 					.setIcon("chevron-up")
-					.setTooltip("Move up")
+					.setTooltip(t().editors.links.moveUp)
 					.setDisabled(index === 0)
 					.onClick(() => this.moveItem(links, index, index - 1)),
 			);
 			row.addExtraButton((b) =>
 				b
 					.setIcon("chevron-down")
-					.setTooltip("Move down")
+					.setTooltip(t().editors.links.moveDown)
 					.setDisabled(index === links.length - 1)
 					.onClick(() => this.moveItem(links, index, index + 1)),
 			);
 			row.addExtraButton((b) =>
 				b
 					.setIcon("trash-2")
-					.setTooltip("Remove link")
+					.setTooltip(t().editors.links.removeLink)
 					.onClick(() => {
 						links.splice(index, 1);
 						this.opts.save();
@@ -493,7 +461,7 @@ export class CardSettingsModal extends Modal {
 		});
 
 		new Setting(containerEl).addButton((b) =>
-			b.setButtonText("Add link").onClick(() => {
+			b.setButtonText(t().editors.links.addLink).onClick(() => {
 				links.push({
 					id: `link-${Date.now().toString(36)}`,
 					label: "",
@@ -510,11 +478,8 @@ export class CardSettingsModal extends Modal {
 	private commandsEditor(containerEl: HTMLElement): void {
 		const card = this.card;
 		new Setting(containerEl)
-			.setName("Auto-shift tiles (beta)")
-			.setDesc(
-				"When on, tiles shove each other aside as one is dragged (like phone " +
-					"widgets). Off by default — tiles are pure free-form and may overlap.",
-			)
+			.setName(t().editors.commands.autoShift)
+			.setDesc(t().editors.commands.autoShiftDesc)
 			.addToggle((t) =>
 				t.setValue(card.tileAutoFlow ?? false).onChange((v) => {
 					card.tileAutoFlow = v;
@@ -522,11 +487,8 @@ export class CardSettingsModal extends Modal {
 				}),
 			);
 		new Setting(containerEl)
-			.setName("Button size")
-			.setDesc(
-				"Default size of the command tiles. Resize an individual tile by " +
-					"dragging its bottom-right corner, or set a per-tile size below.",
-			)
+			.setName(t().editors.commands.buttonSize)
+			.setDesc(t().editors.commands.buttonSizeDesc)
 			.addSlider((s) =>
 				s
 					.setLimits(60, 180, 10)
@@ -537,52 +499,52 @@ export class CardSettingsModal extends Modal {
 					}),
 			);
 
-		new Setting(containerEl).setName("Commands").setHeading();
+		new Setting(containerEl).setName(t().editors.commands.heading).setHeading();
 		const commands = (this.card.commands ??= []);
 
 		commands.forEach((cmd, index) => {
 			const row = new Setting(containerEl)
 				.setClass("hearth-link-setting")
 				.setName(cmd.name || cmd.id);
-			row.addText((t) =>
-				t
-					.setPlaceholder("Icon (optional)")
+			row.addText((txt) =>
+				txt
+					.setPlaceholder(t().editors.commands.iconOptionalPlaceholder)
 					.setValue(cmd.icon ?? "")
 					.onChange((v) => {
 						cmd.icon = v || undefined;
 						this.opts.save();
 					}),
 			);
-			row.addText((t) => {
-				t.setPlaceholder("Size")
+			row.addText((txt) => {
+				txt.setPlaceholder(t().editors.commands.sizePlaceholder)
 					.setValue(cmd.size ? String(cmd.size) : "")
 					.onChange((v) => {
 						const n = parseInt(v, 10);
 						cmd.size = Number.isNaN(n) || n <= 0 ? undefined : n;
 						this.opts.save();
 					});
-				t.inputEl.type = "number";
-				t.inputEl.addClass("hearth-count-input");
-				t.inputEl.setAttribute("aria-label", "Tile size in pixels (optional)");
+				txt.inputEl.type = "number";
+				txt.inputEl.addClass("hearth-count-input");
+				txt.inputEl.setAttribute("aria-label", t().editors.commands.tileSizeAria);
 			});
 			row.addExtraButton((b) =>
 				b
 					.setIcon("chevron-up")
-					.setTooltip("Move up")
+					.setTooltip(t().editors.commands.moveUp)
 					.setDisabled(index === 0)
 					.onClick(() => this.moveItem(commands, index, index - 1)),
 			);
 			row.addExtraButton((b) =>
 				b
 					.setIcon("chevron-down")
-					.setTooltip("Move down")
+					.setTooltip(t().editors.commands.moveDown)
 					.setDisabled(index === commands.length - 1)
 					.onClick(() => this.moveItem(commands, index, index + 1)),
 			);
 			row.addExtraButton((b) =>
 				b
 					.setIcon("trash-2")
-					.setTooltip("Remove command")
+					.setTooltip(t().editors.commands.removeCommand)
 					.onClick(() => {
 						commands.splice(index, 1);
 						this.opts.save();
@@ -592,7 +554,7 @@ export class CardSettingsModal extends Modal {
 		});
 
 		new Setting(containerEl).addButton((b) =>
-			b.setButtonText("Add command").onClick(() => {
+			b.setButtonText(t().editors.commands.addCommand).onClick(() => {
 				new CommandPickerModal(this.app, (command) => {
 					commands.push({ id: command.id, name: command.name, icon: command.icon });
 					this.opts.save();
@@ -606,15 +568,11 @@ export class CardSettingsModal extends Modal {
 		const cfg = (this.card.tasks ??= {});
 
 		new Setting(containerEl)
-			.setName("Source")
-			.setDesc(
-				"Markdown checkboxes work anywhere. TaskNotes reads that plugin's " +
-					"task notes via frontmatter (field names configurable in Settings → " +
-					"Hearth, since TaskNotes has no API for other plugins to query it).",
-			)
+			.setName(t().editors.tasks.source)
+			.setDesc(t().editors.tasks.sourceDesc)
 			.addDropdown((d) => {
-				d.addOption("checkbox", "Markdown checkboxes");
-				d.addOption("tasknotes", "TaskNotes plugin");
+				d.addOption("checkbox", t().editors.tasks.sourceCheckbox);
+				d.addOption("tasknotes", t().editors.tasks.sourceTaskNotes);
 				d.setValue(cfg.source ?? "checkbox").onChange((v) => {
 					cfg.source = v as TasksConfig["source"];
 					this.opts.save();
@@ -622,15 +580,11 @@ export class CardSettingsModal extends Modal {
 			});
 
 		new Setting(containerEl)
-			.setName("Layout")
-			.setDesc(
-				"List, or a Kanban board grouped by status. On the board, drag cards " +
-					"between columns, drag column headers to reorder, and use a column's " +
-					"eye icon to hide it.",
-			)
+			.setName(t().editors.tasks.layout)
+			.setDesc(t().editors.tasks.layoutDesc)
 			.addDropdown((d) => {
-				d.addOption("list", "List");
-				d.addOption("kanban", "Kanban board");
+				d.addOption("list", t().editors.tasks.layoutList);
+				d.addOption("kanban", t().editors.tasks.layoutKanban);
 				d.setValue(cfg.layout ?? "list").onChange((v) => {
 					cfg.layout = v === "kanban" ? "kanban" : undefined;
 					this.opts.save();
@@ -640,15 +594,15 @@ export class CardSettingsModal extends Modal {
 
 		if (cfg.layout === "kanban" && (cfg.kanbanHidden?.length || cfg.kanbanOrder?.length)) {
 			const reset = new Setting(containerEl)
-				.setName("Kanban columns")
+				.setName(t().editors.tasks.kanbanColumns)
 				.setDesc(
 					cfg.kanbanHidden?.length
-						? `Hidden: ${cfg.kanbanHidden.join(", ")}`
-						: "Custom column order is set.",
+						? t().editors.tasks.kanbanHidden(cfg.kanbanHidden.join(", "))
+						: t().editors.tasks.kanbanCustomOrder,
 				);
 			if (cfg.kanbanHidden?.length) {
 				reset.addButton((b) =>
-					b.setButtonText("Show all").onClick(() => {
+					b.setButtonText(t().editors.tasks.showAll).onClick(() => {
 						cfg.kanbanHidden = undefined;
 						this.opts.save();
 						this.render();
@@ -658,7 +612,7 @@ export class CardSettingsModal extends Modal {
 			reset.addExtraButton((b) =>
 				b
 					.setIcon("rotate-ccw")
-					.setTooltip("Reset column order & visibility")
+					.setTooltip(t().editors.tasks.resetColumns)
 					.onClick(() => {
 						cfg.kanbanHidden = undefined;
 						cfg.kanbanOrder = undefined;
@@ -669,10 +623,10 @@ export class CardSettingsModal extends Modal {
 		}
 
 		new Setting(containerEl)
-			.setName("Show completed")
+			.setName(t().editors.tasks.showCompleted)
 			.setDesc(
 				cfg.layout === "kanban"
-					? "Completed tasks always appear in the Done column on a Kanban board."
+					? t().editors.tasks.showCompletedKanbanDesc
 					: "",
 			)
 			.addToggle((t) =>
@@ -683,8 +637,8 @@ export class CardSettingsModal extends Modal {
 			);
 
 		new Setting(containerEl)
-			.setName("Max tasks shown")
-			.setDesc("Sorted by due date (overdue/soonest first), then by file.")
+			.setName(t().editors.tasks.maxTasks)
+			.setDesc(t().editors.tasks.maxTasksDesc)
 			.addText((t) => {
 				t.setValue(String(cfg.count ?? 10)).onChange((v) => {
 					const n = parseInt(v, 10);
@@ -695,11 +649,11 @@ export class CardSettingsModal extends Modal {
 				t.inputEl.addClass("hearth-count-input");
 			});
 
-		new Setting(containerEl).setName("Folders").setHeading();
-		new Setting(containerEl).setName("Scope").addDropdown((d) => {
-			d.addOption("all", "Whole vault");
-			d.addOption("whitelist", "Only these folders");
-			d.addOption("blacklist", "Everywhere except these folders");
+		new Setting(containerEl).setName(t().editors.tasks.folders).setHeading();
+		new Setting(containerEl).setName(t().editors.tasks.scope).addDropdown((d) => {
+			d.addOption("all", t().editors.tasks.scopeAll);
+			d.addOption("whitelist", t().editors.tasks.scopeWhitelist);
+			d.addOption("blacklist", t().editors.tasks.scopeBlacklist);
 			d.setValue(cfg.folderScope ?? "all").onChange((v) => {
 				cfg.folderScope = v as TasksConfig["folderScope"];
 				this.opts.save();
@@ -709,7 +663,7 @@ export class CardSettingsModal extends Modal {
 
 		if ((cfg.folderScope ?? "all") !== "all") {
 			new Setting(containerEl)
-				.setDesc("One folder path per line.")
+				.setDesc(t().editors.tasks.foldersDesc)
 				.addTextArea((t) => {
 					t.setValue((cfg.folders ?? []).join("\n")).onChange((v) => {
 						cfg.folders = v
@@ -725,8 +679,8 @@ export class CardSettingsModal extends Modal {
 
 	private favoritesEditor(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName("Favorites")
-			.setDesc("Notes shown by every favorites card.")
+			.setName(t().editors.favorites.heading)
+			.setDesc(t().editors.favorites.headingDesc)
 			.setHeading();
 		const favorites = this.opts.favorites;
 
@@ -736,21 +690,21 @@ export class CardSettingsModal extends Modal {
 				.addExtraButton((b) =>
 					b
 						.setIcon("chevron-up")
-						.setTooltip("Move up")
+						.setTooltip(t().editors.favorites.moveUp)
 						.setDisabled(index === 0)
 						.onClick(() => this.moveItem(favorites, index, index - 1)),
 				)
 				.addExtraButton((b) =>
 					b
 						.setIcon("chevron-down")
-						.setTooltip("Move down")
+						.setTooltip(t().editors.favorites.moveDown)
 						.setDisabled(index === favorites.length - 1)
 						.onClick(() => this.moveItem(favorites, index, index + 1)),
 				)
 				.addExtraButton((b) =>
 					b
 						.setIcon("trash-2")
-						.setTooltip("Remove")
+						.setTooltip(t().editors.favorites.remove)
 						.onClick(() => {
 							favorites.splice(index, 1);
 							this.opts.save();
@@ -760,7 +714,7 @@ export class CardSettingsModal extends Modal {
 		});
 
 		new Setting(containerEl).addButton((b) =>
-			b.setButtonText("Add favorite").onClick(() => {
+			b.setButtonText(t().editors.favorites.addFavorite).onClick(() => {
 				new FilePickerModal(
 					this.app,
 					(file) => {
@@ -770,7 +724,7 @@ export class CardSettingsModal extends Modal {
 							this.render();
 						}
 					},
-					"Pick a note to favorite…",
+					t().pickers.noteToFavorite,
 				).open();
 			}),
 		);
@@ -779,9 +733,9 @@ export class CardSettingsModal extends Modal {
 	private clockEditor(containerEl: HTMLElement): void {
 		const cfg = (this.card.clock ??= {});
 
-		new Setting(containerEl).setName("Style").addDropdown((d) => {
-			d.addOption("digital", "Digital");
-			d.addOption("analog", "Analog");
+		new Setting(containerEl).setName(t().editors.clock.style).addDropdown((d) => {
+			d.addOption("digital", t().editors.clock.styleDigital);
+			d.addOption("analog", t().editors.clock.styleAnalog);
 			d.setValue(cfg.mode ?? "digital").onChange((v) => {
 				cfg.mode = v as NonNullable<ClockConfig["mode"]>;
 				this.opts.save();
@@ -790,28 +744,28 @@ export class CardSettingsModal extends Modal {
 		});
 
 		if (cfg.mode !== "analog") {
-			new Setting(containerEl).setName("24-hour time").addToggle((t) =>
+			new Setting(containerEl).setName(t().editors.clock.hour24).addToggle((t) =>
 				t.setValue(cfg.use24Hour ?? false).onChange((v) => {
 					cfg.use24Hour = v;
 					this.opts.save();
 				}),
 			);
 		}
-		new Setting(containerEl).setName("Show seconds").addToggle((t) =>
+		new Setting(containerEl).setName(t().editors.clock.showSeconds).addToggle((t) =>
 			t.setValue(cfg.showSeconds ?? false).onChange((v) => {
 				cfg.showSeconds = v;
 				this.opts.save();
 			}),
 		);
-		new Setting(containerEl).setName("Show greeting").addToggle((t) =>
+		new Setting(containerEl).setName(t().editors.clock.showGreeting).addToggle((t) =>
 			t.setValue(cfg.showGreeting !== false).onChange((v) => {
 				cfg.showGreeting = v;
 				this.opts.save();
 			}),
 		);
 		new Setting(containerEl)
-			.setName("Playful greetings")
-			.setDesc("Cheeky, randomised greetings instead of the plain ones.")
+			.setName(t().editors.clock.playful)
+			.setDesc(t().editors.clock.playfulDesc)
 			.addToggle((t) =>
 				t.setValue(cfg.playfulGreetings ?? false).onChange((v) => {
 					cfg.playfulGreetings = v || undefined;
@@ -819,22 +773,22 @@ export class CardSettingsModal extends Modal {
 				}),
 			);
 		new Setting(containerEl)
-			.setName("Greeting override")
-			.setDesc("Leave empty for the automatic greeting.")
+			.setName(t().editors.clock.greetingOverride)
+			.setDesc(t().editors.clock.greetingOverrideDesc)
 			.addText((t) =>
 				t.setValue(cfg.greetingText ?? "").onChange((v) => {
 					cfg.greetingText = v;
 					this.opts.save();
 				}),
 			);
-		new Setting(containerEl).setName("Date").addDropdown((d) => {
-			d.addOption("full", "Weekday, day month");
-			d.addOption("long", "Weekday, day month year");
-			d.addOption("short", "Short (locale)");
-			d.addOption("iso", "ISO (2026-06-29)");
-			d.addOption("weekday", "Weekday only");
-			d.addOption("custom", "Custom format…");
-			d.addOption("none", "Hidden");
+		new Setting(containerEl).setName(t().editors.clock.date).addDropdown((d) => {
+			d.addOption("full", t().editors.clock.dateFull);
+			d.addOption("long", t().editors.clock.dateLong);
+			d.addOption("short", t().editors.clock.dateShort);
+			d.addOption("iso", t().editors.clock.dateIso);
+			d.addOption("weekday", t().editors.clock.dateWeekday);
+			d.addOption("custom", t().editors.clock.dateCustom);
+			d.addOption("none", t().editors.clock.dateNone);
 			d.setValue(cfg.dateMode ?? "full").onChange((v) => {
 				cfg.dateMode = v as NonNullable<ClockConfig["dateMode"]>;
 				this.opts.save();
@@ -843,10 +797,10 @@ export class CardSettingsModal extends Modal {
 		});
 		if (cfg.dateMode === "custom") {
 			new Setting(containerEl)
-				.setName("Custom date format")
-				.setDesc("A moment.js format, e.g. ddd D MMM or YYYY/MM/DD.")
-				.addText((t) =>
-					t.setPlaceholder("ddd D MMM").setValue(cfg.dateFormat ?? "").onChange((v) => {
+				.setName(t().editors.clock.customFormat)
+				.setDesc(t().editors.clock.customFormatDesc)
+				.addText((txt) =>
+					txt.setPlaceholder(t().editors.clock.customFormatPlaceholder).setValue(cfg.dateFormat ?? "").onChange((v) => {
 						cfg.dateFormat = v;
 						this.opts.save();
 					}),
@@ -857,8 +811,8 @@ export class CardSettingsModal extends Modal {
 	private colorsSection(containerEl: HTMLElement): void {
 		const card = this.card;
 		const row = new Setting(containerEl)
-			.setName("Colors")
-			.setDesc("Accent and background tint for this card.");
+			.setName(t().editors.colors.heading)
+			.setDesc(t().editors.colors.headingDesc);
 
 		row.addColorPicker((c) =>
 			c.setValue(card.accent ?? "#7c5cff").onChange((v) => {
@@ -869,7 +823,7 @@ export class CardSettingsModal extends Modal {
 		row.addExtraButton((b) =>
 			b
 				.setIcon("rotate-ccw")
-				.setTooltip("Clear accent")
+				.setTooltip(t().editors.colors.clearAccent)
 				.onClick(() => {
 					card.accent = undefined;
 					this.opts.save();
@@ -885,7 +839,7 @@ export class CardSettingsModal extends Modal {
 		row.addExtraButton((b) =>
 			b
 				.setIcon("rotate-ccw")
-				.setTooltip("Clear background")
+				.setTooltip(t().editors.colors.clearBackground)
 				.onClick(() => {
 					card.background = undefined;
 					this.opts.save();
@@ -894,8 +848,8 @@ export class CardSettingsModal extends Modal {
 		);
 
 		const opacityRow = new Setting(containerEl)
-			.setName("Card opacity")
-			.setDesc("Transparent card surface (overrides the dashboard default).");
+			.setName(t().editors.colors.cardOpacity)
+			.setDesc(t().editors.colors.cardOpacityDesc);
 		opacityRow.addSlider((sl) =>
 			sl
 				.setLimits(0, 1, 0.05)
@@ -909,7 +863,7 @@ export class CardSettingsModal extends Modal {
 		opacityRow.addExtraButton((b) =>
 			b
 				.setIcon("rotate-ccw")
-				.setTooltip("Use dashboard default")
+				.setTooltip(t().editors.colors.useDashboardDefault)
 				.onClick(() => {
 					card.cardOpacity = undefined;
 					this.opts.save();
@@ -922,11 +876,11 @@ export class CardSettingsModal extends Modal {
 	private sizeSection(containerEl: HTMLElement): void {
 		const card = this.card;
 		const row = new Setting(containerEl)
-			.setName("Size")
-			.setDesc("Width (% of the board) and height (pixels). Or just drag any edge or corner of the card.");
+			.setName(t().editors.size.heading)
+			.setDesc(t().editors.size.headingDesc);
 
-		row.addText((t) => {
-			t.setValue(String(Math.round((card.fw ?? 0.25) * 100))).onChange((v) => {
+		row.addText((txt) => {
+			txt.setValue(String(Math.round((card.fw ?? 0.25) * 100))).onChange((v) => {
 				const n = parseInt(v, 10);
 				if (Number.isNaN(n)) return;
 				const fw = Math.max(2, Math.min(n, 100)) / 100;
@@ -935,28 +889,28 @@ export class CardSettingsModal extends Modal {
 				card.fx = Math.max(0, Math.min(card.fx ?? 0, 1 - fw));
 				this.opts.save();
 			});
-			t.inputEl.type = "number";
-			t.inputEl.addClass("hearth-count-input");
-			t.inputEl.setAttribute("aria-label", "Width in percent of the board");
+			txt.inputEl.type = "number";
+			txt.inputEl.addClass("hearth-count-input");
+			txt.inputEl.setAttribute("aria-label", t().editors.size.widthAria);
 		});
-		row.addText((t) => {
-			t.setValue(String(Math.round(card.fh ?? 184))).onChange((v) => {
+		row.addText((txt) => {
+			txt.setValue(String(Math.round(card.fh ?? 184))).onChange((v) => {
 				const n = parseInt(v, 10);
 				if (Number.isNaN(n)) return;
 				card.fh = Math.max(56, n);
 				this.opts.save();
 			});
-			t.inputEl.type = "number";
-			t.inputEl.addClass("hearth-count-input");
-			t.inputEl.setAttribute("aria-label", "Height in pixels");
+			txt.inputEl.type = "number";
+			txt.inputEl.addClass("hearth-count-input");
+			txt.inputEl.setAttribute("aria-label", t().editors.size.heightAria);
 		});
 	}
 
 	/** Pin/unpin this card so it appears on every dashboard. */
 	private pinSection(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName("Pin to all dashboards")
-			.setDesc("Show this card on every dashboard, sharing one definition and position.")
+			.setName(t().editors.pin.heading)
+			.setDesc(t().editors.pin.headingDesc)
 			.addToggle((t) =>
 				t.setValue(this.opts.isPinned).onChange((v) => {
 					this.opts.setPinned(v);
@@ -972,8 +926,8 @@ export class CardSettingsModal extends Modal {
 		const targets = this.opts.otherDashboards;
 		if (targets.length === 0) return;
 		const row = new Setting(containerEl)
-			.setName("Copy to dashboard")
-			.setDesc("Add a duplicate of this card to the end of another dashboard.");
+			.setName(t().editors.copy.heading)
+			.setDesc(t().editors.copy.headingDesc);
 		let dropdown: { getValue(): string } | null = null;
 		row.addDropdown((d) => {
 			for (const t of targets) d.addOption(t.id, t.name);
@@ -981,13 +935,13 @@ export class CardSettingsModal extends Modal {
 		});
 		row.addButton((b) =>
 			b
-				.setButtonText("Copy")
-				.setTooltip("Copy this card to the selected dashboard")
+				.setButtonText(t().editors.copy.copy)
+				.setTooltip(t().editors.copy.copyTooltip)
 				.onClick(() => {
 					const id = dropdown?.getValue();
 					if (!id) return;
 					this.opts.copyToDashboard(id);
-					new Notice("Card copied to the dashboard.");
+					new Notice(t().notices.cardCopied);
 				}),
 		);
 	}

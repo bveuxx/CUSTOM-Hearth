@@ -258,6 +258,14 @@ npm run typecheck
 To test in a vault, symlink or copy `main.js`, `manifest.json` and `styles.css`
 into `<vault>/.obsidian/plugins/hearth/`.
 
+### Translations
+
+User-facing strings live in [`src/locales/`](src/locales/). English
+(`en.ts`) is the source of truth and Hearth follows Obsidian's UI language at
+load. Adding a language is a matter of copying `en.ts`, translating the values
+(the keys are type-checked against English), and registering the file — see
+[`src/locales/README.md`](src/locales/README.md) for the walkthrough.
+
 ## Shipped:
 
 > **v1.6** — task due dates show as short relative labels ("Today", "Tomorrow",

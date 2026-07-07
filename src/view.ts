@@ -7,6 +7,7 @@ import { renderMobileActionBar } from "./mobileactions";
 import { applyBackground } from "./background";
 import { effectiveFitToPage, effectiveMaxWidth, renderCards } from "./types";
 import { HEARTH_ICON_ID } from "./icon";
+import { t } from "./i18n";
 
 export const VIEW_TYPE_HOME = "hearth-home-view";
 
@@ -31,7 +32,7 @@ export class HomeView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Home";
+		return t().view.displayName;
 	}
 
 	getIcon(): string {

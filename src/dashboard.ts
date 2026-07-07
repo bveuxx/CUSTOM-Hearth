@@ -1,8 +1,9 @@
 import { Component, debounce, Menu, setIcon, TAbstractFile } from "obsidian";
 import { confirmAction } from "./ui";
+import { t } from "./i18n";
 import type { HomeView } from "./view";
 import { renderCardBody, watchedCardPath } from "./cards";
-import { CARD_TEMPLATES, cardFromTemplate } from "./templates";
+import { CARD_TEMPLATES, cardFromTemplate, templateName } from "./templates";
 import { CardSettingsModal } from "./editors";
 import {
 	activeCards,
@@ -284,7 +285,7 @@ function renderCardControls(
 
 	const settingsBtn = actions.createEl("button", {
 		cls: "hearth-card-action",
-		attr: { "aria-label": "Card settings" },
+		attr: { "aria-label": t().dashboard.cardSettings },
 	});
 	setIcon(settingsBtn, "settings-2");
 	settingsBtn.addEventListener("pointerdown", (e) => e.stopPropagation());
@@ -292,15 +293,15 @@ function renderCardControls(
 
 	const remove = actions.createEl("button", {
 		cls: "hearth-card-action is-danger",
-		attr: { "aria-label": "Remove card" },
+		attr: { "aria-label": t().dashboard.removeCard },
 	});
 	setIcon(remove, "trash-2");
 	remove.addEventListener("pointerdown", (e) => e.stopPropagation());
 	remove.addEventListener("click", () => {
 		confirmAction(view.app, {
-			title: "Remove card?",
-			message: `Remove "${card.title?.trim() || "this card"}" from the dashboard?`,
-			confirmText: "Remove",
+			title: t().dashboard.removeCardTitle,
+			message: t().dashboard.removeCardMessage(card.title?.trim() || t().dashboard.thisCard),
+			confirmText: t().dashboard.removeCardConfirm,
 			onConfirm: () => {
 				removeCard(view.plugin.settings, card);
 				persistAndRender(view);
@@ -344,14 +345,14 @@ function renderToolbar(view: HomeView, container: HTMLElement): void {
 	if (view.arrangeMode) {
 		const add = bar.createEl("button", { cls: "hearth-tool-btn" });
 		setIcon(add.createSpan("hearth-tool-icon"), "plus");
-		add.createSpan({ cls: "hearth-tool-label", text: "Add card" });
-		add.setAttribute("aria-label", "Add a card to the dashboard");
+		add.createSpan({ cls: "hearth-tool-label", text: t().dashboard.addCard });
+		add.setAttribute("aria-label", t().dashboard.addCardAria);
 		add.addEventListener("click", (evt) => {
 			const menu = new Menu();
 			for (const template of CARD_TEMPLATES) {
 				menu.addItem((item) =>
 					item
-						.setTitle(template.name)
+						.setTitle(templateName(template))
 						.setIcon(template.icon)
 						.onClick(() => {
 							activeCards(view.plugin.settings).push(cardFromTemplate(template));
@@ -373,11 +374,11 @@ function renderToolbar(view: HomeView, container: HTMLElement): void {
 		);
 		hideHdr.createSpan({
 			cls: "hearth-tool-label",
-			text: view.hideHeaderInArrange ? "Show titles" : "Hide titles",
+			text: view.hideHeaderInArrange ? t().dashboard.showTitles : t().dashboard.hideTitles,
 		});
 		hideHdr.setAttribute(
 			"aria-label",
-			view.hideHeaderInArrange ? "Show card headers" : "Hide card headers",
+			view.hideHeaderInArrange ? t().dashboard.showCardHeaders : t().dashboard.hideCardHeaders,
 		);
 		hideHdr.addEventListener("click", () => {
 			view.hideHeaderInArrange = !view.hideHeaderInArrange;
@@ -392,11 +393,11 @@ function renderToolbar(view: HomeView, container: HTMLElement): void {
 	arrange.toggleClass("is-icon", !view.arrangeMode);
 	setIcon(arrange.createSpan("hearth-tool-icon"), view.arrangeMode ? "check" : "move");
 	if (view.arrangeMode) {
-		arrange.createSpan({ cls: "hearth-tool-label", text: "Done arranging" });
+		arrange.createSpan({ cls: "hearth-tool-label", text: t().dashboard.doneArranging });
 	}
 	arrange.setAttribute(
 		"aria-label",
-		view.arrangeMode ? "Finish arranging cards" : "Move & resize cards",
+		view.arrangeMode ? t().dashboard.finishArranging : t().dashboard.moveResize,
 	);
 	arrange.addEventListener("click", () => {
 		view.arrangeMode = !view.arrangeMode;

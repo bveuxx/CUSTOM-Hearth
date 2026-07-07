@@ -2,6 +2,7 @@ import { Menu, Modal, Setting, setIcon } from "obsidian";
 import type { HomeView } from "./view";
 import { BackgroundConfig, BackgroundKind, Dashboard, newDashboardId, cloneCard } from "./types";
 import { confirmAction } from "./ui";
+import { t } from "./i18n";
 
 /**
  * The top-left dashboard switcher: a button per dashboard (its emoji/icon or its
@@ -60,13 +61,13 @@ export function renderDashboardSwitcher(view: HomeView, container: HTMLElement):
 
 	const add = bar.createEl("button", {
 		cls: "hearth-dash-btn hearth-dash-add",
-		attr: { "aria-label": "New dashboard" },
+		attr: { "aria-label": t().dashboards.newDashboard },
 	});
 	setIcon(add, "plus");
 	add.addEventListener("click", () => {
 		const dash: Dashboard = {
 			id: newDashboardId(),
-			name: `Dashboard ${s.dashboards.length + 1}`,
+			name: t().dashboards.defaultName(s.dashboards.length + 1),
 			cards: [],
 		};
 		s.dashboards.push(dash);
@@ -83,19 +84,19 @@ function showDashboardMenu(view: HomeView, dash: Dashboard, evt: MouseEvent): vo
 
 	menu.addItem((item) =>
 		item
-			.setTitle("Dashboard settings…")
+			.setTitle(t().dashboards.menu.settings)
 			.setIcon("settings-2")
 			.onClick(() => new DashboardSettingsModal(view, dash).open()),
 	);
 
 	menu.addItem((item) =>
 		item
-			.setTitle("Duplicate")
+			.setTitle(t().dashboards.menu.duplicate)
 			.setIcon("copy")
 			.onClick(() => {
 				const copy: Dashboard = {
 					id: newDashboardId(),
-					name: `${dash.name} copy`,
+					name: t().dashboards.copySuffix(dash.name),
 					cards: dash.cards.map((c) => cloneCard(c)),
 				};
 				if (dash.icon) copy.icon = dash.icon;
@@ -116,15 +117,15 @@ function showDashboardMenu(view: HomeView, dash: Dashboard, evt: MouseEvent): vo
 
 	menu.addItem((item) =>
 		item
-			.setTitle("Delete")
+			.setTitle(t().dashboards.menu.delete)
 			.setIcon("trash-2")
 			// Always keep at least one dashboard around.
 			.setDisabled(s.dashboards.length <= 1)
 			.onClick(() => {
 				confirmAction(view.app, {
-					title: "Delete dashboard?",
-					message: `Delete "${dash.name}" and its ${dash.cards.length} card(s)? This can't be undone.`,
-					confirmText: "Delete",
+					title: t().dashboards.deleteTitle,
+					message: t().dashboards.deleteMessage(dash.name, dash.cards.length),
+					confirmText: t().dashboards.deleteConfirm,
 					onConfirm: () => {
 						const i = s.dashboards.findIndex((d) => d.id === dash.id);
 						if (i >= 0) s.dashboards.splice(i, 1);
@@ -141,15 +142,6 @@ function showDashboardMenu(view: HomeView, dash: Dashboard, evt: MouseEvent): vo
 	menu.showAtMouseEvent(evt);
 }
 
-const BACKGROUND_OPTIONS: Record<string, string> = {
-	default: "Use global default",
-	none: "None",
-	hdefault: "Hearth default",
-	color: "Solid color",
-	image: "Vault image",
-	url: "Image URL",
-};
-
 /** Per-dashboard settings: name, switcher icon, and optional overrides for grid
  * columns, row height and background. Overrides fall back to the global
  * settings when left off. */
@@ -164,7 +156,7 @@ class DashboardSettingsModal extends Modal {
 	}
 
 	onOpen(): void {
-		this.titleEl.setText("Dashboard settings");
+		this.titleEl.setText(t().dashboards.modal.title);
 		this.render();
 	}
 
@@ -180,31 +172,29 @@ class DashboardSettingsModal extends Modal {
 		const dash = this.dash;
 		const s = this.view.plugin.settings;
 
-		new Setting(contentEl).setName("Name").addText((t) =>
-			t.setValue(dash.name).onChange((v) => {
-				dash.name = v || "Dashboard";
+		new Setting(contentEl).setName(t().dashboards.modal.name).addText((tx) =>
+			tx.setValue(dash.name).onChange((v) => {
+				dash.name = v || t().dashboards.fallbackName;
 				this.commit();
 			}),
 		);
 
 		new Setting(contentEl)
-			.setName("Switcher icon")
-			.setDesc("An emoji or short text shown on the switcher button. Empty = number.")
-			.addText((t) =>
-				t.setValue(dash.icon ?? "").onChange((v) => {
+			.setName(t().dashboards.modal.switcherIcon)
+			.setDesc(t().dashboards.modal.switcherIconDesc)
+			.addText((tx) =>
+				tx.setValue(dash.icon ?? "").onChange((v) => {
 					dash.icon = v.trim() || undefined;
 					this.commit();
 				}),
 			);
 
 		new Setting(contentEl)
-			.setName("Switcher Lucide icon")
-			.setDesc(
-				"A Lucide icon id (e.g. “home”, “star”, “layout-dashboard”). Takes precedence over the emoji above.",
-			)
-			.addText((t) =>
-				t
-					.setPlaceholder("home")
+			.setName(t().dashboards.modal.switcherLucide)
+			.setDesc(t().dashboards.modal.switcherLucideDesc)
+			.addText((tx) =>
+				tx
+					.setPlaceholder(t().dashboards.modal.lucidePlaceholder)
 					.setValue(dash.iconLucide ?? "")
 					.onChange((v) => {
 						dash.iconLucide = v.trim() || undefined;
@@ -214,7 +204,7 @@ class DashboardSettingsModal extends Modal {
 
 		this.overrideSlider(
 			contentEl,
-			"Content width",
+			t().dashboards.modal.contentWidth,
 			dash.maxWidth,
 			s.maxWidth,
 			700,
@@ -227,12 +217,17 @@ class DashboardSettingsModal extends Modal {
 		);
 
 		new Setting(contentEl)
-			.setName("Fit to page")
-			.setDesc("Override scrolling for this board.")
+			.setName(t().dashboards.modal.fitToPage)
+			.setDesc(t().dashboards.modal.fitToPageDesc)
 			.addDropdown((d) => {
-				d.addOption("default", `Use global default (${s.fitToPage ? "fit" : "scroll"})`);
-				d.addOption("fit", "Fit to one page");
-				d.addOption("scroll", "Allow scrolling");
+				d.addOption(
+					"default",
+					t().dashboards.modal.fitDefault(
+						s.fitToPage ? t().dashboards.modal.fitStateFit : t().dashboards.modal.fitStateScroll,
+					),
+				);
+				d.addOption("fit", t().dashboards.modal.fitOptionFit);
+				d.addOption("scroll", t().dashboards.modal.fitOptionScroll);
 				d.setValue(dash.fitToPage === undefined ? "default" : dash.fitToPage ? "fit" : "scroll");
 				d.onChange((v) => {
 					dash.fitToPage = v === "default" ? undefined : v === "fit";
@@ -242,7 +237,7 @@ class DashboardSettingsModal extends Modal {
 
 		this.overrideSlider(
 			contentEl,
-			"Card opacity",
+			t().dashboards.modal.cardOpacity,
 			dash.cardOpacity,
 			s.cardOpacity,
 			0,
@@ -257,7 +252,7 @@ class DashboardSettingsModal extends Modal {
 		this.backgroundSection(contentEl);
 
 		new Setting(contentEl).addButton((b) =>
-			b.setButtonText("Done").setCta().onClick(() => this.close()),
+			b.setButtonText(t().dashboards.modal.done).setCta().onClick(() => this.close()),
 		);
 	}
 
@@ -276,9 +271,13 @@ class DashboardSettingsModal extends Modal {
 		const overriding = typeof current === "number";
 		const row = new Setting(containerEl)
 			.setName(name)
-			.setDesc(overriding ? "Overriding the global default." : `Using global default (${fallback}).`)
-			.addToggle((t) =>
-				t.setValue(overriding).onChange((v) => {
+			.setDesc(
+				overriding
+					? t().dashboards.modal.overriding
+					: t().dashboards.modal.usingGlobal(fallback),
+			)
+			.addToggle((tg) =>
+				tg.setValue(overriding).onChange((v) => {
 					set(v ? fallback : undefined);
 					this.render();
 				}),
@@ -298,10 +297,10 @@ class DashboardSettingsModal extends Modal {
 		const bg = dash.background;
 
 		new Setting(containerEl)
-			.setName("Background")
-			.setDesc("Override the global background for this dashboard.")
+			.setName(t().dashboards.modal.background)
+			.setDesc(t().dashboards.modal.backgroundDesc)
 			.addDropdown((d) => {
-				Object.entries(BACKGROUND_OPTIONS).forEach(([k, label]) => {
+				Object.entries(t().dashboards.backgroundOptions).forEach(([k, label]) => {
 					d.addOption(k, label);
 				});
 				d.setValue(bg ? bg.kind : "default").onChange((v) => {
@@ -325,12 +324,12 @@ class DashboardSettingsModal extends Modal {
 		if (bg.kind !== "default") {
 			const desc =
 				bg.kind === "color"
-					? "A CSS color, e.g. #1e1e2e."
+					? t().dashboards.backgroundValueDesc.color
 					: bg.kind === "image"
-						? "A vault image path, e.g. Attachments/bg.png."
-						: "A direct image URL.";
+						? t().dashboards.backgroundValueDesc.image
+						: t().dashboards.backgroundValueDesc.url;
 			new Setting(containerEl)
-				.setName("Background value")
+				.setName(t().dashboards.modal.backgroundValue)
 				.setDesc(desc)
 				.addText((t) =>
 					t.setValue(bg.value).onChange((v) => {
@@ -340,8 +339,8 @@ class DashboardSettingsModal extends Modal {
 				);
 		}
 
-		this.bgNumber(containerEl, "Opacity", bg, "opacity", 0, 1, 0.05);
-		this.bgNumber(containerEl, "Blur", bg, "blur", 0, 40, 1);
+		this.bgNumber(containerEl, t().dashboards.modal.opacity, bg, "opacity", 0, 1, 0.05);
+		this.bgNumber(containerEl, t().dashboards.modal.blur, bg, "blur", 0, 40, 1);
 	}
 
 	private bgNumber(

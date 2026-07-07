@@ -2,6 +2,7 @@ import { Component, Platform, setIcon } from "obsidian";
 import type { HomeView } from "./view";
 import { SearchSection } from "./search";
 import { HEARTH_ICON_ID } from "./icon";
+import { t } from "./i18n";
 
 /** Renders the title/logo, the search bar with the New-note button, and the
  * auto-detected filter row. In Mobile mode, the New-note button is left out
@@ -44,10 +45,10 @@ export function renderHeader(view: HomeView, container: HTMLElement, component: 
 	if (s.showNewNoteButton && !mobileOnly) {
 		const btn = searchWrap.createEl("button", {
 			cls: "hearth-newnote",
-			attr: { "aria-label": "Create new note" },
+			attr: { "aria-label": t().header.newNoteAria },
 		});
 		setIcon(btn.createSpan("hearth-newnote-icon"), "plus");
-		btn.createSpan({ cls: "hearth-newnote-label", text: "New note" });
+		btn.createSpan({ cls: "hearth-newnote-label", text: t().header.newNote });
 		btn.addEventListener("click", () => {
 			void view.plugin.createNewNote();
 		});

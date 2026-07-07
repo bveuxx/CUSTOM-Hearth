@@ -1,4 +1,5 @@
 import { moment as createMoment } from "obsidian";
+import { t } from "./i18n";
 
 /* A minimal, dependency-free natural-language date parser for task due dates.
  * Understands the everyday phrasings people jot down next to a checkbox or in
@@ -132,13 +133,13 @@ export function formatRelativeDate(dateStr: string): string {
 	const today = moment().startOf("day");
 	const m = target.startOf("day");
 	const diff = Math.round(m.diff(today, "day"));
-	if (diff === 0) return "Today";
-	if (diff === 1) return "Tomorrow";
-	if (diff === -1) return "Yesterday";
+	if (diff === 0) return t().dates.today;
+	if (diff === 1) return t().dates.tomorrow;
+	if (diff === -1) return t().dates.yesterday;
 	if (diff >= 2 && diff <= 6) return capitalize(m.format("dddd"));
-	if (diff <= -2 && diff >= -6) return `${Math.abs(diff)} days ago`;
-	if (diff >= 7 && diff <= 13) return `Next ${capitalize(m.format("dddd"))}`;
-	if (diff <= -7 && diff >= -13) return `Last ${capitalize(m.format("dddd"))}`;
+	if (diff <= -2 && diff >= -6) return t().dates.daysAgo(Math.abs(diff));
+	if (diff >= 7 && diff <= 13) return t().dates.nextWeekday(capitalize(m.format("dddd")));
+	if (diff <= -7 && diff >= -13) return t().dates.lastWeekday(capitalize(m.format("dddd")));
 	return m.format("D MMM");
 }
 

@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS, fillMissingDefaults, HomeSettings, migrateSettings } 
 import { HomeSettingTab } from "./settings";
 import { HEARTH_ICON_ID, HEARTH_ICON_SVG } from "./icon";
 import { EXCALIDRAW_PLUGIN_ID } from "./filetypes";
+import { setLanguage, t } from "./i18n";
 
 /** Core "Audio recorder" plugin id, used by the "Record voice" mobile action. */
 const AUDIO_RECORDER_PLUGIN_ID = "audio-recorder";
@@ -12,6 +13,10 @@ export default class HearthPlugin extends Plugin {
 	settings: HomeSettings;
 
 	async onload() {
+		// Pick the locale from Obsidian's UI language before anything renders or
+		// registers a translated command name.
+		setLanguage();
+
 		await this.loadSettings();
 
 		// Register the Hearth crystal so it can be used as the ribbon, tab and
@@ -20,35 +25,35 @@ export default class HearthPlugin extends Plugin {
 
 		this.registerView(VIEW_TYPE_HOME, (leaf) => new HomeView(leaf, this));
 
-		this.addRibbonIcon(HEARTH_ICON_ID, "Open Hearth home", () => this.activateView());
+		this.addRibbonIcon(HEARTH_ICON_ID, t().ribbon.openHome, () => this.activateView());
 
 		this.addCommand({
 			id: "open-home",
-			name: "Open home dashboard",
+			name: t().commands.openHome,
 			callback: () => this.activateView(),
 		});
 
 		this.addCommand({
 			id: "new-note",
-			name: "Create new note (default location)",
+			name: t().commands.newNote,
 			callback: () => this.createNewNote(),
 		});
 
 		this.addCommand({
 			id: "new-drawing",
-			name: "Create new Excalidraw drawing",
+			name: t().commands.newDrawing,
 			callback: () => this.createNewDrawing(),
 		});
 
 		this.addCommand({
 			id: "record-voice",
-			name: "Start/stop voice recording",
+			name: t().commands.recordVoice,
 			callback: () => this.recordVoice(),
 		});
 
 		this.addCommand({
 			id: "open-daily-note",
-			name: "Open today's daily note",
+			name: t().commands.openDailyNote,
 			callback: () => this.openDailyNote(),
 		});
 
@@ -104,7 +109,7 @@ export default class HearthPlugin extends Plugin {
 		for (let i = 1; i <= 9; i++) {
 			this.addCommand({
 				id: `switch-dashboard-${i}`,
-				name: `Switch to dashboard ${i}`,
+				name: t().commands.switchDashboard(i),
 				checkCallback: (checking) => {
 					const dash = this.settings.dashboards[i - 1];
 					if (!dash) return false;
@@ -116,12 +121,12 @@ export default class HearthPlugin extends Plugin {
 
 		this.addCommand({
 			id: "next-dashboard",
-			name: "Next dashboard",
+			name: t().commands.nextDashboard,
 			callback: () => this.cycleDashboard(1),
 		});
 		this.addCommand({
 			id: "previous-dashboard",
-			name: "Previous dashboard",
+			name: t().commands.previousDashboard,
 			callback: () => this.cycleDashboard(-1),
 		});
 	}
@@ -153,7 +158,7 @@ export default class HearthPlugin extends Plugin {
 		} catch (err) {
 			// Fall back to the core command if the internal API shape changes.
 			if (!this.app.commands.executeCommandById("file-explorer:new-file")) {
-				new Notice("Hearth: could not create a new note.");
+				new Notice(t().notices.couldNotCreateNote);
 				console.error("Hearth new note error", err);
 			}
 		}
@@ -164,14 +169,14 @@ export default class HearthPlugin extends Plugin {
 	 * by prefix + name rather than hardcoded). */
 	createNewDrawing() {
 		if (!this.app.plugins.enabledPlugins.has(EXCALIDRAW_PLUGIN_ID)) {
-			new Notice("Hearth: enable the Excalidraw plugin to create drawings.");
+			new Notice(t().notices.enableExcalidraw);
 			return;
 		}
 		const cmd = this.app.commands
 			.listCommands()
 			.find((c) => c.id.startsWith(`${EXCALIDRAW_PLUGIN_ID}:`) && /new/i.test(c.name));
 		if (!cmd || !this.app.commands.executeCommandById(cmd.id)) {
-			new Notice('Hearth: couldn\'t find Excalidraw\'s "new drawing" command.');
+			new Notice(t().notices.excalidrawCommandMissing);
 		}
 	}
 
@@ -179,14 +184,14 @@ export default class HearthPlugin extends Plugin {
 	recordVoice() {
 		const plugin = this.app.internalPlugins.getPluginById(AUDIO_RECORDER_PLUGIN_ID);
 		if (!plugin?.enabled) {
-			new Notice("Hearth: enable the core Audio recorder plugin.");
+			new Notice(t().notices.enableAudioRecorder);
 			return;
 		}
 		const cmd = this.app.commands
 			.listCommands()
 			.find((c) => c.id.startsWith(`${AUDIO_RECORDER_PLUGIN_ID}:`));
 		if (!cmd || !this.app.commands.executeCommandById(cmd.id)) {
-			new Notice("Hearth: couldn't start voice recording.");
+			new Notice(t().notices.couldNotRecordVoice);
 		}
 	}
 
@@ -194,11 +199,11 @@ export default class HearthPlugin extends Plugin {
 	openDailyNote() {
 		const plugin = this.app.internalPlugins.getPluginById("daily-notes");
 		if (!plugin?.enabled) {
-			new Notice("Hearth: enable the core Daily notes plugin.");
+			new Notice(t().notices.enableDailyNotes);
 			return;
 		}
 		if (!this.app.commands.executeCommandById("daily-notes")) {
-			new Notice("Hearth: couldn't open today's daily note.");
+			new Notice(t().notices.couldNotOpenDaily);
 		}
 	}
 
@@ -206,7 +211,7 @@ export default class HearthPlugin extends Plugin {
 	 * the plugin providing it was disabled). Used by the mobile action bar. */
 	runCommandOrNotice(commandId: string) {
 		if (!commandId || !this.app.commands.executeCommandById(commandId)) {
-			new Notice(`Hearth: command not found: ${commandId}`);
+			new Notice(t().notices.commandNotFound(commandId));
 		}
 	}
 

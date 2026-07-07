@@ -1,18 +1,11 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type HearthPlugin from "./main";
-import { FILE_TYPE_GROUPS } from "./filetypes";
+import { FILE_TYPE_GROUPS, fileTypeLabel } from "./filetypes";
 import { CommandPickerModal } from "./pickers";
 import { BackgroundKind, defaultMobileActionButtons, MobileActionButton } from "./types";
 import { exportLayout, importLayout } from "./layout";
 import { confirmAction } from "./ui";
-
-const BACKGROUND_LABELS: Record<BackgroundKind, string> = {
-	default: "Hearth default",
-	none: "None",
-	color: "Solid color",
-	image: "Vault image",
-	url: "Image URL",
-};
+import { t } from "./i18n";
 
 export class HomeSettingTab extends PluginSettingTab {
 	plugin: HearthPlugin;
@@ -55,12 +48,12 @@ export class HomeSettingTab extends PluginSettingTab {
 	// ---- Appearance -----------------------------------------------------
 
 	private appearanceSection(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName("Appearance").setHeading();
+		new Setting(containerEl).setName(t().settings.appearance.heading).setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
-			.setName("Show title")
-			.setDesc("Display the big title/logo at the top.")
+			.setName(t().settings.appearance.showTitle)
+			.setDesc(t().settings.appearance.showTitleDesc)
 			.addToggle((t) =>
 				t.setValue(s.showTitle).onChange(async (v) => {
 					s.showTitle = v;
@@ -69,7 +62,7 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Title")
+			.setName(t().settings.appearance.title)
 			.addText((t) =>
 				t.setValue(s.title).onChange(async (v) => {
 					s.title = v;
@@ -78,8 +71,8 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Logo")
-			.setDesc("An emoji or short text shown next to the title. Leave empty for the Hearth crystal icon.")
+			.setName(t().settings.appearance.logo)
+			.setDesc(t().settings.appearance.logoDesc)
 			.addText((t) =>
 				t.setValue(s.logo).onChange(async (v) => {
 					s.logo = v;
@@ -88,7 +81,7 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Search placeholder")
+			.setName(t().settings.appearance.searchPlaceholder)
 			.addText((t) =>
 				t.setValue(s.searchPlaceholder).onChange(async (v) => {
 					s.searchPlaceholder = v;
@@ -97,11 +90,8 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Search note contents")
-			.setDesc(
-				"Also match text inside note bodies, not just names, tags and " +
-					"properties. Body matches appear after name matches with a snippet.",
-			)
+			.setName(t().settings.appearance.searchContents)
+			.setDesc(t().settings.appearance.searchContentsDesc)
 			.addToggle((t) =>
 				t.setValue(s.searchContents).onChange(async (v) => {
 					s.searchContents = v;
@@ -110,7 +100,7 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Show “New note” button")
+			.setName(t().settings.appearance.showNewNoteButton)
 			.addToggle((t) =>
 				t.setValue(s.showNewNoteButton).onChange(async (v) => {
 					s.showNewNoteButton = v;
@@ -119,8 +109,8 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Content width")
-			.setDesc("Maximum width of the home content, in pixels.")
+			.setName(t().settings.appearance.contentWidth)
+			.setDesc(t().settings.appearance.contentWidthDesc)
 			.addSlider((sl) =>
 				sl
 					.setLimits(700, 1600, 20)
@@ -135,14 +125,14 @@ export class HomeSettingTab extends PluginSettingTab {
 	// ---- Background -----------------------------------------------------
 
 	private backgroundSection(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName("Background").setHeading();
+		new Setting(containerEl).setName(t().settings.background.heading).setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
-			.setName("Background type")
+			.setName(t().settings.background.type)
 			.addDropdown((d) => {
-				(Object.keys(BACKGROUND_LABELS) as BackgroundKind[]).forEach((k) => {
-					d.addOption(k, BACKGROUND_LABELS[k]);
+				(Object.keys(t().settings.background.labels) as BackgroundKind[]).forEach((k) => {
+					d.addOption(k, t().settings.background.labels[k]);
 				});
 				d.setValue(s.backgroundKind).onChange((v) => {
 					s.backgroundKind = v as BackgroundKind;
@@ -155,12 +145,12 @@ export class HomeSettingTab extends PluginSettingTab {
 		if (s.backgroundKind !== "none" && s.backgroundKind !== "default") {
 			const desc =
 				s.backgroundKind === "color"
-					? "A CSS color, e.g. #1e1e2e or rgb(30,30,46)."
+					? t().settings.background.valueColorDesc
 					: s.backgroundKind === "image"
-						? "A vault image path, e.g. Attachments/bg.png."
-						: "A direct image URL.";
+						? t().settings.background.valueImageDesc
+						: t().settings.background.valueUrlDesc;
 			const setting = new Setting(containerEl)
-				.setName("Background value")
+				.setName(t().settings.background.value)
 				.setDesc(desc)
 				.addText((t) =>
 					t.setValue(s.backgroundValue).onChange(async (v) => {
@@ -178,7 +168,7 @@ export class HomeSettingTab extends PluginSettingTab {
 		// Opacity/blur apply to every background except "none".
 		if (s.backgroundKind !== "none") {
 			new Setting(containerEl)
-				.setName("Opacity")
+				.setName(t().settings.background.opacity)
 				.addSlider((sl) =>
 					sl
 						.setLimits(0, 1, 0.05)
@@ -190,8 +180,8 @@ export class HomeSettingTab extends PluginSettingTab {
 				);
 
 			new Setting(containerEl)
-				.setName("Blur")
-				.setDesc("Background blur in pixels.")
+				.setName(t().settings.background.blur)
+				.setDesc(t().settings.background.blurDesc)
 				.addSlider((sl) =>
 					sl
 						.setLimits(0, 40, 1)
@@ -207,12 +197,12 @@ export class HomeSettingTab extends PluginSettingTab {
 	// ---- Behaviour ------------------------------------------------------
 
 	private behaviourSection(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName("Behaviour").setHeading();
+		new Setting(containerEl).setName(t().settings.behaviour.heading).setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
-			.setName("Open on startup")
-			.setDesc("Open the home view when the vault loads.")
+			.setName(t().settings.behaviour.openOnStartup)
+			.setDesc(t().settings.behaviour.openOnStartupDesc)
 			.addToggle((t) =>
 				t.setValue(s.openOnStartup).onChange(async (v) => {
 					s.openOnStartup = v;
@@ -221,8 +211,8 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Replace new tabs")
-			.setDesc("Show the home view instead of an empty new tab.")
+			.setName(t().settings.behaviour.replaceNewTabs)
+			.setDesc(t().settings.behaviour.replaceNewTabsDesc)
 			.addToggle((t) =>
 				t.setValue(s.replaceNewTabs).onChange(async (v) => {
 					s.replaceNewTabs = v;
@@ -231,11 +221,8 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Mobile mode (search only)")
-			.setDesc(
-				"On phones and tablets, hide the dashboard and show only the search " +
-					"field. No effect on desktop.",
-			)
+			.setName(t().settings.behaviour.mobileSearchOnly)
+			.setDesc(t().settings.behaviour.mobileSearchOnlyDesc)
 			.addToggle((t) =>
 				t.setValue(s.mobileSearchOnly).onChange(async (v) => {
 					s.mobileSearchOnly = v;
@@ -248,18 +235,13 @@ export class HomeSettingTab extends PluginSettingTab {
 
 	private mobileActionsSection(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName("Mobile action bar")
-			.setDesc(
-				"In Mobile mode (search only), this row of buttons replaces the " +
-					"“New note” button beside the search bar, appearing under the " +
-					"search field and filters instead. Any button can be pointed at " +
-					"any command.",
-			)
+			.setName(t().settings.mobileActions.heading)
+			.setDesc(t().settings.mobileActions.headingDesc)
 			.setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
-			.setName("Show action bar")
+			.setName(t().settings.mobileActions.showActionBar)
 			.addToggle((t) =>
 				t.setValue(s.showMobileActionBar).onChange(async (v) => {
 					s.showMobileActionBar = v;
@@ -270,14 +252,14 @@ export class HomeSettingTab extends PluginSettingTab {
 		const buttons = s.mobileActionButtons;
 		buttons.forEach((btn, index) => {
 			const row = new Setting(containerEl).setClass("hearth-link-setting");
-			row.addText((t) =>
-				t.setPlaceholder("Label").setValue(btn.label).onChange(async (v) => {
+			row.addText((txt) =>
+				txt.setPlaceholder(t().settings.mobileActions.labelPlaceholder).setValue(btn.label).onChange(async (v) => {
 					btn.label = v;
 					await this.save();
 				}),
 			);
-			row.addText((t) =>
-				t.setPlaceholder("Icon").setValue(btn.icon).onChange(async (v) => {
+			row.addText((txt) =>
+				txt.setPlaceholder(t().settings.mobileActions.iconPlaceholder).setValue(btn.icon).onChange(async (v) => {
 					btn.icon = v;
 					await this.save();
 				}),
@@ -285,7 +267,7 @@ export class HomeSettingTab extends PluginSettingTab {
 			row.addExtraButton((b) =>
 				b
 					.setIcon("terminal-square")
-					.setTooltip(btn.commandId ? `Command: ${btn.commandId}` : "Pick a command")
+					.setTooltip(btn.commandId ? t().settings.mobileActions.commandTooltip(btn.commandId) : t().settings.mobileActions.pickCommand)
 					.onClick(() => {
 						new CommandPickerModal(this.app, (command) => {
 							btn.commandId = command.id;
@@ -298,21 +280,21 @@ export class HomeSettingTab extends PluginSettingTab {
 			row.addExtraButton((b) =>
 				b
 					.setIcon("chevron-up")
-					.setTooltip("Move up")
+					.setTooltip(t().settings.mobileActions.moveUp)
 					.setDisabled(index === 0)
 					.onClick(() => this.moveMobileAction(buttons, index, index - 1)),
 			);
 			row.addExtraButton((b) =>
 				b
 					.setIcon("chevron-down")
-					.setTooltip("Move down")
+					.setTooltip(t().settings.mobileActions.moveDown)
 					.setDisabled(index === buttons.length - 1)
 					.onClick(() => this.moveMobileAction(buttons, index, index + 1)),
 			);
 			row.addExtraButton((b) =>
 				b
 					.setIcon("trash-2")
-					.setTooltip("Remove button")
+					.setTooltip(t().settings.mobileActions.removeButton)
 					.onClick(async () => {
 						buttons.splice(index, 1);
 						await this.save();
@@ -323,7 +305,7 @@ export class HomeSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.addButton((b) =>
-				b.setButtonText("Add button").onClick(() => {
+				b.setButtonText(t().settings.mobileActions.addButton).onClick(() => {
 					new CommandPickerModal(this.app, (command) => {
 						buttons.push({
 							id: `action-${Date.now().toString(36)}`,
@@ -339,7 +321,7 @@ export class HomeSettingTab extends PluginSettingTab {
 			.addExtraButton((b) =>
 				b
 					.setIcon("rotate-ccw")
-					.setTooltip("Reset to defaults")
+					.setTooltip(t().settings.mobileActions.resetDefaults)
 					.onClick(async () => {
 						s.mobileActionButtons = defaultMobileActionButtons();
 						await this.save();
@@ -361,18 +343,13 @@ export class HomeSettingTab extends PluginSettingTab {
 
 	private tasksSection(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName("Tasks / TaskNotes")
-			.setDesc(
-				"Field names read by Tasks cards in TaskNotes mode. TaskNotes has no " +
-					"stable API for other plugins, so this reads its frontmatter directly " +
-					"— match these to whatever TaskNotes' own settings have them mapped to " +
-					"(the defaults below are TaskNotes' own defaults).",
-			)
+			.setName(t().settings.tasks.heading)
+			.setDesc(t().settings.tasks.headingDesc)
 			.setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
-			.setName("Status field")
+			.setName(t().settings.tasks.statusField)
 			.addText((t) =>
 				t.setValue(s.taskNotesStatusField).onChange(async (v) => {
 					s.taskNotesStatusField = v;
@@ -381,7 +358,7 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Due date field")
+			.setName(t().settings.tasks.dueField)
 			.addText((t) =>
 				t.setValue(s.taskNotesDueField).onChange(async (v) => {
 					s.taskNotesDueField = v;
@@ -390,8 +367,8 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Priority field")
-			.setDesc("Frontmatter field read for a task's priority indicator.")
+			.setName(t().settings.tasks.priorityField)
+			.setDesc(t().settings.tasks.priorityFieldDesc)
 			.addText((t) =>
 				t.setValue(s.taskNotesPriorityField).onChange(async (v) => {
 					s.taskNotesPriorityField = v;
@@ -400,7 +377,7 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("“Done” status value")
+			.setName(t().settings.tasks.doneValue)
 			.addText((t) =>
 				t.setValue(s.taskNotesDoneValue).onChange(async (v) => {
 					s.taskNotesDoneValue = v;
@@ -413,15 +390,15 @@ export class HomeSettingTab extends PluginSettingTab {
 
 	private filtersSection(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName("Search filters")
-			.setDesc("Filters are auto-detected from the file types in your vault. Hide any you don't want.")
+			.setName(t().settings.filters.heading)
+			.setDesc(t().settings.filters.headingDesc)
 			.setHeading();
 		const s = this.plugin.settings;
 		const hidden = new Set(s.hiddenFilters);
 
 		for (const group of FILE_TYPE_GROUPS) {
 			new Setting(containerEl)
-				.setName(group.label)
+				.setName(fileTypeLabel(group))
 				.addToggle((t) =>
 					t.setValue(!hidden.has(group.id)).onChange(async (v) => {
 						if (v) hidden.delete(group.id);
@@ -436,12 +413,12 @@ export class HomeSettingTab extends PluginSettingTab {
 	// ---- Dashboard / cards ---------------------------------------------
 
 	private dashboardSection(containerEl: HTMLElement): void {
-		new Setting(containerEl).setName("Dashboard").setHeading();
+		new Setting(containerEl).setName(t().settings.dashboard.heading).setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
-			.setName("Fit to page")
-			.setDesc("Keep the dashboard to one screen instead of allowing scroll.")
+			.setName(t().settings.dashboard.fitToPage)
+			.setDesc(t().settings.dashboard.fitToPageDesc)
 			.addToggle((t) =>
 				t.setValue(s.fitToPage).onChange(async (v) => {
 					s.fitToPage = v;
@@ -450,8 +427,8 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Compact spacing")
-			.setDesc("Tighten card padding and top margin to enlarge the usable area.")
+			.setName(t().settings.dashboard.compact)
+			.setDesc(t().settings.dashboard.compactDesc)
 			.addToggle((t) =>
 				t.setValue(s.compact).onChange(async (v) => {
 					s.compact = v;
@@ -460,8 +437,8 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Card opacity")
-			.setDesc("Transparent card backgrounds so the dashboard background shows through.")
+			.setName(t().settings.dashboard.cardOpacity)
+			.setDesc(t().settings.dashboard.cardOpacityDesc)
 			.addSlider((sl) =>
 				sl
 				.setLimits(0, 1, 0.05)
@@ -473,70 +450,66 @@ export class HomeSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Cards")
-			.setDesc(
-				"Add and configure cards on the dashboard itself: open the home view, " +
-					"hit Arrange, then use Add card and each card's settings button.",
-			);
+			.setName(t().settings.dashboard.cards)
+			.setDesc(t().settings.dashboard.cardsDesc);
 	}
 
 	// ---- Layout import / export ----------------------------------------
 
 	private layoutSection(containerEl: HTMLElement): void {
 		new Setting(containerEl)
-			.setName("Import / export layout")
-			.setDesc("Back up or share your dashboard (cards, grid, favorites) as JSON.")
+			.setName(t().settings.layout.heading)
+			.setDesc(t().settings.layout.headingDesc)
 			.setHeading();
 		const s = this.plugin.settings;
 
 		new Setting(containerEl)
-			.setName("Export layout")
-			.setDesc("Copy the current dashboard layout to the clipboard.")
+			.setName(t().settings.layout.export)
+			.setDesc(t().settings.layout.exportDesc)
 			.addButton((b) =>
 				b
-					.setButtonText("Copy JSON")
+					.setButtonText(t().settings.layout.copyJson)
 					.onClick(async () => {
 						try {
 							await navigator.clipboard.writeText(exportLayout(s));
-							new Notice("Hearth: layout copied to clipboard.");
+							new Notice(t().notices.layoutCopied);
 						} catch {
-							new Notice("Hearth: couldn't access the clipboard.");
+							new Notice(t().notices.clipboardUnavailable);
 						}
 					}),
 			);
 
 		let pending = "";
 		new Setting(containerEl)
-			.setName("Import layout")
-			.setDesc("Paste a previously exported layout, then Import. This replaces your current dashboards.")
-			.addTextArea((t) => {
-				t.setPlaceholder('{ "hearthLayout": 2, "dashboards": [ … ] }').onChange(
+			.setName(t().settings.layout.import)
+			.setDesc(t().settings.layout.importDesc)
+			.addTextArea((txt) => {
+				txt.setPlaceholder(t().settings.layout.importPlaceholder).onChange(
 					(v) => (pending = v),
 				);
-				t.inputEl.rows = 4;
-				t.inputEl.addClass("hearth-import-input");
+				txt.inputEl.rows = 4;
+				txt.inputEl.addClass("hearth-import-input");
 			})
 			.addButton((b) => {
 				b.buttonEl.addClass("hearth-danger-btn");
-				b.setButtonText("Import").onClick(() => {
+				b.setButtonText(t().settings.layout.importButton).onClick(() => {
 					if (!pending.trim()) {
-						new Notice("Hearth: paste a layout to import first.");
+						new Notice(t().notices.pasteLayoutFirst);
 						return;
 					}
 					confirmAction(this.app, {
-						title: "Import layout?",
-						message:
-							"This replaces your current dashboards, pinned cards and layout settings. This can't be undone.",
-						confirmText: "Import",
+						title: t().settings.layout.importTitle,
+						message: t().settings.layout.importMessage,
+						confirmText: t().settings.layout.importButton,
 						onConfirm: () => {
 							const error = importLayout(s, pending);
 							if (error) {
-								new Notice(`Hearth: ${error}`);
+								new Notice(t().notices.layoutImportError(error));
 								return;
 							}
 							void this.save();
 							this.display();
-							new Notice("Hearth: layout imported.");
+							new Notice(t().notices.layoutImported);
 						},
 					});
 				});

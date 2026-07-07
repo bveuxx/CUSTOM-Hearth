@@ -1,4 +1,5 @@
 import { TAbstractFile, TFile, TFolder } from "obsidian";
+import { t } from "./i18n";
 
 /**
  * A logical group of file types shown as a search filter chip.
@@ -77,4 +78,30 @@ export function iconForFile(file: TAbstractFile): string {
 
 export function groupById(id: string): FileTypeGroup | undefined {
 	return FILE_TYPE_GROUPS.find((g) => g.id === id);
+}
+
+/** Maps a group id to its key in the `fileTypes` locale table. Ids and keys
+ * match one-to-one except for "3d" (a leading digit isn't a valid key). */
+const FILE_TYPE_LABEL_KEYS: Record<string, keyof ReturnType<typeof t>["fileTypes"]> = {
+	folders: "folders",
+	markdown: "markdown",
+	excalidraw: "excalidraw",
+	canvas: "canvas",
+	bases: "bases",
+	images: "images",
+	videos: "videos",
+	audio: "audio",
+	pdf: "pdf",
+	documents: "documents",
+	spreadsheets: "spreadsheets",
+	presentations: "presentations",
+	"3d": "threeD",
+	other: "other",
+};
+
+/** The localized filter-chip label for a group. Falls back to the English
+ * `label` baked into the group when a locale is missing the key. */
+export function fileTypeLabel(group: FileTypeGroup): string {
+	const key = FILE_TYPE_LABEL_KEYS[group.id];
+	return key ? t().fileTypes[key] : group.label;
 }
