@@ -180,12 +180,12 @@ export const en = {
 				"Also match text inside note bodies, not just names, tags and " +
 				"properties. Body matches appear after name matches with a snippet.",
 			showNewNoteButton: "Show “New note” button",
-			newNoteButtonMode: "New-note button",
+			newNoteButtonMode: "Search-bar button",
 			newNoteButtonModeDesc:
-				"Split the button into “Search online” + “New note”, or show just one of them.",
-			newNoteButtonModeSplit: "Split: Search online + New note",
-			newNoteButtonModeNewNote: "New note only",
-			newNoteButtonModeSearchOnline: "Search online only",
+				"What the button beside the search bar does: create a new note, or " +
+				"search the web for the current search-field contents.",
+			newNoteButtonModeNewNote: "New note",
+			newNoteButtonModeSearchOnline: "Search online",
 			contentWidth: "Content width",
 			contentWidthDesc: "Maximum width of the home content, in pixels.",
 		},

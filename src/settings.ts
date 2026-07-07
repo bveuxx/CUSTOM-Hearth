@@ -240,8 +240,7 @@ export class HomeSettingTab extends PluginSettingTab {
 			.setName(t().settings.appearance.newNoteButtonMode)
 			.setDesc(t().settings.appearance.newNoteButtonModeDesc)
 			.addDropdown((d) => {
-				d.addOption("split", t().settings.appearance.newNoteButtonModeSplit)
-					.addOption("newNote", t().settings.appearance.newNoteButtonModeNewNote)
+				d.addOption("newNote", t().settings.appearance.newNoteButtonModeNewNote)
 					.addOption("searchOnline", t().settings.appearance.newNoteButtonModeSearchOnline)
 					.setValue(s.newNoteButtonMode)
 					.onChange(async (v) => {

@@ -4,7 +4,7 @@ import { SearchSection } from "./search";
 import { HEARTH_ICON_ID } from "./icon";
 import { t } from "./i18n";
 
-/** The search engine used by the “Search online” half of the split pill.
+/** The search engine used by the “Search online” button action.
  * DuckDuckGo's GET endpoint works without an API key and is privacy-friendly. */
 const WEB_SEARCH_URL = "https://duckduckgo.com/?q=";
 
@@ -13,11 +13,10 @@ const WEB_SEARCH_URL = "https://duckduckgo.com/?q=";
  * here — it moves into the mobile action bar rendered below (see
  * mobileactions.ts), along with the rest of that customizable button row.
  *
- * The button beside the search bar has three modes (configurable in Settings →
- * Appearance → “New-note button”):
- *   - "split": a single joined pill split into “Search online” + “New note”
- *   - "newNote": just the New-note half
- *   - "searchOnline": just the Search-online half */
+ * The single button beside the search bar has two modes (configurable in
+ * Settings → Appearance → “Search-bar button”):
+ *   - "newNote": create a new note (the original button)
+ *   - "searchOnline": run a web search for the current search-field contents */
 export function renderHeader(view: HomeView, container: HTMLElement, component: Component): void {
 	const s = view.plugin.settings;
 	const mobileOnly = Platform.isMobile && s.mobileSearchOnly;
@@ -53,32 +52,14 @@ export function renderHeader(view: HomeView, container: HTMLElement, component: 
 	const bar = search.renderBar(searchRow);
 
 	if (s.showNewNoteButton && !mobileOnly) {
-		renderNewNotePill(searchWrap, bar, view, s.newNoteButtonMode);
+		const btn =
+			s.newNoteButtonMode === "searchOnline"
+				? createSearchOnlineButton(bar)
+				: createNewNoteButton(view);
+		searchWrap.append(btn);
 	}
 
 	search.renderResultsAndFilters(searchCol, searchCol, component);
-}
-
-/** Render the pill beside the search bar according to `mode`. */
-function renderNewNotePill(
-	wrap: HTMLElement,
-	bar: HTMLElement,
-	view: HomeView,
-	mode: "split" | "newNote" | "searchOnline",
-): void {
-	if (mode === "newNote") {
-		wrap.append(createNewNoteButton(view));
-		return;
-	}
-	if (mode === "searchOnline") {
-		wrap.append(createSearchOnlineButton(bar));
-		return;
-	}
-
-	// Split mode: two joined halves styled as one pill.
-	const pill = wrap.createEl("div", { cls: "hearth-newnote-pill" });
-	pill.append(createSearchOnlineButton(bar, true));
-	pill.append(createNewNoteButton(view, true));
 }
 
 /** Read the current query out of the search bar's input element. */
@@ -99,11 +80,10 @@ function searchOnline(bar: HTMLElement): void {
 	}
 }
 
-/** The New-note half of the pill. `joined` controls whether it shares the
- * pill's joined look (no outer rounding on the inner edge) or stands alone. */
-function createNewNoteButton(view: HomeView, joined = false): HTMLElement {
+/** The original New-note button: creates a new note on click. */
+function createNewNoteButton(view: HomeView): HTMLElement {
 	const btn = document.createElement("button");
-	btn.className = "hearth-newnote" + (joined ? " hearth-newnote-joined" : "");
+	btn.className = "hearth-newnote";
 	btn.setAttribute("aria-label", t().header.newNoteAria);
 	setIcon(btn.createSpan("hearth-newnote-icon"), "plus");
 	btn.createSpan({ cls: "hearth-newnote-label", text: t().header.newNote });
@@ -113,10 +93,10 @@ function createNewNoteButton(view: HomeView, joined = false): HTMLElement {
 	return btn;
 }
 
-/** The Search-online half of the pill. */
-function createSearchOnlineButton(bar: HTMLElement, joined = false): HTMLElement {
+/** The Search-online button: runs a web search for the current query. */
+function createSearchOnlineButton(bar: HTMLElement): HTMLElement {
 	const btn = document.createElement("button");
-	btn.className = "hearth-newnote hearth-newnote-search" + (joined ? " hearth-newnote-joined" : "");
+	btn.className = "hearth-newnote hearth-newnote-search";
 	btn.setAttribute("aria-label", t().header.searchOnlineAria);
 	setIcon(btn.createSpan("hearth-newnote-icon"), "globe");
 	btn.createSpan({ cls: "hearth-newnote-label", text: t().header.searchOnline });

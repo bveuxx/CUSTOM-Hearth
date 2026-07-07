@@ -289,9 +289,9 @@ export interface HomeSettings {
 	logo: string;
 	searchPlaceholder: string;
 	showNewNoteButton: boolean;
-	/** How the button beside the search bar renders: split into two halves
-	 * (Search online + New note), or just one of the two. */
-	newNoteButtonMode: "split" | "newNote" | "searchOnline";
+	/** What the single button beside the search bar does: create a new note, or
+	 * run a web search for the current search-field contents. */
+	newNoteButtonMode: "newNote" | "searchOnline";
 	/** Also search inside note bodies (full-text), not just names/tags/properties. */
 	searchContents: boolean;
 
@@ -362,7 +362,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	logo: "",
 	searchPlaceholder: "Search or command",
 	showNewNoteButton: true,
-	newNoteButtonMode: "split",
+	newNoteButtonMode: "newNote",
 	searchContents: true,
 
 	backgroundKind: "default",
@@ -658,6 +658,9 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 	if (!Array.isArray(raw.mobileActionButtons)) {
 		s.mobileActionButtons = defaultMobileActionButtons();
 	}
+	// The short-lived "split" pill mode was replaced by a plain single button
+	// whose action is chosen here; fall back to the original New-note behaviour.
+	if ((s.newNoteButtonMode as string) === "split") s.newNoteButtonMode = "newNote";
 	// Drop the obsolete single-board field so it can't shadow the dashboards.
 	delete (s as unknown as { cards?: unknown }).cards;
 }

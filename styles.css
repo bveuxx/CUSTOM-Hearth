@@ -199,61 +199,6 @@
 	display: flex;
 }
 
-/* The split New-note pill: two joined halves (Search online + New note) that
-   read as one compact pill the size of the old single button. Each half stacks
-   its icon over its label vertically, so the joined width stays close to the
-   original single-button width instead of doubling it. */
-.hearth-newnote-pill {
-	display: flex;
-	align-items: stretch;
-	height: 52px;
-	border-radius: 14px;
-	border: 1px solid var(--background-modifier-border);
-	background: var(--background-primary);
-	overflow: hidden;
-}
-
-.hearth-newnote-pill .hearth-newnote {
-	height: 100%;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	gap: 2px;
-	padding: 0 12px;
-	border: none;
-	border-radius: 0;
-	box-shadow: none;
-	background: transparent;
-	font-size: 0.7rem;
-	line-height: 1;
-}
-
-.hearth-newnote-pill .hearth-newnote-icon svg {
-	width: 18px;
-	height: 18px;
-}
-
-.hearth-newnote-pill .hearth-newnote-label {
-	white-space: nowrap;
-	line-height: 1;
-}
-
-/* The divider between the two halves — kept visible so the split reads clearly
-   even at low contrast. */
-.hearth-newnote-pill .hearth-newnote-search {
-	border-left: 1px solid var(--background-modifier-border);
-}
-
-.hearth-newnote-pill .hearth-newnote:hover {
-	background: var(--background-modifier-hover);
-}
-
-/* `hearth-newnote-joined` is the opt-in to the pill's joined look; it's also
-   applied when a single half is shown standalone so spacing stays consistent. */
-.hearth-newnote-joined {
-	border-radius: 0;
-}
-
 
 /* ---- Search results dropdown --------------------------------------- */
 
