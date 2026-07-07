@@ -131,6 +131,7 @@ export class CardSettingsModal extends Modal {
 				.addSlider((s) => {
 					s.setLimits(50, 200, 10)
 						.setValue(Math.round((card.scale ?? 1) * 100))
+						.setDynamicTooltip()
 						.onChange((v) => {
 							card.scale = v === 100 ? undefined : v / 100;
 							this.opts.save();
@@ -290,6 +291,7 @@ export class CardSettingsModal extends Modal {
 		weeks.addSlider((s) => {
 			s.setLimits(8, 53, 1)
 				.setValue(cfg.weeks ?? 26)
+				.setDynamicTooltip()
 				.onChange((v) => {
 					cfg.weeks = v === 26 ? undefined : v;
 					this.opts.save();
@@ -510,6 +512,7 @@ export class CardSettingsModal extends Modal {
 		buttonSize.addSlider((s) => {
 			s.setLimits(60, 180, 10)
 				.setValue(card.tileSize ?? 90)
+				.setDynamicTooltip()
 				.onChange((v) => {
 					card.tileSize = v === 90 ? undefined : v;
 					this.opts.save();
@@ -881,6 +884,7 @@ export class CardSettingsModal extends Modal {
 			sl
 				.setLimits(0, 1, 0.05)
 				.setValue(card.cardOpacity ?? 1)
+				.setDynamicTooltip()
 				.onChange((v) => {
 					card.cardOpacity = v;
 					this.opts.save();

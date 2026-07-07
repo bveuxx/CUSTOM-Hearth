@@ -164,6 +164,8 @@ export const en = {
 	settings: {
 		/** Shared across every slider/section control. */
 		resetSlider: "Reset to default",
+		/** Reset button next to text fields whose factory default is meaningful. */
+		resetField: "Reset to default",
 		collapseSection: "Collapse section",
 		expandSection: "Expand section",
 		appearance: {

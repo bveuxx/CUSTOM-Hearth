@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, setIcon, Setting, SliderComponent } from "obsidian";
+import { App, Notice, PluginSettingTab, setIcon, Setting, SliderComponent, TextComponent } from "obsidian";
 import type HearthPlugin from "./main";
 import { FILE_TYPE_GROUPS, fileTypeLabel } from "./filetypes";
 import { CommandPickerModal } from "./pickers";
@@ -14,6 +14,18 @@ type NumericSettingKey =
 	| "backgroundOpacity"
 	| "backgroundBlur"
 	| "cardOpacity";
+
+/** Keys of HomeSettings whose default lives in DEFAULT_SETTINGS as a string and
+ * would be awkward to reconstruct by hand (frontmatter field names, the search
+ * placeholder, the title) — used to reset text-backed settings to their factory
+ * value. */
+type StringSettingKey =
+	| "title"
+	| "searchPlaceholder"
+	| "taskNotesStatusField"
+	| "taskNotesDueField"
+	| "taskNotesPriorityField"
+	| "taskNotesDoneValue";
 
 export class HomeSettingTab extends PluginSettingTab {
 	plugin: HearthPlugin;
@@ -146,8 +158,8 @@ export class HomeSettingTab extends PluginSettingTab {
 	// ---- Slider reset helper -------------------------------------------
 
 	/** Add a reset (rotate-ccw) extra button to a slider Setting that restores
-	 * the factory default from DEFAULT_SETTINGS. The slider value is shown inline
-	 * next to it by Obsidian. */
+	 * the factory default from DEFAULT_SETTINGS. The current value is surfaced by
+	 * the slider's own dynamic tooltip (see the sliders below). */
 	private addSliderReset(
 		setting: Setting,
 		sl: SliderComponent,
@@ -161,6 +173,27 @@ export class HomeSettingTab extends PluginSettingTab {
 					const def = DEFAULT_SETTINGS[key];
 					(this.plugin.settings as unknown as Record<string, number>)[key] = def;
 					sl.setValue(def);
+					await this.save();
+				}),
+		);
+	}
+
+	/** Add a reset (rotate-ccw) extra button to a text Setting that restores the
+	 * factory default from DEFAULT_SETTINGS. Used for fields whose default string
+	 * would be troublesome to reconstruct if overwritten. */
+	private addTextReset(
+		setting: Setting,
+		txt: TextComponent,
+		key: StringSettingKey,
+	): void {
+		setting.addExtraButton((b) =>
+			b
+				.setIcon("rotate-ccw")
+				.setTooltip(t().settings.resetField)
+				.onClick(async () => {
+					const def = DEFAULT_SETTINGS[key];
+					(this.plugin.settings as unknown as Record<string, string>)[key] = def;
+					txt.setValue(def);
 					await this.save();
 				}),
 		);
@@ -181,14 +214,15 @@ export class HomeSettingTab extends PluginSettingTab {
 				}),
 			);
 
-		new Setting(containerEl)
-			.setName(t().settings.appearance.title)
-			.addText((t) =>
-				t.setValue(s.title).onChange(async (v) => {
-					s.title = v;
-					await this.save();
-				}),
-			);
+		const title = new Setting(containerEl)
+			.setName(t().settings.appearance.title);
+		title.addText((txt) => {
+			txt.setValue(s.title).onChange(async (v) => {
+				s.title = v;
+				await this.save();
+			});
+			this.addTextReset(title, txt, "title");
+		});
 
 		new Setting(containerEl)
 			.setName(t().settings.appearance.logo)
@@ -200,14 +234,15 @@ export class HomeSettingTab extends PluginSettingTab {
 				}),
 			);
 
-		new Setting(containerEl)
-			.setName(t().settings.appearance.searchPlaceholder)
-			.addText((t) =>
-				t.setValue(s.searchPlaceholder).onChange(async (v) => {
-					s.searchPlaceholder = v;
-					await this.save();
-				}),
-			);
+		const searchPlaceholder = new Setting(containerEl)
+			.setName(t().settings.appearance.searchPlaceholder);
+		searchPlaceholder.addText((txt) => {
+			txt.setValue(s.searchPlaceholder).onChange(async (v) => {
+				s.searchPlaceholder = v;
+				await this.save();
+			});
+			this.addTextReset(searchPlaceholder, txt, "searchPlaceholder");
+		});
 
 		new Setting(containerEl)
 			.setName(t().settings.appearance.searchContents)
@@ -247,6 +282,7 @@ export class HomeSettingTab extends PluginSettingTab {
 		width.addSlider((sl) => {
 			sl.setLimits(700, 1600, 20)
 				.setValue(s.maxWidth)
+				.setDynamicTooltip()
 				.onChange(async (v) => {
 					s.maxWidth = v;
 					await this.save();
@@ -304,6 +340,7 @@ export class HomeSettingTab extends PluginSettingTab {
 			opacity.addSlider((sl) => {
 				sl.setLimits(0, 1, 0.05)
 					.setValue(s.backgroundOpacity)
+					.setDynamicTooltip()
 					.onChange(async (v) => {
 						s.backgroundOpacity = v;
 						await this.save();
@@ -317,6 +354,7 @@ export class HomeSettingTab extends PluginSettingTab {
 			blur.addSlider((sl) => {
 				sl.setLimits(0, 40, 1)
 					.setValue(s.backgroundBlur)
+					.setDynamicTooltip()
 					.onChange(async (v) => {
 						s.backgroundBlur = v;
 						await this.save();
@@ -471,42 +509,46 @@ export class HomeSettingTab extends PluginSettingTab {
 	private tasksSection(containerEl: HTMLElement): void {
 		const s = this.plugin.settings;
 
-		new Setting(containerEl)
-			.setName(t().settings.tasks.statusField)
-			.addText((t) =>
-				t.setValue(s.taskNotesStatusField).onChange(async (v) => {
-					s.taskNotesStatusField = v;
-					await this.save();
-				}),
-			);
+		const statusField = new Setting(containerEl)
+			.setName(t().settings.tasks.statusField);
+		statusField.addText((txt) => {
+			txt.setValue(s.taskNotesStatusField).onChange(async (v) => {
+				s.taskNotesStatusField = v;
+				await this.save();
+			});
+			this.addTextReset(statusField, txt, "taskNotesStatusField");
+		});
 
-		new Setting(containerEl)
-			.setName(t().settings.tasks.dueField)
-			.addText((t) =>
-				t.setValue(s.taskNotesDueField).onChange(async (v) => {
-					s.taskNotesDueField = v;
-					await this.save();
-				}),
-			);
+		const dueField = new Setting(containerEl)
+			.setName(t().settings.tasks.dueField);
+		dueField.addText((txt) => {
+			txt.setValue(s.taskNotesDueField).onChange(async (v) => {
+				s.taskNotesDueField = v;
+				await this.save();
+			});
+			this.addTextReset(dueField, txt, "taskNotesDueField");
+		});
 
-		new Setting(containerEl)
+		const priorityField = new Setting(containerEl)
 			.setName(t().settings.tasks.priorityField)
-			.setDesc(t().settings.tasks.priorityFieldDesc)
-			.addText((t) =>
-				t.setValue(s.taskNotesPriorityField).onChange(async (v) => {
-					s.taskNotesPriorityField = v;
-					await this.save();
-				}),
-			);
+			.setDesc(t().settings.tasks.priorityFieldDesc);
+		priorityField.addText((txt) => {
+			txt.setValue(s.taskNotesPriorityField).onChange(async (v) => {
+				s.taskNotesPriorityField = v;
+				await this.save();
+			});
+			this.addTextReset(priorityField, txt, "taskNotesPriorityField");
+		});
 
-		new Setting(containerEl)
-			.setName(t().settings.tasks.doneValue)
-			.addText((t) =>
-				t.setValue(s.taskNotesDoneValue).onChange(async (v) => {
-					s.taskNotesDoneValue = v;
-					await this.save();
-				}),
-			);
+		const doneValue = new Setting(containerEl)
+			.setName(t().settings.tasks.doneValue);
+		doneValue.addText((txt) => {
+			txt.setValue(s.taskNotesDoneValue).onChange(async (v) => {
+				s.taskNotesDoneValue = v;
+				await this.save();
+			});
+			this.addTextReset(doneValue, txt, "taskNotesDoneValue");
+		});
 	}
 
 	// ---- Filters --------------------------------------------------------
@@ -560,6 +602,7 @@ export class HomeSettingTab extends PluginSettingTab {
 		cardOpacity.addSlider((sl) => {
 			sl.setLimits(0, 1, 0.05)
 				.setValue(s.cardOpacity)
+				.setDynamicTooltip()
 				.onChange(async (v) => {
 					s.cardOpacity = v;
 					await this.save();

@@ -300,6 +300,7 @@ class DashboardSettingsModal extends Modal {
 				sl
 					.setLimits(min, max, step)
 					.setValue(current)
+					.setDynamicTooltip()
 					.onChange((v) => set(v)),
 			);
 		}
