@@ -267,37 +267,7 @@ function renderEmbed(
 		if (ext === "canvas" || excalidraw) {
 			host.addClass("hearth-embed-live");
 			body.addClass("hearth-card-body-live");
-			// These embeds fit their content to the container size once, as they
-			// load — before our fill CSS has grown them to the full card. Left
-			// alone they stay fit to that smaller initial box, so the drawing
-			// sits offset (bunched to one side) inside the grown card. Nudge
-			// Obsidian to recompute layout after the final size is in place so it
-			// re-fits the drawing to the whole card. Two frames: one for our CSS
-			// to apply, one for the embed to have mounted.
-			refitLiveEmbed(view, host, component);
 		}
-	}
-}
-
-/**
- * Canvas / Excalidraw embeds fit their drawing to the container size when they
- * mount — which happens a frame or two after render() and before our fill CSS
- * has grown the host to the full card. Left alone they stay fit to that stale
- * smaller box, leaving the drawing bunched to one side of the grown card. Fire
- * the resize these embeds re-fit on, spread across a short window so a re-fit
- * lands once the drawing is present at the final card size. All timers are
- * registered on the render component so they're cleared if the card re-renders.
- */
-function refitLiveEmbed(view: HomeView, host: HTMLElement, component: Component): void {
-	const win = host.ownerDocument.defaultView ?? window;
-	const nudge = (): void => {
-		view.app.workspace.trigger("resize");
-		win.dispatchEvent(new Event("resize"));
-	};
-	win.requestAnimationFrame(() => win.requestAnimationFrame(nudge));
-	for (const delay of [100, 300, 600]) {
-		const id = win.setTimeout(nudge, delay);
-		component.register(() => win.clearTimeout(id));
 	}
 }
 
