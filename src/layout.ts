@@ -125,6 +125,25 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 		h: clampNum(r.h, RANGE.cardH.min, RANGE.cardH.max, 2),
 	};
 
+	// Preserve the live free-form geometry so an exported layout round-trips
+	// faithfully between devices. Without this the coordinates the board actually
+	// renders with (fx/fy/fw/fh) were dropped on import and re-derived from the
+	// legacy x/y/w/h grid units — which go stale the moment a card is dragged —
+	// so a shared/synced layout reverted to its pre-arrange positions.
+	// fx/fw are board-width fractions (0..1); fy/fh are absolute pixels (>= 0).
+	if (typeof r.fx === "number" && Number.isFinite(r.fx)) {
+		card.fx = Math.max(0, Math.min(1, r.fx));
+	}
+	if (typeof r.fw === "number" && Number.isFinite(r.fw)) {
+		card.fw = Math.max(0.02, Math.min(1, r.fw));
+	}
+	if (typeof r.fy === "number" && Number.isFinite(r.fy)) {
+		card.fy = Math.max(0, r.fy);
+	}
+	if (typeof r.fh === "number" && Number.isFinite(r.fh)) {
+		card.fh = Math.max(0, r.fh);
+	}
+
 	const title = str(r.title);
 	if (title !== undefined) card.title = title;
 	const target = str(r.target);

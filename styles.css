@@ -1489,6 +1489,31 @@
 	display: none;
 }
 
+/* ---- Mobile hard stop (keep content above the control bar) ----------- */
+
+/* On mobile, Obsidian's own control bar overlays the bottom of the view.
+ * env(safe-area-inset-bottom) only covers the OS home indicator, not that bar,
+ * so absolutely-positioned content (the action bar) and the fit-to-page board
+ * could slide underneath it and hide buttons. Reserve a fixed hard stop on top
+ * of the safe-area inset so nothing can ever end up behind the control bar. */
+:root {
+	--hearth-mobile-safe-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+}
+
+/* Shrink the scroll/board area so fit-to-page squeezes cards into the space
+ * above the control bar instead of clipping the bottom row behind it. */
+.is-mobile .hearth-scroll {
+	padding-bottom: var(--hearth-mobile-safe-bottom);
+}
+
+/* Lift the pinned action bar clear of the control bar. `bottom` (not padding)
+ * because the bar is absolutely positioned, so padding-bottom wouldn't move it
+ * up off the scroll's inner edge. */
+.is-mobile .hearth-mobile-actions {
+	bottom: var(--hearth-mobile-safe-bottom);
+	padding-bottom: 4px;
+}
+
 /* ---- Empty board (no cards): centre the search like a launcher ------ */
 
 /* Make the scroll a flex column so the inner can reliably fill its height. */
@@ -1572,6 +1597,24 @@
 .hearth-card.merge-bottom { border-bottom-color: transparent; }
 .hearth-card.merge-left { border-left-color: transparent; }
 .hearth-card.merge-right { border-right-color: transparent; }
+
+/* Drop the drop-shadow on any card that shares a full edge with a neighbour.
+ * The base shadow (0 2px 12px) is offset 2px downward, so a card stacked above
+ * another casts a soft dark band onto it — a visible horizontal seam right where
+ * the two should read as one tile (and a fainter one between side-by-side cards
+ * from the blur). Removing the shadow on merged edges makes the pair flush.
+ * Kept after :hover too so the seam doesn't reappear when a merged card is
+ * hovered. */
+.hearth-card.merge-top,
+.hearth-card.merge-bottom,
+.hearth-card.merge-left,
+.hearth-card.merge-right,
+.hearth-card.merge-top:hover,
+.hearth-card.merge-bottom:hover,
+.hearth-card.merge-left:hover,
+.hearth-card.merge-right:hover {
+	box-shadow: none;
+}
 
 .hearth-card-body.has-bg {
 	background: var(--card-bg);
