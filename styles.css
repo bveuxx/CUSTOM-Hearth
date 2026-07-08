@@ -209,15 +209,30 @@
 	top: calc(100% + 6px);
 	left: 0;
 	right: 0;
-	/* Above every dashboard element (cards, overlays, toolbars). */
-	z-index: 100;
+	/* Above every dashboard element (cards, overlays, toolbars) and the mobile
+	 * action bar. */
+	z-index: 200;
 	max-height: min(360px, 50vh);
 	overflow-y: auto;
 	border-radius: 12px;
 	border: 1px solid var(--background-modifier-border);
-	background: var(--background-primary);
+	/* Force an opaque surface even if the theme's --background-primary carries
+	 * alpha: the extra flat gradient layer stacks on top of the base colour so a
+	 * wallpaper or the Hearth background layer can't bleed through and wash out
+	 * the result text (which read as "there but invisible" on mobile). */
+	background-color: var(--background-primary);
+	background-image:
+		linear-gradient(var(--background-primary), var(--background-primary)),
+		linear-gradient(var(--background-primary), var(--background-primary));
 	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
 	padding: 6px;
+}
+
+/* On mobile keep the list short enough to stay above the on-screen keyboard
+ * (with the search anchored to the top via hearth-search-active) instead of
+ * extending down behind it. */
+.is-mobile .hearth-search-results {
+	max-height: 42vh;
 }
 
 .hearth-result {
@@ -386,8 +401,15 @@
 	border-radius: 14px;
 	border: 1px solid var(--background-modifier-border);
 	/* --card-opacity (0..1) tints the card surface without dimming content. */
-	background: color-mix(in srgb, var(--background-primary) calc(var(--card-opacity, 1) * 100%), transparent);
-	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+	--hearth-card-fill: color-mix(in srgb, var(--background-primary) calc(var(--card-opacity, 1) * 100%), transparent);
+	background: var(--hearth-card-fill);
+	/* Composable shadow: an optional 1px seam-filler on the right edge (bridges
+	 * the sub-pixel gap that percentage widths leave between side-by-side cards)
+	 * plus the card's drop shadow. Both default off/normal and are overridden by
+	 * the merge rules below. */
+	--hearth-card-seam-right: 0 0 0 0 transparent;
+	--hearth-card-lift: 0 2px 12px rgba(0, 0, 0, 0.06);
+	box-shadow: var(--hearth-card-seam-right), var(--hearth-card-lift);
 	overflow: hidden;
 	transition: box-shadow 120ms ease, transform 120ms ease;
 }
@@ -425,7 +447,7 @@
 }
 
 .hearth-card:hover {
-	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+	--hearth-card-lift: 0 6px 20px rgba(0, 0, 0, 0.12);
 }
 
 .hearth-card-head {
@@ -1622,18 +1644,23 @@
  * The base shadow (0 2px 12px) is offset 2px downward, so a card stacked above
  * another casts a soft dark band onto it — a visible horizontal seam right where
  * the two should read as one tile (and a fainter one between side-by-side cards
- * from the blur). Removing the shadow on merged edges makes the pair flush.
- * Kept after :hover too so the seam doesn't reappear when a merged card is
- * hovered. */
+ * from the blur). Removing the lift on merged edges makes the pair flush. */
 .hearth-card.merge-top,
 .hearth-card.merge-bottom,
 .hearth-card.merge-left,
-.hearth-card.merge-right,
-.hearth-card.merge-top:hover,
-.hearth-card.merge-bottom:hover,
-.hearth-card.merge-left:hover,
-.hearth-card.merge-right:hover {
-	box-shadow: none;
+.hearth-card.merge-right {
+	--hearth-card-lift: 0 0 0 0 transparent;
+}
+
+/* Side-by-side cards are positioned with percentage widths, so the left card's
+ * right edge and the right card's left edge round to device pixels
+ * independently and can leave a 1px gap the transparent borders don't fill
+ * (stacked cards use pixel coords and are pixel-snapped in grid.ts instead).
+ * Bridge it by extending 1px of the card surface past the right edge — only on
+ * the left card of the pair (merge-right), so the fill is drawn exactly once
+ * (no doubled translucency). */
+.hearth-card.merge-right {
+	--hearth-card-seam-right: 1px 0 0 0 var(--hearth-card-fill);
 }
 
 .hearth-card-body.has-bg {
