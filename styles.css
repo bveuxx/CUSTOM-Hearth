@@ -1514,6 +1514,26 @@
 	padding-bottom: 4px;
 }
 
+/* ---- Mobile search focus (keyboard up) ------------------------------- */
+
+/* While the search field is focused on mobile (keyboard up), hide the action
+ * bar entirely so it can't slide over the search field, and anchor the search
+ * to the top so the results list stays above the keyboard instead of behind it.
+ * Set on focus from search.ts, so it's reliable even when the viewport-size
+ * keyboard heuristic doesn't fire. */
+.hearth-view.hearth-search-active .hearth-mobile-actions {
+	display: none;
+}
+
+.hearth-view.hearth-search-active .hearth-scroll,
+.hearth-view.hearth-search-active.hearth-mobile-only .hearth-scroll {
+	justify-content: flex-start;
+}
+
+.hearth-view.hearth-search-active.hearth-mobile-only .hearth-inner {
+	justify-content: flex-start;
+}
+
 /* ---- Empty board (no cards): centre the search like a launcher ------ */
 
 /* Make the scroll a flex column so the inner can reliably fill its height. */

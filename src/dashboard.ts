@@ -29,6 +29,7 @@ import {
 	GridLayout,
 	GRID_GAP,
 	layoutHeight,
+	placeFreeform,
 	ROW_HEIGHT,
 } from "./grid";
 
@@ -362,7 +363,19 @@ function renderToolbar(view: HomeView, container: HTMLElement): void {
 						.setTitle(templateName(template))
 						.setIcon(template.icon)
 						.onClick(() => {
-							activeCards(view.plugin.settings).push(cardFromTemplate(template));
+							const s = view.plugin.settings;
+							const card = cardFromTemplate(template);
+							// Place the new card into a free slot in the current layout so
+							// it never shifts the cards already on the board (placeFreeform).
+							placeFreeform(
+								card,
+								renderCards(s),
+								effectiveMaxWidth(s),
+								effectiveColumns(s),
+								GRID_GAP,
+								effectiveRowHeight(s) || ROW_HEIGHT,
+							);
+							activeCards(s).push(card);
 							persistAndRender(view);
 						}),
 				);
