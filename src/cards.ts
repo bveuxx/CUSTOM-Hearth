@@ -2113,6 +2113,9 @@ interface TaskHit {
 	start?: string | null;
 	/** Tasks-plugin "done" date (✅), set when the card was completed. */
 	doneDate?: string | null;
+	/** Kanban card description: the plain-text lines nested under the card,
+	 * shown as sub-bullets. Joined with "\n"; empty when the card has none. */
+	description?: string;
 }
 
 /** Whether `path` is in scope per the card's folder whitelist/blacklist. An
@@ -2288,10 +2291,11 @@ function renderTaskDateChips(parent: HTMLElement, hit: TaskHit, today: string): 
 		el.setAttribute("title", `${title}: ${date}`);
 		if (markOverdue) el.toggleClass("is-overdue", overdue(date));
 	};
-	// Kanban-only: start and scheduled (scheduled is folded into the due label
-	// for recurring cards, so skip the separate chip then to avoid duplication).
-	if (hit.boardColumn && hit.start) chip("🛫", hit.start, "start", t().cards.tasks.startDate, true);
-	if (hit.boardColumn && hit.scheduled && !hit.recurrence)
+	// Line-based tasks (checkbox + Kanban) show start and scheduled chips; for
+	// recurring cards scheduled is folded into the due label, so skip it then to
+	// avoid duplication. (TaskNotes uses line -1 and keeps its own treatment.)
+	if (hit.line >= 0 && hit.start) chip("🛫", hit.start, "start", t().cards.tasks.startDate, true);
+	if (hit.line >= 0 && hit.scheduled && !hit.recurrence)
 		chip("⏳", hit.scheduled, "scheduled", t().cards.tasks.scheduledDate, true);
 
 	const dueLabel = formatDueLabel(hit);
@@ -2304,7 +2308,20 @@ function renderTaskDateChips(parent: HTMLElement, hit: TaskHit, today: string): 
 		}
 	}
 
-	if (hit.boardColumn && hit.doneDate) chip("✅", hit.doneDate, "done", t().cards.tasks.doneDate, false);
+	if (hit.line >= 0 && hit.doneDate) chip("✅", hit.doneDate, "done", t().cards.tasks.doneDate, false);
+}
+
+/** Render a card's description as muted plain-text sub-bullets (one per line),
+ * with no Markdown formatting applied. */
+function renderTaskDescription(parent: HTMLElement, description: string): void {
+	const lines = description.split("\n").map((l) => l.trim()).filter(Boolean);
+	if (!lines.length) return;
+	const wrap = parent.createDiv("hearth-task-desc");
+	for (const line of lines) {
+		const item = wrap.createDiv("hearth-task-desc-line");
+		item.createSpan({ cls: "hearth-task-desc-bullet", text: "•" });
+		item.createSpan({ cls: "hearth-task-desc-text", text: line });
+	}
 }
 
 /** Sort tasks by: due date → scheduled date → priority → created date.
@@ -2418,13 +2435,11 @@ function renderTaskRow(
 		check.checked = hit.done;
 		check.addEventListener("click", (e) => e.stopPropagation());
 		check.addEventListener("change", () => {
-			// Kanban cards keep their ✅ done date in sync (extended mode); other
-			// sources just flip the checkbox.
+			// Keep the ✅ done date in sync: checkbox tasks always track it; Kanban
+			// cards do so only in extended mode (a plain board stays plain).
 			const done = check.checked;
-			const p = hit.boardColumn
-				? setKanbanCardDone(view, hit, done, cfg.kanbanExtended ?? false)
-				: toggleCheckboxTask(view, hit);
-			void p.then((ok) => {
+			const ext = hit.boardColumn ? (cfg.kanbanExtended ?? false) : true;
+			void setKanbanCardDone(view, hit, done, ext).then((ok) => {
 				if (!ok) new Notice(t().notices.taskChangedOnDisk);
 				refresh();
 			});
@@ -2446,12 +2461,14 @@ function renderTaskRow(
 	// miss); board cards stay dot-only for compactness.
 	if (hit.priority) renderPriority(row, hit.priority);
 	renderTaskDateChips(row, hit, today);
+	if (hit.description) renderTaskDescription(row, hit.description);
 
 	const open = () => void openTask(view, hit);
 	row.addEventListener("click", open);
 	makeClickable(row, open, hit.text || hit.file.basename);
-	// Kanban list rows get the same right-click menu as board cards.
-	if (hit.boardColumn && hit.line >= 0) attachKanbanCardMenu(view, cfg, hit, row, refresh);
+	// Line-based tasks (Kanban cards and plain checkboxes) get the right-click
+	// menu; checkboxes get the edit-details item, Kanban also convert/delete.
+	if (hit.line >= 0) attachKanbanCardMenu(view, cfg, hit, row, refresh);
 }
 
 /** A Kanban board: tasks grouped into status columns, draggable between them.
@@ -2608,7 +2625,16 @@ function renderTaskKanban(
 		const colEl = board.createDiv("hearth-kanban-col");
 		colEl.toggleClass("is-done-col", doneColumns.has(col.key));
 		const head = colEl.createDiv("hearth-kanban-col-head");
-		head.createSpan({ cls: "hearth-kanban-col-title", text: col.label });
+		const titleEl = head.createSpan({ cls: "hearth-kanban-col-title", text: col.label });
+		// Kanban source: double-click the title to rename the board column.
+		if (source === "kanban") {
+			titleEl.setAttribute("title", t().cards.tasks.renameColumnHint);
+			titleEl.addEventListener("dblclick", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				startColumnRename(view, cfg, head, titleEl, col.label, refresh);
+			});
+		}
 		head.createSpan({ cls: "hearth-kanban-col-count", text: String(col.hits.length) });
 		// Kanban source: toggle whether this column auto-completes its cards.
 		if (source === "kanban") {
@@ -2748,6 +2774,7 @@ function renderTaskKanban(
 			// Kanban priority shows as a single coloured dot inline with the title;
 			// TaskNotes keeps its labelled chip in the meta row below.
 			if (source === "kanban" && hit.priority) renderPriority(textRow, hit.priority, true);
+			if (hit.description) renderTaskDescription(cardEl, hit.description);
 			const meta = cardEl.createDiv("hearth-kanban-card-meta");
 			if (source !== "kanban" && hit.priority) renderPriority(meta, hit.priority);
 			renderTaskDateChips(meta, hit, today);
@@ -2795,8 +2822,10 @@ function renderKanbanAddCard(
 			attr: { rows: "1", placeholder: t().cards.tasks.addCardPlaceholder },
 		});
 
-		// Extended mode: dates & priority fields, written onto the new card.
-		const readMeta = opts.extended ? buildTaskDetailFields(form, emptyMeta()) : () => emptyMeta();
+		// Extended mode: dates, priority and description fields for the new card.
+		const readDetail = opts.extended
+			? buildTaskDetailFields(form, emptyMeta(), "")
+			: () => ({ meta: emptyMeta(), description: "" });
 
 		input.focus();
 		let committed = false;
@@ -2810,9 +2839,10 @@ function renderKanbanAddCard(
 			const text = input.value.trim();
 			if (!text) return cancel();
 			committed = true;
-			const full = text + buildMetadataSuffix(readMeta());
+			const detail = readDetail();
+			const full = text + buildMetadataSuffix(detail.meta);
 			const doneDate = opts.markDone && opts.extended ? moment().format("YYYY-MM-DD") : undefined;
-			void addKanbanCard(view, cfg, heading, full, opts.markDone, doneDate).then((ok) => {
+			void addKanbanCard(view, cfg, heading, full, opts.markDone, doneDate, detail.description).then((ok) => {
 				if (!ok) new Notice(t().notices.couldNotAddKanbanCard);
 				refresh();
 			});
@@ -2885,7 +2915,12 @@ function buildRecurrence(unit: string, interval: number): string {
  * current values. Repeat and the dates are mutually exclusive: setting one
  * disables and clears the other. Used by both the Kanban add-card form and the
  * edit dialog. */
-function buildTaskDetailFields(parent: HTMLElement, meta: TaskMeta): () => TaskMeta {
+function buildTaskDetailFields(
+	parent: HTMLElement,
+	meta: TaskMeta,
+	description: string,
+	allowDescription = true,
+): () => { meta: TaskMeta; description: string } {
 	const grid = parent.createDiv({ cls: "hearth-taskdetail" });
 
 	const row = (labelText: string) => {
@@ -2932,26 +2967,31 @@ function buildTaskDetailFields(parent: HTMLElement, meta: TaskMeta): () => TaskM
 	const start = dateField("🛫", t().cards.tasks.startDate, meta.start);
 	const scheduled = dateField("⏳", t().cards.tasks.scheduledDate, meta.scheduled);
 	const due = dateField("📅", t().cards.tasks.dueDate, meta.due);
-	const dates = [start, scheduled, due];
-	// A card that's already recurring wins over any stray dates (they're
-	// mutually exclusive), so don't show stale date values beside the repeat.
-	if (parsed.unit) dates.forEach((d) => (d.value = ""));
+	// A repeating card is anchored by its scheduled date only; a fixed start/due
+	// date is mutually exclusive with repeating. Don't show stale start/due
+	// values beside an existing repeat.
+	if (parsed.unit) {
+		start.value = "";
+		due.value = "";
+	}
 
-	// Repeat and fixed dates are mutually exclusive: choosing a repeat clears
-	// and disables the dates, and setting any date clears and disables repeat.
 	const sync = () => {
 		const repeating = repeatUnit.value !== "";
-		const hasDate = dates.some((d) => d.value !== "");
-		dates.forEach((d) => (d.disabled = repeating));
-		repeatUnit.disabled = hasDate;
-		repeatInterval.disabled = hasDate || !repeating;
-		repeatEvery.toggleClass("is-disabled", hasDate || !repeating);
+		const hasFixed = start.value !== "" || due.value !== "";
+		start.disabled = repeating;
+		due.disabled = repeating;
+		repeatUnit.disabled = hasFixed;
+		repeatInterval.disabled = hasFixed || !repeating;
+		repeatEvery.toggleClass("is-disabled", hasFixed || !repeating);
 	};
 	repeatUnit.addEventListener("change", () => {
-		if (repeatUnit.value !== "") dates.forEach((d) => (d.value = ""));
+		if (repeatUnit.value !== "") {
+			start.value = "";
+			due.value = "";
+		}
 		sync();
 	});
-	dates.forEach((d) =>
+	[start, due].forEach((d) =>
 		d.addEventListener("input", () => {
 			if (d.value !== "") {
 				repeatUnit.value = "";
@@ -2962,26 +3002,45 @@ function buildTaskDetailFields(parent: HTMLElement, meta: TaskMeta): () => TaskM
 	);
 	sync();
 
+	// Description: plain multiline text, stored as sub-bullets under the card.
+	// Only offered where nested lines are a description (Kanban cards), not for
+	// plain checkboxes whose nested lines may be sub-tasks.
+	let descArea: HTMLTextAreaElement | null = null;
+	if (allowDescription) {
+		const descRow = grid.createDiv({ cls: "hearth-taskdetail-row is-description" });
+		descRow.createSpan({ cls: "hearth-taskdetail-label", text: t().cards.tasks.description });
+		descArea = descRow.createEl("textarea", {
+			cls: "hearth-taskdetail-desc",
+			attr: { rows: "3", placeholder: t().cards.tasks.descriptionPlaceholder },
+		});
+		descArea.value = description;
+	}
+
 	return () => {
 		const repeating = repeatUnit.value !== "";
 		return {
-			priority: prio.value,
-			recurrence: repeating ? buildRecurrence(repeatUnit.value, parseInt(repeatInterval.value, 10)) : "",
-			start: repeating ? "" : start.value,
-			scheduled: repeating ? "" : scheduled.value,
-			due: repeating ? "" : due.value,
+			meta: {
+				priority: prio.value,
+				recurrence: repeating ? buildRecurrence(repeatUnit.value, parseInt(repeatInterval.value, 10)) : "",
+				start: repeating ? "" : start.value,
+				scheduled: scheduled.value,
+				due: repeating ? "" : due.value,
+			},
+			description: descArea ? descArea.value : description,
 		};
 	};
 }
 
-/** A modal to edit a Kanban card's dates & priority via {@link
- * buildTaskDetailFields}, prefilled from `meta`; submits the full TaskMeta. */
+/** A modal to edit a Kanban card's dates, priority and description via {@link
+ * buildTaskDetailFields}, prefilled from the card; submits the new values. */
 class TaskMetadataModal extends Modal {
-	private read: (() => TaskMeta) | null = null;
+	private read: (() => { meta: TaskMeta; description: string }) | null = null;
 	constructor(
 		app: App,
 		private readonly initial: TaskMeta,
-		private readonly onSubmit: (meta: TaskMeta) => void,
+		private readonly initialDescription: string,
+		private readonly allowDescription: boolean,
+		private readonly onSubmit: (meta: TaskMeta, description: string) => void,
 	) {
 		super(app);
 	}
@@ -2989,14 +3048,17 @@ class TaskMetadataModal extends Modal {
 		const { contentEl } = this;
 		contentEl.addClass("hearth-taskdetail-modal");
 		contentEl.createEl("h3", { text: t().cards.tasks.editMetadata });
-		this.read = buildTaskDetailFields(contentEl, this.initial);
+		this.read = buildTaskDetailFields(contentEl, this.initial, this.initialDescription, this.allowDescription);
 		new Setting(contentEl)
 			.addButton((b) =>
 				b
 					.setButtonText(t().cards.tasks.save)
 					.setCta()
 					.onClick(() => {
-						if (this.read) this.onSubmit(this.read());
+						if (this.read) {
+							const r = this.read();
+							this.onSubmit(r.meta, r.description);
+						}
 						this.close();
 					}),
 			)
@@ -3007,9 +3069,11 @@ class TaskMetadataModal extends Modal {
 	}
 }
 
-/** Scan plain Markdown `- [ ]`/`- [x]` checkboxes in every in-scope note. A
- * trailing 📅 YYYY-MM-DD (the Tasks-plugin emoji convention) is read as the
- * due date when present. */
+/** Scan plain Markdown `- [ ]`/`- [x]` checkboxes in every in-scope note,
+ * reading the full obsidian-tasks emoji metadata (priority, repeat, and the
+ * start/scheduled/due/done dates) off each line — the same set the Kanban
+ * source understands — so plain checkboxes get the same indicators, sorting and
+ * editing. The metadata is stripped from the displayed text. */
 async function collectCheckboxTasks(view: HomeView, cfg: TasksConfig): Promise<TaskHit[]> {
 	const files = view.app.vault.getMarkdownFiles().filter((f) => inTaskScope(f.path, cfg));
 	const hits: TaskHit[] = [];
@@ -3019,28 +3083,31 @@ async function collectCheckboxTasks(view: HomeView, cfg: TasksConfig): Promise<T
 		lines.forEach((line, i) => {
 			const match = /^\s*[-*+]\s\[([ xX])\]\s*(.*)$/.exec(line);
 			if (!match) return;
-			const text = match[2].trim();
-			// The Tasks-plugin emoji convention: `📅 <date>` for the due date.
-			// The date can be YYYY-MM-DD or any natural-language wording
-			// (today, next friday, in 3 days, …) which we resolve to a date.
-			const dueExpr = readEmojiField(text, "📅");
+			const raw = match[2].trim();
+			if (!raw) return; // ignore empty checkboxes ("- [ ]")
+			// The due date accepts natural-language wording (today, next friday,
+			// in 3 days, …) which we resolve to a date; the rest are ISO dates.
+			const dueExpr = readEmojiField(raw, "📅");
 			let due: string | null = null;
 			let dueRaw: string | null = null;
 			if (dueExpr) {
 				dueRaw = dueExpr;
 				due = /^\d{4}-\d{2}-\d{2}$/.test(dueExpr) ? dueExpr : parseNaturalDate(dueExpr);
 			}
-		hits.push({
-			file,
-			line: i,
-			text,
-			done: match[1].toLowerCase() === "x",
-			due,
-			dueRaw,
-			scheduled: null,
-			created: file.stat.ctime,
-			recurrence: undefined,
-		});
+			hits.push({
+				file,
+				line: i,
+				text: stripTaskMetadata(raw),
+				done: match[1].toLowerCase() === "x",
+				due,
+				dueRaw,
+				scheduled: readEmojiDate(raw, "⏳") || null,
+				start: readEmojiDate(raw, "🛫") || null,
+				doneDate: readEmojiDate(raw, "✅") || null,
+				created: file.stat.ctime,
+				recurrence: readEmojiField(raw, "🔁") ?? undefined,
+				priority: readPriorityEmoji(raw),
+			});
 		});
 	}
 	return hits;
@@ -3167,6 +3234,35 @@ function parseKanbanColumns(lines: string[]): { columns: KanbanColumn[]; footerS
  * Markdown task item, same as a checkbox task). */
 const KANBAN_CARD_RE = /^\s*[-*+]\s\[([ xX])\]\s*(.*)$/;
 
+/** The extent of a Kanban card starting at `cardLine`: its item line plus any
+ * deeper-indented, non-blank continuation lines (the card's description). `end`
+ * is the exclusive line after the block; `descLines` is the continuation text
+ * with its indentation and any list marker stripped. */
+function cardBlockRange(lines: string[], cardLine: number): { end: number; descLines: string[] } {
+	const indent = (/^(\s*)/.exec(lines[cardLine])?.[1] ?? "").length;
+	const descLines: string[] = [];
+	let end = cardLine + 1;
+	while (end < lines.length) {
+		const l = lines[end];
+		if (l.trim() === "") break;
+		if ((/^(\s*)/.exec(l)?.[1] ?? "").length <= indent) break;
+		descLines.push(l.replace(/^\s*(?:[-*+]\s+)?/, ""));
+		end++;
+	}
+	return { end, descLines };
+}
+
+/** Build the nested description bullet lines for a card whose item line has the
+ * given indent (each non-empty description line becomes an indented `- ` item,
+ * one level deeper). */
+function descriptionBullets(description: string, itemIndent: string): string[] {
+	return description
+		.split(/\r?\n/)
+		.map((l) => l.trim())
+		.filter(Boolean)
+		.map((l) => `${itemIndent}\t- ${l}`);
+}
+
 /** Read a Kanban board note: each `##` heading is a column and each checkbox
  * item beneath it is a card. In extended mode the Tasks-plugin emoji metadata
  * (📅 due, ⏫/🔼/🔽 priority, 🔁 recurrence) is parsed off each card so due dates
@@ -3184,10 +3280,20 @@ async function collectKanbanTasks(
 	const extended = cfg.kanbanExtended ?? false;
 	const hits: TaskHit[] = [];
 	for (const col of columns) {
-		for (let i = col.headingLine + 1; i < col.endLine; i++) {
+		let i = col.headingLine + 1;
+		while (i < col.endLine) {
 			const m = KANBAN_CARD_RE.exec(lines[i]);
-			if (!m) continue;
+			if (!m) {
+				i++;
+				continue;
+			}
+			const { end, descLines } = cardBlockRange(lines, i);
 			const rawText = m[2].trim();
+			if (!rawText) {
+				// Ignore empty checkboxes ("- [ ]") and skip past their block.
+				i = end;
+				continue;
+			}
 			let text = rawText;
 			let due: string | null = null;
 			let dueRaw: string | null = null;
@@ -3223,7 +3329,9 @@ async function collectKanbanTasks(
 				recurrence,
 				priority,
 				boardColumn: col.heading,
+				description: descLines.join("\n"),
 			});
+			i = end;
 		}
 	}
 	return { hits, columns, file };
@@ -3367,7 +3475,8 @@ async function moveKanbanCard(
 }
 
 /** Append a new card under `heading` in the configured board note, checked when
- * `markDone` (the target is a "done column") and unchecked otherwise. */
+ * `markDone` (the target is a "done column") and unchecked otherwise. Any
+ * `description` is written as plain-text sub-bullets under the card. */
 async function addKanbanCard(
 	view: HomeView,
 	cfg: TasksConfig,
@@ -3375,6 +3484,7 @@ async function addKanbanCard(
 	text: string,
 	markDone?: boolean,
 	doneDate?: string,
+	description?: string,
 ): Promise<boolean> {
 	const file = resolveKanbanFile(view, cfg);
 	if (!file) return false;
@@ -3382,8 +3492,8 @@ async function addKanbanCard(
 	const lines = content.split("\n");
 	let body = text.replace(/\r?\n/g, " ").trim();
 	if (markDone && doneDate) body = withDoneDate(body, true, doneDate);
-	const card = `- [${markDone ? "x" : " "}] ${body}`;
-	if (!insertCardBlock(lines, heading, [card])) return false;
+	const block = [`- [${markDone ? "x" : " "}] ${body}`, ...descriptionBullets(description ?? "", "")];
+	if (!insertCardBlock(lines, heading, block)) return false;
 	await view.app.vault.modify(file, lines.join("\n"));
 	return true;
 }
@@ -3413,9 +3523,11 @@ async function markCardsDone(view: HomeView, hits: TaskHit[], doneDate?: string)
 	if (changed) await view.app.vault.modify(file, lines.join("\n"));
 }
 
-/** Attach a right-click menu to a Kanban card element: edit its due/priority
- * (extended mode), convert it into its own note (mirrors the Kanban plugin),
- * or delete it from the board. */
+/** Attach a right-click menu to a task row/card. Every metadata-capable task
+ * (Kanban cards, and plain checkboxes — which always read their marks) offers
+ * "Edit dates & priority"; Kanban cards additionally offer convert-to-note and
+ * delete. Kanban cards get a description field in the editor; checkboxes don't
+ * (their nested lines may be sub-tasks, not a description). */
 function attachKanbanCardMenu(
 	view: HomeView,
 	cfg: TasksConfig,
@@ -3423,11 +3535,14 @@ function attachKanbanCardMenu(
 	el: HTMLElement,
 	refresh: () => void,
 ): void {
+	const isKanban = !!hit.boardColumn;
+	// Kanban cards read marks only in extended mode; checkboxes always do.
+	const canEditMeta = isKanban ? !!cfg.kanbanExtended : true;
 	el.addEventListener("contextmenu", (e) => {
 		e.preventDefault();
 		e.stopPropagation();
 		const menu = new Menu();
-		if (cfg.kanbanExtended) {
+		if (canEditMeta) {
 			menu.addItem((item) =>
 				item
 					.setTitle(t().cards.tasks.editMetadata)
@@ -3440,8 +3555,8 @@ function attachKanbanCardMenu(
 							scheduled: hit.scheduled ?? "",
 							due: hit.due ?? "",
 						};
-						new TaskMetadataModal(view.app, current, (meta) => {
-							void setKanbanCardMetadata(view, hit, meta).then((ok) => {
+						new TaskMetadataModal(view.app, current, hit.description ?? "", isKanban, (meta, description) => {
+							void setKanbanCardMetadata(view, hit, meta, description).then((ok) => {
 								if (!ok) new Notice(t().notices.taskChangedOnDisk);
 								refresh();
 							});
@@ -3449,23 +3564,25 @@ function attachKanbanCardMenu(
 					}),
 			);
 		}
-		menu.addItem((item) =>
-			item
-				.setTitle(t().cards.tasks.convertToNote)
-				.setIcon("file-output")
-				.onClick(() => void convertKanbanCardToNote(view, hit).then(refresh)),
-		);
-		menu.addItem((item) =>
-			item
-				.setTitle(t().cards.tasks.deleteCard)
-				.setIcon("trash-2")
-				.onClick(() => {
-					void deleteKanbanCard(view, hit).then((ok) => {
-						if (!ok) new Notice(t().notices.taskChangedOnDisk);
-						refresh();
-					});
-				}),
-		);
+		if (isKanban) {
+			menu.addItem((item) =>
+				item
+					.setTitle(t().cards.tasks.convertToNote)
+					.setIcon("file-output")
+					.onClick(() => void convertKanbanCardToNote(view, hit).then(refresh)),
+			);
+			menu.addItem((item) =>
+				item
+					.setTitle(t().cards.tasks.deleteCard)
+					.setIcon("trash-2")
+					.onClick(() => {
+						void deleteKanbanCard(view, hit).then((ok) => {
+							if (!ok) new Notice(t().notices.taskChangedOnDisk);
+							refresh();
+						});
+					}),
+			);
+		}
 		menu.showAtMouseEvent(e);
 	});
 }
@@ -3506,7 +3623,12 @@ function fillTaskText(view: HomeView, el: HTMLElement, text: string, sourcePath:
 /** Set (or clear) a Kanban card's due date and priority, rewriting the card
  * line's Tasks-plugin metadata in place while preserving its text and any link.
  * `due` is "" to clear; `priority` is "high"/"medium"/"low" or "" to clear. */
-async function setKanbanCardMetadata(view: HomeView, hit: TaskHit, meta: TaskMeta): Promise<boolean> {
+async function setKanbanCardMetadata(
+	view: HomeView,
+	hit: TaskHit,
+	meta: TaskMeta,
+	description: string,
+): Promise<boolean> {
 	const content = await view.app.vault.read(hit.file);
 	const lines = content.split("\n");
 	const cur = lines[hit.line];
@@ -3517,8 +3639,19 @@ async function setKanbanCardMetadata(view: HomeView, hit: TaskHit, meta: TaskMet
 	// the new markers.
 	const managedRe = new RegExp(`[${MANAGED_EMOJI_CLASS}][^\\n\\r${TASK_EMOJI_CLASS}]*`, "gu");
 	const base = m[2].replace(managedRe, "").replace(/\s+/g, " ").trim();
+	const itemIndent = /^(\s*)/.exec(cur)?.[1] ?? "";
 	const prefix = cur.slice(0, cur.length - m[2].length);
-	lines[hit.line] = `${prefix}${base}${buildMetadataSuffix(meta)}`.trimEnd();
+	const newItem = `${prefix}${base}${buildMetadataSuffix(meta)}`.trimEnd();
+	if (hit.boardColumn) {
+		// Kanban card: replace the item line and its old description sub-bullets
+		// with the new item line and freshly-built description bullets.
+		const { end } = cardBlockRange(lines, hit.line);
+		lines.splice(hit.line, end - hit.line, newItem, ...descriptionBullets(description, itemIndent));
+	} else {
+		// Plain checkbox: rewrite only the item line, leaving any nested lines
+		// (which may be sub-tasks, not a description) untouched.
+		lines[hit.line] = newItem;
+	}
 	await view.app.vault.modify(hit.file, lines.join("\n"));
 	return true;
 }
@@ -3545,6 +3678,88 @@ async function deleteKanbanCard(view: HomeView, hit: TaskHit): Promise<boolean> 
 	lines.splice(hit.line, removeEnd - hit.line);
 	await view.app.vault.modify(hit.file, lines.join("\n"));
 	return true;
+}
+
+/** Swap a Kanban column's title span for an inline text input to rename it.
+ * Enter (or blur) commits, Escape cancels; the header's drag is suspended while
+ * editing so text selection doesn't start a column drag. */
+function startColumnRename(
+	view: HomeView,
+	cfg: TasksConfig,
+	head: HTMLElement,
+	titleEl: HTMLElement,
+	oldLabel: string,
+	refresh: () => void,
+): void {
+	const wasDraggable = head.getAttribute("draggable");
+	head.setAttribute("draggable", "false");
+	titleEl.hide();
+	const input = head.createEl("input", {
+		cls: "hearth-kanban-col-rename",
+		attr: { type: "text", "aria-label": t().cards.tasks.renameColumnHint },
+	});
+	head.insertBefore(input, titleEl);
+	input.value = oldLabel;
+	input.focus();
+	input.select();
+	let done = false;
+	const cleanup = () => {
+		input.remove();
+		titleEl.show();
+		if (wasDraggable != null) head.setAttribute("draggable", wasDraggable);
+	};
+	const commit = () => {
+		if (done) return;
+		done = true;
+		const next = input.value.trim();
+		cleanup();
+		if (next && next !== oldLabel) void renameKanbanColumn(view, cfg, oldLabel, next).then(refresh);
+	};
+	const cancel = () => {
+		if (done) return;
+		done = true;
+		cleanup();
+	};
+	input.addEventListener("keydown", (ke) => {
+		if (ke.key === "Enter") {
+			ke.preventDefault();
+			commit();
+		} else if (ke.key === "Escape") {
+			ke.preventDefault();
+			cancel();
+		}
+	});
+	input.addEventListener("blur", commit);
+	// Keep clicks/drags on the input from bubbling to the header's handlers.
+	for (const type of ["mousedown", "click", "dblclick", "pointerdown"])
+		input.addEventListener(type, (e) => e.stopPropagation());
+}
+
+/** Rename a Kanban board column: rewrite its `## heading` line and remap the
+ * card's stored column keys (order/hidden/done) from the old to the new key. */
+async function renameKanbanColumn(
+	view: HomeView,
+	cfg: TasksConfig,
+	oldHeading: string,
+	newHeading: string,
+): Promise<void> {
+	const file = resolveKanbanFile(view, cfg);
+	if (!file) return;
+	const content = await view.app.vault.read(file);
+	const lines = content.split("\n");
+	const { columns } = parseKanbanColumns(lines);
+	const col = columns.find((c) => c.heading === oldHeading);
+	if (!col) return;
+	lines[col.headingLine] = `## ${newHeading}`;
+	await view.app.vault.modify(file, lines.join("\n"));
+	// Remap the lowercased column keys the config stores.
+	const oldKey = oldHeading.toLowerCase();
+	const newKey = newHeading.toLowerCase();
+	const remap = (arr: string[] | undefined) => arr?.map((k) => (k === oldKey ? newKey : k));
+	cfg.kanbanOrder = remap(cfg.kanbanOrder);
+	cfg.kanbanHidden = remap(cfg.kanbanHidden);
+	cfg.kanbanDoneColumns = remap(cfg.kanbanDoneColumns);
+	await view.plugin.saveData(view.plugin.settings);
 }
 
 /** Convert a Kanban card into its own note (like the Kanban plugin): create a
@@ -3626,15 +3841,6 @@ function readEmojiField(text: string, emoji: string): string | null {
 /** The checkbox marker at the start of a list item, capturing the state char so
  * only that bracket is flipped (never a stray "[x]" elsewhere in the text). */
 const CHECKBOX_MARKER = /^(\s*[-*+]\s\[)([ xX])(\])/;
-
-/** Flip a checkbox task's `[ ]`/`[x]` in place. Only used for checkbox tasks —
- * TaskNotes status is left to TaskNotes' own UI since it may be a multi-step
- * workflow, not a plain open/done toggle. Re-validates the stored line against
- * the current file (which may have changed since render) and bails with a
- * refresh rather than flipping the wrong line. */
-function toggleCheckboxTask(view: HomeView, hit: TaskHit): Promise<boolean> {
-	return setCheckboxState(view, hit, !hit.done);
-}
 
 /** Set a checkbox task to an explicit done state in place. Re-validates the
  * stored line against the current file (which may have changed since render)

@@ -107,7 +107,11 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   rest of the week, **Next Friday** / **Last Friday** for the week after, then
   a compact "15 Jul"). They also accept **natural-language input**: write
   `📅 tomorrow`, `📅 next friday`, `📅 in 3 days`, `📅 end of month` (or the same
-  wording in a TaskNotes `due` field) and Hearth resolves it to a date.
+  wording in a TaskNotes `due` field) and Hearth resolves it to a date. Plain
+  checkboxes also read the full **obsidian-tasks marks** — priority
+  (🔺⏫🔼🔽⏬), a repeat (🔁), and the start/scheduled/due/done dates — showing
+  them as indicators and letting you edit them (right-click → **Edit dates &
+  priority**); empty checkboxes (`- [ ]`) are ignored.
 - **Recurring tasks** — TaskNotes tasks with a `recurrence` RRULE show a **↻**
   badge next to the next-occurrence date (read from `scheduled`), tinted with
   the accent color so recurring items stand out at a glance. Hovering the date
@@ -127,21 +131,24 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   between the board's real columns (Hearth rewrites the note, moving the item
   under the target heading), tick a card to complete it in place, and add new
   cards straight into a column. Card text renders **`[[wikilinks]]` and
-  Markdown links** as clickable links. **Right-click a card** (on the board or
-  in the list) to **edit its due date & priority**, **convert it into its own
-  note** (like the Kanban plugin — the card becomes a link), or **delete** it.
-  A column's **check icon** marks it a *done column*, so cards complete
-  automatically when dragged or added there (and the ones already in it
-  complete at once). Turn on **Dates & priorities** to read the marks each card
-  carries (compatible with [obsidian-tasks](https://github.com/obsidian-tasks-group/obsidian-tasks)):
+  Markdown links** as clickable links, and a card can carry a plain-text
+  **description** shown as sub-bullets. **Double-click a column title** to
+  rename it. **Right-click a card** (on the board or in the list) to **edit its
+  dates & priority**, **convert it into its own note** (like the Kanban plugin
+  — the card becomes a link), or **delete** it. A column's **check icon** marks
+  it a *done column*, so cards complete automatically when dragged or added
+  there (and the ones already in it complete at once). Turn on **Dates &
+  priorities** to read the marks each card carries (compatible with
+  [obsidian-tasks](https://github.com/obsidian-tasks-group/obsidian-tasks)):
   a five-level priority (🔺⏫🔼🔽⏬, each a distinct colour), a repeat (🔁), and
   the start (🛫), scheduled (⏳), due (📅) and done (✅) dates — shown as compact
   indicators (priority as a coloured dot on board cards, a labelled chip in the
   list) and used for sorting. The **add-card form** and the right-click
   **Edit dates & priority** dialog both provide fields: a priority menu, a
-  deterministic repeat picker (daily/weekly/monthly/yearly × an interval), and
-  start/scheduled/due date pickers — where a repeat and fixed dates are
-  mutually exclusive. Checking a card off stamps its ✅ done date (unchecking
+  deterministic repeat picker (daily/weekly/monthly/yearly × an interval),
+  start/scheduled/due date pickers, and a description — where a repeat is
+  mutually exclusive with fixed start/due dates (a recurring card is anchored by
+  its scheduled date). Checking a card off stamps its ✅ done date (unchecking
   removes it). The list layout gains a minimalistic header with the task count
   and a quick-add. Leave the mode off to read the board as plain text.
   Everything is written back in Kanban's own format, so the board stays fully
@@ -314,6 +321,13 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 [`src/locales/README.md`](src/locales/README.md) for the walkthrough.
 
 ## Shipped:
+
+> **v1.6.8.8-beta** — plain Markdown checkboxes now read the full obsidian-tasks
+> marks too (priority, repeat, dates) with the same indicators and editor; a
+> recurring card is anchored by its **scheduled** date only (mutually exclusive
+> with start/due); cards can carry a plain-text **description** (sub-bullets);
+> **double-click a column title to rename** it; empty checkboxes (`- [ ]`) are
+> ignored; and the done-column toggle stays hover-only even when active.
 
 > **v1.6.8.7-beta** — Kanban date/priority polish: all five priorities now
 > have distinct colours (highest/lowest read apart from high/low), the repeat

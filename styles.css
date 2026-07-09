@@ -872,6 +872,40 @@
 	text-decoration: var(--link-decoration-hover, underline);
 }
 
+/* Task list rows wrap so a description can occupy its own line below the row. */
+.hearth-list-item.hearth-task {
+	flex-wrap: wrap;
+}
+
+/* Card description: muted plain-text sub-bullets under the task. Forced onto
+   its own full-width line inside flex rows (list) and stacks in cards. */
+.hearth-task-desc {
+	flex-basis: 100%;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	margin-top: 2px;
+}
+
+.hearth-task-desc-line {
+	display: flex;
+	gap: 5px;
+	font-size: 0.76rem;
+	color: var(--text-muted);
+	line-height: 1.35;
+}
+
+.hearth-task-desc-bullet {
+	flex: 0 0 auto;
+	color: var(--text-faint);
+}
+
+.hearth-task-desc-text {
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
 .hearth-task-due {
 	flex-shrink: 0;
 	font-size: 0.78rem;
@@ -2334,6 +2368,38 @@
 	cursor: not-allowed;
 }
 
+.hearth-taskdetail-row.is-description {
+	align-items: flex-start;
+}
+
+.hearth-taskdetail-desc {
+	flex: 1;
+	min-width: 0;
+	width: 100%;
+	resize: vertical;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	padding: 4px 6px;
+	font-size: 0.78rem;
+	font-family: inherit;
+	color: var(--text-normal);
+}
+
+/* Inline column-rename input (double-click a Kanban column title). */
+.hearth-kanban-col-rename {
+	flex: 1;
+	min-width: 0;
+	border-radius: 4px;
+	border: 1px solid var(--interactive-accent);
+	background: var(--background-primary);
+	padding: 1px 4px;
+	font-size: 0.8rem;
+	font-weight: 600;
+	font-family: inherit;
+	color: var(--text-normal);
+}
+
 /* The edit dialog gives the detail fields a little more room. */
 .hearth-taskdetail-modal .hearth-taskdetail {
 	gap: 8px;
@@ -2563,9 +2629,9 @@
 	opacity: 0.8;
 }
 
-/* An active "done column" toggle stays lit even when the header isn't hovered. */
+/* The done-column toggle stays hover-only even when active (the header tint
+   below signals the column's state); active just tints the button accent. */
 .hearth-kanban-col-done.is-active {
-	opacity: 1;
 	color: var(--interactive-accent);
 }
 
