@@ -272,19 +272,6 @@ export class CardSettingsModal extends Modal {
 					this.opts.rerender();
 				});
 			});
-		if (cfg.history?.length) {
-			new Setting(containerEl)
-				.setName(t().editors.calculator.history)
-				.setDesc(t().editors.calculator.historyDesc)
-				.addButton((b) =>
-					b.setButtonText(t().editors.calculator.clearHistory).onClick(() => {
-						cfg.history = undefined;
-						this.opts.save();
-						this.opts.rerender();
-						this.render();
-					}),
-				);
-		}
 	}
 
 	private calendarEditor(containerEl: HTMLElement): void {

@@ -93,14 +93,6 @@ export interface HeatmapConfig {
 	weeks?: number;
 }
 
-/** One remembered line in a calculator card's history. */
-export interface CalcHistoryEntry {
-	/** The raw query the user typed. */
-	expr: string;
-	/** The formatted result that query produced. */
-	result: string;
-}
-
 /** On-screen keypad tier for a calculator card. "none" hides the pad (just the
  * text field); "basic" is digits + arithmetic; "scientific" adds functions,
  * constants and powers. */
@@ -114,8 +106,6 @@ export interface CalculatorConfig {
 	keypad?: CalculatorKeypad;
 	/** The last query typed, restored when the board reloads. */
 	lastInput?: string;
-	/** Recently evaluated queries, newest first (capped when stored). */
-	history?: CalcHistoryEntry[];
 }
 
 /** Per-card configuration for a "clock" card. All fields are optional; omitted
@@ -530,7 +520,7 @@ export function cloneCard(card: DashboardCard): DashboardCard {
 	if (card.savedSearch) copy.savedSearch = { ...card.savedSearch };
 	if (card.heatmap) copy.heatmap = { ...card.heatmap };
 	if (card.clock) copy.clock = { ...card.clock };
-	if (card.calculator) copy.calculator = { ...card.calculator, history: card.calculator.history ? card.calculator.history.map((h) => ({ ...h })) : undefined };
+	if (card.calculator) copy.calculator = { ...card.calculator };
 	return copy;
 }
 

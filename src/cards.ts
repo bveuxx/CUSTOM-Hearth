@@ -12,7 +12,7 @@ import {
 } from "obsidian";
 import type { HomeView } from "./view";
 import type { BookmarkItem } from "./obsidian-ext";
-import { CalculatorKeypad, ClockConfig, CommandItem, DashboardCard, LinkItem, TasksConfig } from "./types";
+import { ClockConfig, CommandItem, DashboardCard, LinkItem, TasksConfig } from "./types";
 import { evaluate as evaluateCalc } from "./calculator";
 import { cachedRates, loadRates } from "./currency";
 import { EXCALIDRAW_PLUGIN_ID, iconForFile, isExcalidraw } from "./filetypes";
@@ -1174,9 +1174,6 @@ interface CalcKey {
 	cls?: string;
 }
 
-/** The ordered keypad tiers a card cycles through via its toggle. */
-const CALC_KEYPAD_TIERS: CalculatorKeypad[] = ["none", "basic", "scientific"];
-
 /** The basic pad: digits and the four operations plus edit keys. */
 const CALC_BASIC_KEYS: CalcKey[] = [
 	{ label: "C", action: "clear", cls: "is-fn" },
@@ -1212,15 +1209,14 @@ const CALC_SCI_KEYS: CalcKey[] = [
 
 /** A free-text calculator: arithmetic, unit/currency conversions and
  * plain-language queries (à la Wolfram Alpha's input box), evaluated live as
- * you type, with an optional on-screen keypad. */
+ * you type. The on-screen keypad tier is chosen in card settings. */
 function renderCalculator(view: HomeView, card: DashboardCard, body: HTMLElement): void {
 	const cfg = (card.calculator ??= {});
 	const angleUnit = cfg.angleUnit ?? "deg";
 
 	const wrap = body.createDiv("hearth-calc");
 
-	const top = wrap.createDiv("hearth-calc-top");
-	const input = top.createEl("input", {
+	const input = wrap.createEl("input", {
 		cls: "hearth-calc-input",
 		attr: {
 			type: "text",
@@ -1231,16 +1227,9 @@ function renderCalculator(view: HomeView, card: DashboardCard, body: HTMLElement
 	});
 	input.value = cfg.lastInput ?? "";
 
-	const toggle = top.createEl("button", {
-		cls: "hearth-calc-keypad-toggle clickable-icon",
-		attr: { type: "button", "aria-label": t().cards.calculator.keypadToggle },
-	});
-	setIcon(toggle, "calculator");
-
 	const resultEl = wrap.createDiv("hearth-calc-result");
 	const noteEl = wrap.createDiv("hearth-calc-note");
 	const keysEl = wrap.createDiv("hearth-calc-keys");
-	const historyEl = wrap.createDiv("hearth-calc-history");
 
 	// Currency conversions need exchange rates. To stay local-first, rates are
 	// only fetched lazily — the first time a query actually needs them (see the
@@ -1254,24 +1243,7 @@ function renderCalculator(view: HomeView, card: DashboardCard, body: HTMLElement
 		true,
 	);
 
-	const renderHistory = () => {
-		historyEl.empty();
-		const items = cfg.history ?? [];
-		for (const entry of items) {
-			const row = historyEl.createDiv("hearth-calc-history-row");
-			row.setAttribute("title", t().cards.calculator.reuse);
-			row.createSpan({ cls: "hearth-calc-history-expr", text: entry.expr });
-			row.createSpan({ cls: "hearth-calc-history-eq", text: "=" });
-			row.createSpan({ cls: "hearth-calc-history-result", text: entry.result });
-			row.addEventListener("click", () => {
-				input.value = entry.expr;
-				input.focus();
-				update();
-			});
-		}
-	};
-
-	// Show the live result of the current input (without committing to history).
+	// Show the live result of the current input.
 	const update = () => {
 		const raw = input.value;
 		cfg.lastInput = raw;
@@ -1304,21 +1276,11 @@ function renderCalculator(view: HomeView, card: DashboardCard, body: HTMLElement
 		persist();
 	};
 
-	// Commit the current input to the history on Enter / "=".
+	// Enter / "=" just re-evaluates and selects the input so the next query
+	// overwrites it (results are already shown live as you type).
 	const commit = () => {
-		const raw = input.value.trim();
-		if (!raw) return;
-		const res = evaluateCalc(raw, { angleUnit, rates: currentRates() });
-		if (!res.ok) return;
-		const history = (cfg.history ??= []);
-		// Drop any prior identical query, then prepend, capped at 20 entries.
-		const existing = history.findIndex((h) => h.expr === raw);
-		if (existing >= 0) history.splice(existing, 1);
-		history.unshift({ expr: raw, result: res.formatted });
-		if (history.length > 20) history.length = 20;
-		renderHistory();
+		update();
 		input.select();
-		void view.plugin.saveData(view.plugin.settings);
 	};
 
 	// The caret, treating a not-yet-focused input as "at the end" — an unfocused
@@ -1358,7 +1320,6 @@ function renderCalculator(view: HomeView, card: DashboardCard, body: HTMLElement
 		keysEl.toggleClass("is-hidden", tier === "none");
 		if (tier === "none") return;
 		const keys = tier === "scientific" ? [...CALC_SCI_KEYS, ...CALC_BASIC_KEYS] : CALC_BASIC_KEYS;
-		keysEl.toggleClass("is-scientific", tier === "scientific");
 		for (const key of keys) {
 			const btn = keysEl.createEl("button", {
 				cls: `hearth-calc-key${key.cls ? " " + key.cls : ""}`,
@@ -1377,14 +1338,6 @@ function renderCalculator(view: HomeView, card: DashboardCard, body: HTMLElement
 		}
 	};
 
-	toggle.addEventListener("click", () => {
-		const tier = cfg.keypad ?? "none";
-		const next = CALC_KEYPAD_TIERS[(CALC_KEYPAD_TIERS.indexOf(tier) + 1) % CALC_KEYPAD_TIERS.length];
-		cfg.keypad = next === "none" ? undefined : next;
-		renderKeys();
-		void view.plugin.saveData(view.plugin.settings);
-	});
-
 	input.addEventListener("input", update);
 	input.addEventListener("keydown", (e) => {
 		if (e.key === "Enter") {
@@ -1396,7 +1349,6 @@ function renderCalculator(view: HomeView, card: DashboardCard, body: HTMLElement
 	input.addEventListener("keydown", (e) => e.stopPropagation());
 
 	renderKeys();
-	renderHistory();
 	update();
 }
 

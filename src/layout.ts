@@ -283,17 +283,6 @@ function sanitizeCalculator(r: Record<string, unknown>): CalculatorConfig {
 	if (r.keypad === "basic" || r.keypad === "scientific" || r.keypad === "none") cfg.keypad = r.keypad;
 	const lastInput = str(r.lastInput);
 	if (lastInput !== undefined) cfg.lastInput = lastInput;
-	if (Array.isArray(r.history)) {
-		cfg.history = r.history
-			.map((h) => {
-				if (!h || typeof h !== "object") return null;
-				const hr = h as Record<string, unknown>;
-				const expr = str(hr.expr);
-				const result = str(hr.result);
-				return expr !== undefined && result !== undefined ? { expr, result } : null;
-			})
-			.filter((h): h is NonNullable<typeof h> => h !== null);
-	}
 	return cfg;
 }
 

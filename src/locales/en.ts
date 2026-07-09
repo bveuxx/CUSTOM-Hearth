@@ -492,13 +492,10 @@ export const en = {
 			degrees: "Degrees",
 			radians: "Radians",
 			keypad: "Keypad",
-			keypadDesc: "Show an on-screen keypad. Toggle tiers with the keypad button on the card.",
+			keypadDesc: "Show an on-screen keypad on the card: basic (digits and operations) or scientific (adds functions, powers and constants).",
 			keypadNone: "Hidden",
 			keypadBasic: "Basic",
 			keypadScientific: "Scientific",
-			history: "History",
-			historyDesc: "Previously evaluated queries kept on this card.",
-			clearHistory: "Clear history",
 		},
 		colors: {
 			heading: "Colors",
@@ -559,8 +556,6 @@ export const en = {
 		},
 		calculator: {
 			placeholder: "2 + 2, 10 km to miles, 10 € to USD…",
-			reuse: "Click to reuse",
-			keypadToggle: "Toggle keypad (hidden / basic / scientific)",
 		},
 		daily: {
 			createToday: "Create today's note",
