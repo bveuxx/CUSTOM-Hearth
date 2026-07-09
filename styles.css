@@ -1011,7 +1011,15 @@
 }
 
 .hearth-calc-key {
+	/* Fill the whole grid cell so keys grow in height (not just spread apart)
+	 * as the row tracks stretch. Obsidian's buttons set a fixed height, so an
+	 * explicit 100% is needed — grid's default stretch alone won't override it. */
+	height: 100%;
+	width: 100%;
 	min-height: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	padding: 4px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-s);
