@@ -231,8 +231,8 @@ export const en = {
 			headingDesc:
 				"In Mobile mode (search only), this row of buttons replaces the " +
 				"“New note” button beside the search bar, appearing under the " +
-				"search field and filters instead. Any button can be pointed at " +
-				"any command.",
+				"search field and filters instead. Each button can run a command, " +
+				"open a note or file, or open a URL — just like a launchpad tile.",
 			showActionBar: "Show action bar",
 			labelPlaceholder: "Label",
 			iconPlaceholder: "Icon",

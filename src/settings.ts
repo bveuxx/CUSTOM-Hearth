@@ -446,19 +446,54 @@ export class HomeSettingTab extends PluginSettingTab {
 					await this.save();
 				}),
 			);
-			row.addExtraButton((b) =>
-				b
-					.setIcon("terminal square")
-					.setTooltip(btn.commandId ? t().settings.mobileActions.commandTooltip(btn.commandId) : t().settings.mobileActions.pickCommand)
-					.onClick(() => {
-						new CommandPickerModal(this.app, (command) => {
-							btn.commandId = command.id;
-							if (!btn.label.trim()) btn.label = command.name;
-							void this.save();
-							this.display();
-						}).open();
-					}),
-			);
+			// A button can run a command, open a note/file, or open a URL — pick the
+			// kind here, then the target control below swaps to match (a command
+			// picker vs. a free-text path/URL field), exactly like a launchpad tile.
+			row.addDropdown((d) => {
+				(Object.keys(t().editors.linkTypes) as Array<"note" | "url" | "command">).forEach((k) => {
+					d.addOption(k, t().editors.linkTypes[k]);
+				});
+				d.setValue(btn.type ?? "command").onChange((v) => {
+					btn.type = v as MobileActionButton["type"];
+					// Target semantics differ per type, so clear a stale target when
+					// switching kinds.
+					btn.target = "";
+					btn.commandId = undefined;
+					void this.save();
+					this.display();
+				});
+			});
+			const currentTarget = btn.target ?? btn.commandId ?? "";
+			if ((btn.type ?? "command") === "command") {
+				row.addExtraButton((b) =>
+					b
+						.setIcon("terminal square")
+						.setTooltip(currentTarget ? t().settings.mobileActions.commandTooltip(currentTarget) : t().settings.mobileActions.pickCommand)
+						.onClick(() => {
+							new CommandPickerModal(this.app, (command) => {
+								btn.type = "command";
+								btn.target = command.id;
+								btn.commandId = undefined;
+								if (!btn.label.trim()) btn.label = command.name;
+								void this.save();
+								this.display();
+							}).open();
+						}),
+				);
+			} else {
+				row.addText((txt) =>
+					txt
+						.setPlaceholder(
+							btn.type === "url" ? t().editors.links.targetUrl : t().editors.links.targetNote,
+						)
+						.setValue(currentTarget)
+						.onChange(async (v) => {
+							btn.target = v;
+							btn.commandId = undefined;
+							await this.save();
+						}),
+				);
+			}
 			row.addExtraButton((b) =>
 				b
 					.setIcon("chevron-up")
@@ -493,7 +528,8 @@ export class HomeSettingTab extends PluginSettingTab {
 							id: `action-${Date.now().toString(36)}`,
 							label: command.name,
 							icon: "terminal square",
-							commandId: command.id,
+							type: "command",
+							target: command.id,
 						});
 						void this.save();
 						this.display();
