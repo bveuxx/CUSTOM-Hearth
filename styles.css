@@ -949,6 +949,113 @@
 	line-height: 1.5;
 }
 
+/* Calculator */
+.hearth-calc {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	overflow: hidden;
+}
+
+.hearth-calc-input {
+	width: 100%;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 1rem;
+	padding: 8px 10px;
+	outline: none;
+}
+
+.hearth-calc-input:focus {
+	border-color: var(--interactive-accent);
+}
+
+.hearth-calc-result {
+	font-size: clamp(1.4rem, 4.5vw, 2rem);
+	font-weight: 700;
+	line-height: 1.15;
+	color: var(--text-normal);
+	letter-spacing: -0.01em;
+	word-break: break-word;
+	min-height: 1.2em;
+}
+
+.hearth-calc-result.is-error {
+	color: var(--text-faint);
+	font-weight: 400;
+}
+
+.hearth-calc-note {
+	font-size: 0.8rem;
+	color: var(--text-muted);
+	min-height: 1em;
+}
+
+/* On-screen keypad — fills the remaining card height so keys grow both ways
+ * when the card is resized (grid-auto-rows: 1fr stretches rows to fill). */
+.hearth-calc-keys {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	grid-auto-rows: minmax(32px, 1fr);
+	gap: 4px;
+}
+
+.hearth-calc-keys.is-hidden {
+	display: none;
+}
+
+.hearth-calc-key {
+	/* Fill the whole grid cell so keys grow in height (not just spread apart)
+	 * as the row tracks stretch. Obsidian's buttons set a fixed height, so an
+	 * explicit 100% is needed — grid's default stretch alone won't override it. */
+	height: 100%;
+	width: 100%;
+	min-height: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 0.95rem;
+	cursor: pointer;
+	transition: background 0.1s ease;
+}
+
+.hearth-calc-key:hover {
+	background: var(--background-modifier-hover);
+}
+
+.hearth-calc-key.is-op {
+	color: var(--interactive-accent);
+	font-weight: 600;
+}
+
+.hearth-calc-key.is-fn {
+	font-size: 0.82rem;
+	color: var(--text-muted);
+}
+
+.hearth-calc-key.is-eq {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+	font-weight: 700;
+}
+
+.hearth-calc-key.is-eq:hover {
+	background: var(--interactive-accent-hover);
+}
+
 /* Links / launchpad */
 .hearth-links {
 	/* CSS grid with a fine cell size (44px columns, ~34px rows) so tiles can be

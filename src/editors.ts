@@ -239,7 +239,39 @@ export class CardSettingsModal extends Modal {
 			case "heatmap":
 				this.heatmapEditor(containerEl);
 				break;
+			case "calculator":
+				this.calculatorEditor(containerEl);
+				break;
 		}
+	}
+
+	private calculatorEditor(containerEl: HTMLElement): void {
+		const cfg = (this.card.calculator ??= {});
+		new Setting(containerEl)
+			.setName(t().editors.calculator.angleUnit)
+			.setDesc(t().editors.calculator.angleUnitDesc)
+			.addDropdown((d) => {
+				d.addOption("deg", t().editors.calculator.degrees);
+				d.addOption("rad", t().editors.calculator.radians);
+				d.setValue(cfg.angleUnit ?? "deg").onChange((v) => {
+					cfg.angleUnit = v === "rad" ? "rad" : undefined;
+					this.opts.save();
+					this.opts.rerender();
+				});
+			});
+		new Setting(containerEl)
+			.setName(t().editors.calculator.keypad)
+			.setDesc(t().editors.calculator.keypadDesc)
+			.addDropdown((d) => {
+				d.addOption("none", t().editors.calculator.keypadNone);
+				d.addOption("basic", t().editors.calculator.keypadBasic);
+				d.addOption("scientific", t().editors.calculator.keypadScientific);
+				d.setValue(cfg.keypad ?? "none").onChange((v) => {
+					cfg.keypad = v === "none" ? undefined : (v as "basic" | "scientific");
+					this.opts.save();
+					this.opts.rerender();
+				});
+			});
 	}
 
 	private calendarEditor(containerEl: HTMLElement): void {

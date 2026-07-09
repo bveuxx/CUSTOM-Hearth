@@ -446,19 +446,59 @@ export class HomeSettingTab extends PluginSettingTab {
 					await this.save();
 				}),
 			);
-			row.addExtraButton((b) =>
-				b
-					.setIcon("terminal square")
-					.setTooltip(btn.commandId ? t().settings.mobileActions.commandTooltip(btn.commandId) : t().settings.mobileActions.pickCommand)
-					.onClick(() => {
+			// A button can run a command, open a note/file, or open a URL — pick the
+			// kind here, then the target control below swaps to match (a command
+			// picker vs. a free-text path/URL field), exactly like a launchpad tile.
+			row.addDropdown((d) => {
+				(Object.keys(t().editors.linkTypes) as Array<"note" | "url" | "command">).forEach((k) => {
+					d.addOption(k, t().editors.linkTypes[k]);
+				});
+				d.setValue(btn.type ?? "command").onChange((v) => {
+					btn.type = v as MobileActionButton["type"];
+					// Target semantics differ per type, so clear a stale target when
+					// switching kinds.
+					btn.target = "";
+					btn.commandId = undefined;
+					void this.save();
+					this.display();
+				});
+			});
+			const currentTarget = btn.target ?? btn.commandId ?? "";
+			if ((btn.type ?? "command") === "command") {
+				// Show a proper button labelled with the picked command (or a
+				// prompt when none is set yet) instead of a tiny icon, so which
+				// command a button runs — and how to change it — is always visible.
+				row.addButton((b) => {
+					const current = currentTarget
+						? this.app.commands.listCommands().find((c) => c.id === currentTarget)
+						: undefined;
+					b.setButtonText(current ? current.name : t().settings.mobileActions.pickCommand);
+					b.setTooltip(currentTarget ? t().settings.mobileActions.commandTooltip(currentTarget) : t().settings.mobileActions.pickCommand);
+					b.onClick(() => {
 						new CommandPickerModal(this.app, (command) => {
-							btn.commandId = command.id;
+							btn.type = "command";
+							btn.target = command.id;
+							btn.commandId = undefined;
 							if (!btn.label.trim()) btn.label = command.name;
 							void this.save();
 							this.display();
 						}).open();
-					}),
-			);
+					});
+				});
+			} else {
+				row.addText((txt) =>
+					txt
+						.setPlaceholder(
+							btn.type === "url" ? t().editors.links.targetUrl : t().editors.links.targetNote,
+						)
+						.setValue(currentTarget)
+						.onChange(async (v) => {
+							btn.target = v;
+							btn.commandId = undefined;
+							await this.save();
+						}),
+				);
+			}
 			row.addExtraButton((b) =>
 				b
 					.setIcon("chevron-up")
@@ -487,17 +527,19 @@ export class HomeSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.addButton((b) =>
-				b.setButtonText(t().settings.mobileActions.addButton).onClick(() => {
-					new CommandPickerModal(this.app, (command) => {
-						buttons.push({
-							id: `action-${Date.now().toString(36)}`,
-							label: command.name,
-							icon: "terminal square",
-							commandId: command.id,
-						});
-						void this.save();
-						this.display();
-					}).open();
+				b.setButtonText(t().settings.mobileActions.addButton).onClick(async () => {
+					// Add an empty button first; the row's type dropdown and target
+					// control then let the user choose what it does — no forced
+					// command pick up front.
+					buttons.push({
+						id: `action-${Date.now().toString(36)}`,
+						label: "",
+						icon: "circle",
+						type: "command",
+						target: "",
+					});
+					await this.save();
+					this.display();
 				}),
 			)
 			.addExtraButton((b) =>

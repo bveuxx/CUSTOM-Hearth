@@ -231,8 +231,8 @@ export const en = {
 			headingDesc:
 				"In Mobile mode (search only), this row of buttons replaces the " +
 				"“New note” button beside the search bar, appearing under the " +
-				"search field and filters instead. Any button can be pointed at " +
-				"any command.",
+				"search field and filters instead. Each button can run a command, " +
+				"open a note or file, or open a URL — just like a launchpad tile.",
 			showActionBar: "Show action bar",
 			labelPlaceholder: "Label",
 			iconPlaceholder: "Icon",
@@ -323,6 +323,7 @@ export const en = {
 			stats: "Vault statistics",
 			search: "Query",
 			heatmap: "Activity heatmap",
+			calculator: "Calculator",
 		},
 		linkTypes: {
 			note: "Note",
@@ -485,6 +486,17 @@ export const en = {
 			customFormatDesc: "A moment.js format, e.g. ddd D MMM or YYYY/MM/DD.",
 			customFormatPlaceholder: "ddd D MMM",
 		},
+		calculator: {
+			angleUnit: "Angle unit",
+			angleUnitDesc: "Unit assumed by trig functions like sin and cos.",
+			degrees: "Degrees",
+			radians: "Radians",
+			keypad: "Keypad",
+			keypadDesc: "Show an on-screen keypad on the card: basic (digits and operations) or scientific (adds functions, powers and constants).",
+			keypadNone: "Hidden",
+			keypadBasic: "Basic",
+			keypadScientific: "Scientific",
+		},
 		colors: {
 			heading: "Colors",
 			headingDesc: "Accent and background tint for this card.",
@@ -541,6 +553,9 @@ export const en = {
 		},
 		text: {
 			placeholder: "Jot something down…",
+		},
+		calculator: {
+			placeholder: "2 + 2, 10 km to miles, 10 € to USD…",
 		},
 		daily: {
 			createToday: "Create today's note",
@@ -674,6 +689,7 @@ export const en = {
 		search: "Query",
 		heatmap: "Activity heatmap",
 		text: "Text / jot-down",
+		calculator: "Calculator",
 	},
 
 	// ---- File-type filter labels ---------------------------------------

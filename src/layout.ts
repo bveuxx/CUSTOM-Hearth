@@ -1,6 +1,7 @@
 import {
 	BackgroundConfig,
 	BackgroundKind,
+	CalculatorConfig,
 	CalendarConfig,
 	CardKind,
 	ClockConfig,
@@ -61,6 +62,7 @@ const CARD_KINDS: CardKind[] = [
 	"stats",
 	"search",
 	"heatmap",
+	"calculator",
 ];
 
 /** Serialize the whole dashboard setup to a pretty JSON string. */
@@ -189,6 +191,9 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 	if (r.heatmap && typeof r.heatmap === "object") {
 		card.heatmap = sanitizeHeatmap(r.heatmap as Record<string, unknown>);
 	}
+	if (r.calculator && typeof r.calculator === "object") {
+		card.calculator = sanitizeCalculator(r.calculator as Record<string, unknown>);
+	}
 
 	return card;
 }
@@ -269,6 +274,15 @@ function sanitizeHeatmap(r: Record<string, unknown>): HeatmapConfig {
 	const cfg: HeatmapConfig = {};
 	if (r.metric === "modified" || r.metric === "created") cfg.metric = r.metric;
 	if (typeof r.weeks === "number") cfg.weeks = r.weeks;
+	return cfg;
+}
+
+function sanitizeCalculator(r: Record<string, unknown>): CalculatorConfig {
+	const cfg: CalculatorConfig = {};
+	if (r.angleUnit === "deg" || r.angleUnit === "rad") cfg.angleUnit = r.angleUnit;
+	if (r.keypad === "basic" || r.keypad === "scientific" || r.keypad === "none") cfg.keypad = r.keypad;
+	const lastInput = str(r.lastInput);
+	if (lastInput !== undefined) cfg.lastInput = lastInput;
 	return cfg;
 }
 

@@ -126,6 +126,12 @@ export const CARD_TEMPLATES: CardTemplate[] = [
 		icon: "pencil",
 		build: () => ({ kind: "text", title: "Notes", text: "", w: 4, h: 2 }),
 	},
+	{
+		id: "calculator",
+		name: "Calculator",
+		icon: "calculator",
+		build: () => ({ kind: "calculator", title: "Calculator", calculator: {}, w: 4, h: 3 }),
+	},
 ];
 
 /** The template's localized display name for the "Add card" menu. Falls back to
