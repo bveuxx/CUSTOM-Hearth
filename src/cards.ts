@@ -13,7 +13,7 @@ import {
 } from "obsidian";
 import type { HomeView } from "./view";
 import type { BookmarkItem } from "./obsidian-ext";
-import { ClockConfig, CommandItem, DashboardCard, LinkItem, TasksConfig } from "./types";
+import { ClockConfig, CommandItem, DashboardCard, LinkItem, TaskMeta, TasksConfig } from "./types";
 import { evaluate as evaluateCalc } from "./calculator";
 import { cachedRates, loadRates } from "./currency";
 import { EXCALIDRAW_PLUGIN_ID, iconForFile, isExcalidraw } from "./filetypes";
@@ -2107,6 +2107,10 @@ interface TaskHit {
 	 * under. Used to group cards in the Kanban layout and as the status badge
 	 * in the list layout. */
 	boardColumn?: string;
+	/** Tasks-plugin "start" date (🛫), a card can't be started before it. */
+	start?: string | null;
+	/** Tasks-plugin "done" date (✅), set when the card was completed. */
+	doneDate?: string | null;
 }
 
 /** Whether `path` is in scope per the card's folder whitelist/blacklist. An
@@ -2227,6 +2231,38 @@ function renderPriority(parent: HTMLElement, priority: string, dotOnly = false):
 	chip.setAttribute("title", `Priority: ${priorityDisplayLabel(priority)}`);
 }
 
+/** Render a task's date indicators into `parent`: start (🛫), scheduled (⏳),
+ * the due/next-occurrence label, and the done date (✅). Start/scheduled/done
+ * chips are shown only for Kanban cards (the source that parses them); the due
+ * label keeps its existing recurrence/overdue treatment for every source. */
+function renderTaskDateChips(parent: HTMLElement, hit: TaskHit, today: string): void {
+	const overdue = (d: string | null | undefined) => !hit.done && !!d && d.slice(0, 10) < today;
+	const chip = (emoji: string, date: string, kind: string, title: string, markOverdue: boolean) => {
+		const el = parent.createDiv({ cls: `hearth-task-meta hearth-task-meta-${kind}` });
+		el.createSpan({ cls: "hearth-task-meta-emoji", text: emoji });
+		el.appendText(formatRelativeDate(date));
+		el.setAttribute("title", `${title}: ${date}`);
+		if (markOverdue) el.toggleClass("is-overdue", overdue(date));
+	};
+	// Kanban-only: start and scheduled (scheduled is folded into the due label
+	// for recurring cards, so skip the separate chip then to avoid duplication).
+	if (hit.boardColumn && hit.start) chip("🛫", hit.start, "start", t().cards.tasks.startDate, true);
+	if (hit.boardColumn && hit.scheduled && !hit.recurrence)
+		chip("⏳", hit.scheduled, "scheduled", t().cards.tasks.scheduledDate, true);
+
+	const dueLabel = formatDueLabel(hit);
+	if (dueLabel) {
+		const due = parent.createDiv({ cls: "hearth-task-due", text: dueLabel });
+		due.toggleClass("is-overdue", overdue(effectiveDate(hit)));
+		if (hit.recurrence) {
+			due.addClass("is-recurring");
+			due.setAttribute("title", recurrenceLabel(hit.recurrence) ?? t().cards.tasks.recurring);
+		}
+	}
+
+	if (hit.boardColumn && hit.doneDate) chip("✅", hit.doneDate, "done", t().cards.tasks.doneDate, false);
+}
+
 /** Sort tasks by: due date → scheduled date → priority → created date.
  * Dates are compared as strings (YYYY-MM-DD sorts lexically). Priority uses
  * the coarse high/medium/low/other level. Created is the file's ctime (epoch). */
@@ -2333,7 +2369,13 @@ function renderTaskRow(
 		check.checked = hit.done;
 		check.addEventListener("click", (e) => e.stopPropagation());
 		check.addEventListener("change", () => {
-			void toggleCheckboxTask(view, hit).then((ok) => {
+			// Kanban cards keep their ✅ done date in sync (extended mode); other
+			// sources just flip the checkbox.
+			const done = check.checked;
+			const p = hit.boardColumn
+				? setKanbanCardDone(view, hit, done, cfg.kanbanExtended ?? false)
+				: toggleCheckboxTask(view, hit);
+			void p.then((ok) => {
 				if (!ok) new Notice(t().notices.taskChangedOnDisk);
 				refresh();
 			});
@@ -2354,16 +2396,7 @@ function renderTaskRow(
 	// The list has room for a labelled priority chip (a bare dot is easy to
 	// miss); board cards stay dot-only for compactness.
 	if (hit.priority) renderPriority(row, hit.priority);
-	const dueLabel = formatDueLabel(hit);
-	if (dueLabel) {
-		const due = row.createDiv({ cls: "hearth-task-due", text: dueLabel });
-		const ed = effectiveDate(hit);
-		due.toggleClass("is-overdue", !hit.done && !!ed && ed.slice(0, 10) < today);
-		if (hit.recurrence) {
-			due.addClass("is-recurring");
-			due.setAttribute("title", recurrenceLabel(hit.recurrence) ?? "Recurring");
-		}
-	}
+	renderTaskDateChips(row, hit, today);
 
 	const open = () => void openTask(view, hit);
 	row.addEventListener("click", open);
@@ -2447,6 +2480,7 @@ function renderTaskKanban(
 	const visible = columns.filter((c) => !hidden.has(c.key));
 	// Columns that auto-complete cards landing in them (Kanban source only).
 	const doneColumns = new Set(cfg.kanbanDoneColumns ?? []);
+	const extended = cfg.kanbanExtended ?? false;
 
 	// Reorder columns by dragging their headers; persists the full key order.
 	const reorder = (fromKey: string, toKey: string) => {
@@ -2478,8 +2512,9 @@ function renderTaskKanban(
 		cfg.kanbanDoneColumns = set.size ? [...set] : undefined;
 		persist();
 		const undone = col.hits.filter((h) => !h.done);
-		if (turningOn && undone.length) void markCardsDone(view, undone).then(refresh);
-		else refresh();
+		if (turningOn && undone.length) {
+			void markCardsDone(view, undone, extended ? moment().format("YYYY-MM-DD") : undefined).then(refresh);
+		} else refresh();
 	};
 
 	const board = container.createDiv("hearth-kanban");
@@ -2494,7 +2529,8 @@ function renderTaskKanban(
 			// completes the card as it lands.
 			if ((hit.boardColumn ?? "") === col.label) return;
 			const markDone = doneColumns.has(col.key) || undefined;
-			void moveKanbanCard(view, hit, col.label, markDone).then((ok) => {
+			const doneDate = markDone && extended ? today : undefined;
+			void moveKanbanCard(view, hit, col.label, markDone, doneDate).then((ok) => {
 				if (!ok) new Notice(t().notices.taskChangedOnDisk);
 				refresh();
 			});
@@ -2652,7 +2688,7 @@ function renderTaskKanban(
 			check.addEventListener("mousedown", stop);
 			check.addEventListener("pointerdown", stop);
 			check.addEventListener("change", () => {
-				void setCheckboxState(view, hit, check.checked).then((ok) => {
+				void setKanbanCardDone(view, hit, check.checked, extended).then((ok) => {
 					if (!ok) new Notice(t().notices.taskChangedOnDisk);
 					refresh();
 				});
@@ -2665,16 +2701,7 @@ function renderTaskKanban(
 			if (source === "kanban" && hit.priority) renderPriority(textRow, hit.priority, true);
 			const meta = cardEl.createDiv("hearth-kanban-card-meta");
 			if (source !== "kanban" && hit.priority) renderPriority(meta, hit.priority);
-			const dueLabel = formatDueLabel(hit);
-			if (dueLabel) {
-				const due = meta.createDiv({ cls: "hearth-task-due", text: dueLabel });
-				const ed = effectiveDate(hit);
-				due.toggleClass("is-overdue", !hit.done && !!ed && ed.slice(0, 10) < today);
-				if (hit.recurrence) {
-					due.addClass("is-recurring");
-					due.setAttribute("title", recurrenceLabel(hit.recurrence) ?? t().cards.tasks.recurring);
-				}
-			}
+			renderTaskDateChips(meta, hit, today);
 			const open = () => void openTask(view, hit);
 			cardEl.addEventListener("click", open);
 			makeClickable(cardEl, open, hit.text || hit.file.basename);
@@ -2719,26 +2746,9 @@ function renderKanbanAddCard(
 			attr: { rows: "1", placeholder: t().cards.tasks.addCardPlaceholder },
 		});
 
-		// Extended mode: optional due date + priority, written as Tasks metadata.
-		let dueInput: HTMLInputElement | null = null;
-		let prioSelect: HTMLSelectElement | null = null;
-		if (opts.extended) {
-			const metaRow = form.createDiv({ cls: "hearth-kanban-add-meta" });
-			dueInput = metaRow.createEl("input", {
-				cls: "hearth-kanban-add-due",
-				attr: { type: "date", "aria-label": t().cards.tasks.dueDate },
-			});
-			prioSelect = metaRow.createEl("select", {
-				cls: "hearth-kanban-add-prio",
-				attr: { "aria-label": t().cards.tasks.priority },
-			});
-			const opt = (value: string, label: string) =>
-				prioSelect!.createEl("option", { value, text: label });
-			opt("", t().cards.tasks.priorityNone);
-			opt("high", t().cards.tasks.priorityHigh);
-			opt("medium", t().cards.tasks.priorityMedium);
-			opt("low", t().cards.tasks.priorityLow);
-		}
+		// Extended mode: full Tasks metadata (priority, recurrence, start,
+		// scheduled, due), written onto the new card.
+		const readMeta = opts.extended ? renderMetaFieldsInline(form, emptyMeta()) : () => emptyMeta();
 
 		input.focus();
 		let committed = false;
@@ -2752,8 +2762,9 @@ function renderKanbanAddCard(
 			const text = input.value.trim();
 			if (!text) return cancel();
 			committed = true;
-			const full = text + buildMetadataSuffix(dueInput?.value ?? "", prioSelect?.value ?? "");
-			void addKanbanCard(view, cfg, heading, full, opts.markDone).then((ok) => {
+			const full = text + buildMetadataSuffix(readMeta());
+			const doneDate = opts.markDone && opts.extended ? moment().format("YYYY-MM-DD") : undefined;
+			void addKanbanCard(view, cfg, heading, full, opts.markDone, doneDate).then((ok) => {
 				if (!ok) new Notice(t().notices.couldNotAddKanbanCard);
 				refresh();
 			});
@@ -2781,15 +2792,69 @@ function renderKanbanAddCard(
 	});
 }
 
-/** Build the Tasks-plugin metadata tail for a new card from the add form's
- * due date and priority selection (e.g. " 📅 2024-01-15 ⏫"). Empty when both
- * are blank. */
-function buildMetadataSuffix(due: string, priority: string): string {
+/** An empty metadata set. */
+function emptyMeta(): TaskMeta {
+	return { priority: "", recurrence: "", start: "", scheduled: "", due: "" };
+}
+
+/** Build the Tasks-plugin metadata tail for a card (e.g. " ⏫ 🔁 every week 🛫
+ * 2024-01-10 ⏳ 2024-01-12 📅 2024-01-15"). Emits markers in the Tasks-plugin's
+ * conventional order; omits any blank field. */
+function buildMetadataSuffix(meta: TaskMeta): string {
+	const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 	let s = "";
-	if (/^\d{4}-\d{2}-\d{2}$/.test(due)) s += ` 📅 ${due}`;
-	const emoji = priority === "high" ? "⏫" : priority === "medium" ? "🔼" : priority === "low" ? "🔽" : "";
-	if (emoji) s += ` ${emoji}`;
+	if (meta.priority && PRIORITY_EMOJI[meta.priority]) s += ` ${PRIORITY_EMOJI[meta.priority]}`;
+	if (meta.recurrence.trim()) s += ` 🔁 ${meta.recurrence.trim()}`;
+	if (isDate(meta.start)) s += ` 🛫 ${meta.start}`;
+	if (isDate(meta.scheduled)) s += ` ⏳ ${meta.scheduled}`;
+	if (isDate(meta.due)) s += ` 📅 ${meta.due}`;
 	return s;
+}
+
+/** Build the inline metadata fields (priority, recurrence, start, scheduled,
+ * due) into `parent`, prefilled from `meta`, and return a getter for the
+ * current values. Used by the Kanban add-card form. */
+function renderMetaFieldsInline(parent: HTMLElement, meta: TaskMeta): () => TaskMeta {
+	const grid = parent.createDiv({ cls: "hearth-kanban-add-meta" });
+
+	const prio = grid.createEl("select", {
+		cls: "hearth-kanban-add-prio",
+		attr: { "aria-label": t().cards.tasks.priority },
+	});
+	prio.createEl("option", { value: "", text: t().cards.tasks.priorityNone });
+	prio.createEl("option", { value: "highest", text: t().cards.tasks.priorityHighest });
+	prio.createEl("option", { value: "high", text: t().cards.tasks.priorityHigh });
+	prio.createEl("option", { value: "medium", text: t().cards.tasks.priorityMedium });
+	prio.createEl("option", { value: "low", text: t().cards.tasks.priorityLow });
+	prio.createEl("option", { value: "lowest", text: t().cards.tasks.priorityLowest });
+	prio.value = meta.priority;
+
+	const dateField = (emoji: string, label: string, value: string) => {
+		const wrap = grid.createDiv({ cls: "hearth-kanban-add-datefield" });
+		wrap.createSpan({ cls: "hearth-kanban-add-dateicon", text: emoji, attr: { title: label } });
+		const inp = wrap.createEl("input", {
+			cls: "hearth-kanban-add-due",
+			attr: { type: "date", "aria-label": label },
+		});
+		inp.value = value;
+		return inp;
+	};
+	const start = dateField("🛫", t().cards.tasks.startDate, meta.start);
+	const scheduled = dateField("⏳", t().cards.tasks.scheduledDate, meta.scheduled);
+	const due = dateField("📅", t().cards.tasks.dueDate, meta.due);
+
+	const recur = grid.createEl("input", {
+		cls: "hearth-kanban-add-recur",
+		attr: { type: "text", placeholder: t().cards.tasks.recurrencePlaceholder, "aria-label": t().cards.tasks.recurrenceLabel, value: meta.recurrence },
+	});
+
+	return () => ({
+		priority: prio.value,
+		recurrence: recur.value.trim(),
+		start: start.value,
+		scheduled: scheduled.value,
+		due: due.value,
+	});
 }
 
 /** Scan plain Markdown `- [ ]`/`- [x]` checkboxes in every in-scope note. A
@@ -2976,6 +3041,9 @@ async function collectKanbanTasks(
 			let text = rawText;
 			let due: string | null = null;
 			let dueRaw: string | null = null;
+			let scheduled: string | null = null;
+			let start: string | null = null;
+			let doneDate: string | null = null;
 			let priority: string | undefined;
 			let recurrence: string | undefined;
 			if (extended) {
@@ -2984,6 +3052,9 @@ async function collectKanbanTasks(
 					dueRaw = dueExpr;
 					due = /^\d{4}-\d{2}-\d{2}$/.test(dueExpr) ? dueExpr : parseNaturalDate(dueExpr);
 				}
+				scheduled = readEmojiDate(rawText, "⏳") || null;
+				start = readEmojiDate(rawText, "🛫") || null;
+				doneDate = readEmojiDate(rawText, "✅") || null;
 				priority = readPriorityEmoji(rawText);
 				recurrence = readEmojiField(rawText, "🔁") ?? undefined;
 				text = stripTaskMetadata(rawText);
@@ -2995,7 +3066,9 @@ async function collectKanbanTasks(
 				done: m[1].toLowerCase() === "x",
 				due,
 				dueRaw,
-				scheduled: null,
+				scheduled,
+				start,
+				doneDate,
 				created: file.stat.ctime,
 				recurrence,
 				priority,
@@ -3014,9 +3087,45 @@ function readPriorityEmoji(text: string): string | undefined {
 	return m ? m[0] : undefined;
 }
 
+/** Tasks-plugin priority keys, in descending order, mapped to their emoji. */
+const PRIORITY_EMOJI: Record<string, string> = {
+	highest: "🔺",
+	high: "⏫",
+	medium: "🔼",
+	low: "🔽",
+	lowest: "⏬",
+};
+
+/** The priority key ("high", "lowest", …) for a raw priority value — an emoji
+ * (⏫) or a word ("high") — or "" when none/unrecognized. Used to prefill the
+ * editor and to round-trip the emoji through the pickers. */
+function priorityKey(priority: string | undefined): string {
+	if (!priority) return "";
+	for (const [key, emoji] of Object.entries(PRIORITY_EMOJI)) {
+		if (priority === emoji || priority.toLowerCase() === key) return key;
+	}
+	// Fall back to the coarse level for words like "urgent"/"minor".
+	const level = priorityLevel(priority);
+	return level === "other" ? "" : level;
+}
+
 /** Every Tasks-plugin metadata emoji marker, used to strip metadata from a
  * card's display text and to compare cards ignoring their metadata. */
-const TASK_EMOJI_CLASS = "📅⏳🛫🔁✅➕⏫🔼🔽🔺⏬";
+const TASK_EMOJI_CLASS = "📅⏳🛫🔁✅❌➕⏫🔼🔽🔺⏬";
+
+/** The subset of metadata emoji Hearth's editor manages (due/scheduled/start/
+ * recurrence/priority). Completion (✅), created (➕) and cancelled (❌) markers
+ * are left untouched when rewriting a card's metadata. */
+const MANAGED_EMOJI_CLASS = "📅⏳🛫🔁⏫🔼🔽🔺⏬";
+
+/** Read a Tasks-plugin date field (e.g. 📅) and resolve it to YYYY-MM-DD, or
+ * "" when absent/unparseable. Accepts natural-language wording. */
+function readEmojiDate(text: string, emoji: string): string {
+	const expr = readEmojiField(text, emoji);
+	if (!expr) return "";
+	if (/^\d{4}-\d{2}-\d{2}$/.test(expr)) return expr;
+	return parseNaturalDate(expr) ?? "";
+}
 
 /** Strip all Tasks-plugin emoji metadata (each marker and its trailing value up
  * to the next marker) from a task's text, collapsing leftover whitespace. Used
@@ -3025,6 +3134,38 @@ const TASK_EMOJI_CLASS = "📅⏳🛫🔁✅➕⏫🔼🔽🔺⏬";
 function stripTaskMetadata(text: string): string {
 	const re = new RegExp(`[${TASK_EMOJI_CLASS}][^\\n\\r${TASK_EMOJI_CLASS}]*`, "gu");
 	return text.replace(re, "").replace(/\s+/g, " ").trim();
+}
+
+/** Add or remove the Tasks-plugin done-date marker (✅ YYYY-MM-DD) on a card's
+ * text: any existing ✅ field is dropped, then today's is appended when `done`.
+ * Used to keep the completion date in sync as cards are checked/unchecked. */
+function withDoneDate(text: string, done: boolean, today: string): string {
+	const re = new RegExp(`✅[^\\n\\r${TASK_EMOJI_CLASS}]*`, "gu");
+	const base = text.replace(re, "").replace(/\s+/g, " ").trim();
+	return done ? `${base} ✅ ${today}`.trim() : base;
+}
+
+/** Flip a Kanban card's checkbox to `done` in place, and — in extended mode —
+ * add/remove its ✅ done date to match. Bails (false) if the stored line no
+ * longer matches the card. */
+async function setKanbanCardDone(
+	view: HomeView,
+	hit: TaskHit,
+	done: boolean,
+	extended: boolean,
+): Promise<boolean> {
+	const content = await view.app.vault.read(hit.file);
+	const lines = content.split("\n");
+	const cur = lines[hit.line];
+	const m = cur != null ? KANBAN_CARD_RE.exec(cur) : null;
+	if (!m || stripTaskMetadata(m[2]) !== stripTaskMetadata(hit.text)) return false;
+	const marker = cur
+		.slice(0, cur.length - m[2].length)
+		.replace(CHECKBOX_MARKER, (_x, pre: string, _s: string, post: string) => `${pre}${done ? "x" : " "}${post}`);
+	const body = extended ? withDoneDate(m[2], done, moment().format("YYYY-MM-DD")) : m[2];
+	lines[hit.line] = `${marker}${body}`;
+	await view.app.vault.modify(hit.file, lines.join("\n"));
+	return true;
 }
 
 /** Move a Kanban card's checkbox line (plus any nested continuation lines) out
@@ -3037,6 +3178,7 @@ async function moveKanbanCard(
 	hit: TaskHit,
 	targetHeading: string,
 	markDone?: boolean,
+	doneDate?: string,
 ): Promise<boolean> {
 	const content = await view.app.vault.read(hit.file);
 	const lines = content.split("\n");
@@ -3057,7 +3199,12 @@ async function moveKanbanCard(
 	}
 	const block = lines.slice(hit.line, end);
 	if (markDone) {
-		block[0] = block[0].replace(CHECKBOX_MARKER, (_x, pre: string, _s: string, post: string) => `${pre}x${post}`);
+		const bm = KANBAN_CARD_RE.exec(block[0]);
+		const bodyMarker = block[0]
+			.slice(0, block[0].length - (bm?.[2].length ?? 0))
+			.replace(CHECKBOX_MARKER, (_x, pre: string, _s: string, post: string) => `${pre}x${post}`);
+		const body = doneDate && bm ? withDoneDate(bm[2], true, doneDate) : bm?.[2] ?? "";
+		block[0] = `${bodyMarker}${body}`;
 	}
 	// Also drop one trailing blank line so blanks don't accumulate on each move.
 	let removeEnd = end;
@@ -3077,21 +3224,25 @@ async function addKanbanCard(
 	heading: string,
 	text: string,
 	markDone?: boolean,
+	doneDate?: string,
 ): Promise<boolean> {
 	const file = resolveKanbanFile(view, cfg);
 	if (!file) return false;
 	const content = await view.app.vault.read(file);
 	const lines = content.split("\n");
-	const card = `- [${markDone ? "x" : " "}] ${text.replace(/\r?\n/g, " ").trim()}`;
+	let body = text.replace(/\r?\n/g, " ").trim();
+	if (markDone && doneDate) body = withDoneDate(body, true, doneDate);
+	const card = `- [${markDone ? "x" : " "}] ${body}`;
 	if (!insertCardBlock(lines, heading, [card])) return false;
 	await view.app.vault.modify(file, lines.join("\n"));
 	return true;
 }
 
 /** Mark a batch of Kanban cards (all in the same board note) done in a single
- * write. Skips any line that no longer matches its card. Used when a column is
- * toggled into a "done column" so the cards already in it complete at once. */
-async function markCardsDone(view: HomeView, hits: TaskHit[]): Promise<void> {
+ * write, stamping the ✅ done date when `doneDate` is given. Skips any line that
+ * no longer matches its card. Used when a column is toggled into a "done
+ * column" so the cards already in it complete at once. */
+async function markCardsDone(view: HomeView, hits: TaskHit[], doneDate?: string): Promise<void> {
 	if (!hits.length) return;
 	const file = hits[0].file;
 	const content = await view.app.vault.read(file);
@@ -3099,10 +3250,14 @@ async function markCardsDone(view: HomeView, hits: TaskHit[]): Promise<void> {
 	let changed = false;
 	for (const hit of hits) {
 		const line = lines[hit.line];
-		const m = line != null ? CHECKBOX_MARKER.exec(line) : null;
+		const m = line != null ? KANBAN_CARD_RE.exec(line) : null;
 		if (!m) continue;
-		if (stripTaskMetadata(line.slice(m[0].length)) !== stripTaskMetadata(hit.text)) continue;
-		lines[hit.line] = line.replace(CHECKBOX_MARKER, (_x, pre: string, _s: string, post: string) => `${pre}x${post}`);
+		if (stripTaskMetadata(m[2]) !== stripTaskMetadata(hit.text)) continue;
+		const marker = line
+			.slice(0, line.length - m[2].length)
+			.replace(CHECKBOX_MARKER, (_x, pre: string, _s: string, post: string) => `${pre}x${post}`);
+		const body = doneDate ? withDoneDate(m[2], true, doneDate) : m[2];
+		lines[hit.line] = `${marker}${body}`;
 		changed = true;
 	}
 	if (changed) await view.app.vault.modify(file, lines.join("\n"));
@@ -3128,18 +3283,19 @@ function attachKanbanCardMenu(
 					.setTitle(t().cards.tasks.editMetadata)
 					.setIcon("calendar-clock")
 					.onClick(() => {
-						const level = hit.priority ? priorityLevel(hit.priority) : "other";
-						new TaskMetadataModal(
-							view.app,
-							hit.due ?? "",
-							level === "other" ? "" : level,
-							(due, priority) => {
-								void setKanbanCardMetadata(view, hit, due, priority).then((ok) => {
-									if (!ok) new Notice(t().notices.taskChangedOnDisk);
-									refresh();
-								});
-							},
-						).open();
+						const current: TaskMeta = {
+							priority: priorityKey(hit.priority),
+							recurrence: hit.recurrence ?? "",
+							start: hit.start ?? "",
+							scheduled: hit.scheduled ?? "",
+							due: hit.due ?? "",
+						};
+						new TaskMetadataModal(view.app, current, (meta) => {
+							void setKanbanCardMetadata(view, hit, meta).then((ok) => {
+								if (!ok) new Notice(t().notices.taskChangedOnDisk);
+								refresh();
+							});
+						}).open();
 					}),
 			);
 		}
@@ -3200,23 +3356,19 @@ function fillTaskText(view: HomeView, el: HTMLElement, text: string, sourcePath:
 /** Set (or clear) a Kanban card's due date and priority, rewriting the card
  * line's Tasks-plugin metadata in place while preserving its text and any link.
  * `due` is "" to clear; `priority` is "high"/"medium"/"low" or "" to clear. */
-async function setKanbanCardMetadata(
-	view: HomeView,
-	hit: TaskHit,
-	due: string,
-	priority: string,
-): Promise<boolean> {
+async function setKanbanCardMetadata(view: HomeView, hit: TaskHit, meta: TaskMeta): Promise<boolean> {
 	const content = await view.app.vault.read(hit.file);
 	const lines = content.split("\n");
 	const cur = lines[hit.line];
 	const m = cur != null ? KANBAN_CARD_RE.exec(cur) : null;
 	if (!m || stripTaskMetadata(m[2]) !== stripTaskMetadata(hit.text)) return false;
-	// Strip any existing due field and priority emoji from the card text, then
-	// re-append the new markers.
-	const dueRe = new RegExp(`📅[^\\n\\r${TASK_EMOJI_CLASS}]*`, "gu");
-	const base = m[2].replace(dueRe, "").replace(/[🔺⏫🔼🔽⏬]/gu, "").replace(/\s+/g, " ").trim();
+	// Strip the managed markers (priority/recurrence/start/scheduled/due and
+	// their values) from the card text, leaving ✅/➕/❌ untouched, then re-append
+	// the new markers.
+	const managedRe = new RegExp(`[${MANAGED_EMOJI_CLASS}][^\\n\\r${TASK_EMOJI_CLASS}]*`, "gu");
+	const base = m[2].replace(managedRe, "").replace(/\s+/g, " ").trim();
 	const prefix = cur.slice(0, cur.length - m[2].length);
-	lines[hit.line] = `${prefix}${base}${buildMetadataSuffix(due, priority)}`.trimEnd();
+	lines[hit.line] = `${prefix}${base}${buildMetadataSuffix(meta)}`.trimEnd();
 	await view.app.vault.modify(hit.file, lines.join("\n"));
 	return true;
 }
@@ -3309,14 +3461,13 @@ function insertCardBlock(lines: string[], heading: string, block: string[]): boo
 
 /** Read the value of a Tasks-plugin emoji field from a checkbox line, e.g.
  * `📅 tomorrow` or `📅 2024-01-15`. Returns the trimmed value up to the next
- * known emoji marker (⏳ 🛫 🔁 ✅ ➕ ⏫ 🔼 🔽) or end of line, or null when the
- * marker isn't present. */
+ * known emoji marker or end of line, or null when the marker isn't present. */
 function readEmojiField(text: string, emoji: string): string | null {
 	const idx = text.indexOf(emoji);
 	if (idx < 0) return null;
 	let rest = text.slice(idx + emoji.length);
 	// Stop at the next emoji marker (any of the Tasks-plugin conventions).
-	const next = rest.search(/[⏳🛫🔁✅➕⏫🔼🔽]/u);
+	const next = rest.search(new RegExp(`[${TASK_EMOJI_CLASS}]`, "u"));
 	if (next >= 0) rest = rest.slice(0, next);
 	const value = rest.trim();
 	return value || null;

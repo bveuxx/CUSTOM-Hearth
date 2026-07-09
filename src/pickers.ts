@@ -1,5 +1,6 @@
 import { App, Command, FuzzySuggestModal, Modal, Setting, TFile } from "obsidian";
 import { t } from "./i18n";
+import { TaskMeta } from "./types";
 
 /**
  * A fuzzy file picker used to choose (or swap) the file embedded by a card
@@ -62,24 +63,17 @@ export class CommandPickerModal extends FuzzySuggestModal<Command> {
 }
 
 /**
- * A small modal to edit a Kanban card's Tasks-plugin metadata: a due date and a
- * priority. Pre-filled from the card's current values; submitting reports the
- * chosen due (YYYY-MM-DD or "") and priority ("high"/"medium"/"low" or "").
+ * A modal to edit a Kanban card's Tasks-plugin metadata: priority, recurrence,
+ * and start/scheduled/due dates. Pre-filled from the card's current values;
+ * submitting reports the full {@link TaskMeta} (blank fields clear the marker).
  */
 export class TaskMetadataModal extends Modal {
-	private due: string;
-	private priority: string;
-	private onSubmit: (due: string, priority: string) => void;
+	private meta: TaskMeta;
+	private onSubmit: (meta: TaskMeta) => void;
 
-	constructor(
-		app: App,
-		due: string,
-		priority: string,
-		onSubmit: (due: string, priority: string) => void,
-	) {
+	constructor(app: App, meta: TaskMeta, onSubmit: (meta: TaskMeta) => void) {
 		super(app);
-		this.due = due;
-		this.priority = priority;
+		this.meta = { ...meta };
 		this.onSubmit = onSubmit;
 	}
 
@@ -87,17 +81,30 @@ export class TaskMetadataModal extends Modal {
 		const { contentEl } = this;
 		contentEl.createEl("h3", { text: t().cards.tasks.editMetadata });
 
-		new Setting(contentEl).setName(t().cards.tasks.dueDate).addText((txt) => {
-			txt.inputEl.type = "date";
-			txt.setValue(this.due).onChange((v) => (this.due = v));
-		});
-
 		new Setting(contentEl).setName(t().cards.tasks.priority).addDropdown((d) => {
 			d.addOption("", t().cards.tasks.priorityNone);
+			d.addOption("highest", t().cards.tasks.priorityHighest);
 			d.addOption("high", t().cards.tasks.priorityHigh);
 			d.addOption("medium", t().cards.tasks.priorityMedium);
 			d.addOption("low", t().cards.tasks.priorityLow);
-			d.setValue(this.priority).onChange((v) => (this.priority = v));
+			d.addOption("lowest", t().cards.tasks.priorityLowest);
+			d.setValue(this.meta.priority).onChange((v) => (this.meta.priority = v));
+		});
+
+		const dateSetting = (name: string, key: "start" | "scheduled" | "due") =>
+			new Setting(contentEl).setName(name).addText((txt) => {
+				txt.inputEl.type = "date";
+				txt.setValue(this.meta[key]).onChange((v) => (this.meta[key] = v));
+			});
+		dateSetting(t().cards.tasks.startDate, "start");
+		dateSetting(t().cards.tasks.scheduledDate, "scheduled");
+		dateSetting(t().cards.tasks.dueDate, "due");
+
+		new Setting(contentEl).setName(t().cards.tasks.recurrenceLabel).addText((txt) => {
+			txt
+				.setPlaceholder(t().cards.tasks.recurrencePlaceholder)
+				.setValue(this.meta.recurrence)
+				.onChange((v) => (this.meta.recurrence = v));
 		});
 
 		new Setting(contentEl)
@@ -106,7 +113,13 @@ export class TaskMetadataModal extends Modal {
 					.setButtonText(t().cards.tasks.save)
 					.setCta()
 					.onClick(() => {
-						this.onSubmit(this.due.trim(), this.priority);
+						this.onSubmit({
+							priority: this.meta.priority,
+							recurrence: this.meta.recurrence.trim(),
+							start: this.meta.start.trim(),
+							scheduled: this.meta.scheduled.trim(),
+							due: this.meta.due.trim(),
+						});
 						this.close();
 					}),
 			)

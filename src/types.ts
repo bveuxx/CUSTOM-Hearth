@@ -38,6 +38,17 @@ export interface CommandItem {
 	row?: number;
 }
 
+/** The Tasks-plugin metadata Hearth's Kanban editor reads and writes on a card.
+ * Dates are YYYY-MM-DD or ""; `priority` is a key ("highest".."lowest") or "";
+ * `recurrence` is the raw text written after 🔁 (e.g. "every week") or "". */
+export interface TaskMeta {
+	priority: string;
+	recurrence: string;
+	start: string;
+	scheduled: string;
+	due: string;
+}
+
 /** Per-card configuration for a "tasks" card. */
 export interface TasksConfig {
 	/** "checkbox" (default) scans plain Markdown `- [ ]` checkboxes anywhere

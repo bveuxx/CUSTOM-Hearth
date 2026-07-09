@@ -878,6 +878,30 @@
 	color: var(--text-muted);
 }
 
+/* Extra Tasks-plugin date indicators (start / scheduled / done) on a card. */
+.hearth-task-meta {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	flex-shrink: 0;
+	font-size: 0.74rem;
+	color: var(--text-muted);
+}
+
+.hearth-task-meta-emoji {
+	font-size: 0.72rem;
+	line-height: 1;
+	opacity: 0.85;
+}
+
+.hearth-task-meta.is-overdue {
+	color: var(--text-error);
+}
+
+.hearth-task-meta-done {
+	color: var(--text-faint);
+}
+
 .hearth-task-due.is-overdue {
 	color: var(--text-error);
 }
@@ -2248,16 +2272,33 @@
 	font-family: inherit;
 }
 
-/* Optional due-date + priority pickers on the add-card form (extended mode). */
+/* Metadata pickers on the add-card form (extended mode): priority, dates and
+   recurrence, stacked to fit the narrow column. */
 .hearth-kanban-add-meta {
 	display: flex;
-	gap: 6px;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.hearth-kanban-add-datefield {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.hearth-kanban-add-dateicon {
+	flex-shrink: 0;
+	font-size: 0.85rem;
+	width: 1.2em;
+	text-align: center;
 }
 
 .hearth-kanban-add-due,
-.hearth-kanban-add-prio {
+.hearth-kanban-add-prio,
+.hearth-kanban-add-recur {
 	flex: 1;
 	min-width: 0;
+	width: 100%;
 	border-radius: 6px;
 	border: 1px solid var(--background-modifier-border);
 	background: var(--background-primary);

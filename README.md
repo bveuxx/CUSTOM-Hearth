@@ -134,11 +134,14 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   automatically when dragged or added there (and the ones already in it
   complete at once). Turn on **Tasks-plugin metadata** to parse the
   [obsidian-tasks](https://github.com/obsidian-tasks-group/obsidian-tasks)
-  emoji fields inside each card (📅 due, ⏫/🔼/🔽 priority, 🔁 recurrence) so due
-  dates and priorities show (priority as a coloured dot on board cards, a
-  labelled chip in the list) and sort; in this mode the **add-card form** and
-  the right-click editor both let you set due date and priority, written as
-  those markers onto the card. Leave it off to read the board as-is.
+  emoji fields on each card — priority (🔺⏫🔼🔽⏬), recurrence (🔁), and the
+  start (🛫), scheduled (⏳), due (📅) and done (✅) dates — shown as compact
+  indicators on the card (priority as a coloured dot on board cards, a labelled
+  chip in the list) and used for sorting. Both the **add-card form** and the
+  right-click **task-metadata editor** provide fields for priority, recurrence
+  and the start/scheduled/due dates, written back as those markers; checking a
+  card off stamps its ✅ done date (and unchecking removes it). Leave the mode
+  off to read the board as-is.
   Everything is written back in Kanban's own format, so the board stays fully
   editable in the Kanban plugin.
 - **Mini calendar** — a month grid resolved from the core Daily notes plugin's
@@ -309,6 +312,13 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 [`src/locales/README.md`](src/locales/README.md) for the walkthrough.
 
 ## Shipped:
+
+> **v1.6.8.6-beta** — fuller obsidian-tasks metadata on Kanban cards: start
+> (🛫), scheduled (⏳) and done (✅) dates alongside due, a 5-level priority
+> (🔺⏫🔼🔽⏬) and recurrence (🔁). The add-card form and a new right-click
+> **task-metadata editor** provide input fields for all of them, cards show
+> compact date/priority **indicators**, and checking a card off stamps its ✅
+> done date.
 
 > **v1.6.8.5-beta** — Kanban board fixes: card text now renders **clickable
 > links** (`[[wikilinks]]` and Markdown links); right-click a card to **edit
