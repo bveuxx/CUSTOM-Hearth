@@ -1,3 +1,4 @@
+import { getLanguage } from "obsidian";
 import { en } from "./locales/en";
 import { LOCALES, type Translations } from "./locales";
 
@@ -8,16 +9,15 @@ export type { Translations };
 let active: Translations = en;
 
 /**
- * The UI language Obsidian is set to. Obsidian persists it in localStorage
- * under the `"language"` key (empty or absent means English). It only changes
- * on a full reload, so reading it once at load is enough — there's no need to
- * react to it at runtime.
+ * The UI language Obsidian is set to, via Obsidian's {@link getLanguage} API
+ * (empty or absent means English). It only changes on a full reload, so reading
+ * it once at load is enough — there's no need to react to it at runtime.
  */
 export function detectLanguage(): string {
 	try {
-		return window.localStorage.getItem("language") || "en";
+		return getLanguage() || "en";
 	} catch {
-		// localStorage can throw in locked-down/embedded contexts.
+		// getLanguage can be unavailable in locked-down/embedded contexts.
 		return "en";
 	}
 }

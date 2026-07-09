@@ -99,6 +99,79 @@ export function ensureFreeform(
 	return changed;
 }
 
+/** Give a brand-new card free-form coordinates that don't disturb the cards
+ * already on the board. Adding a card used to seed it from the legacy grid
+ * (ensureLayout/ensureFreeform), which — because a dragged card's legacy x/y go
+ * stale — could drop it far below the real content; in fit-to-page mode that
+ * grew the board and rescaled (shoved up) every existing card until the layout
+ * was re-saved.
+ *
+ * Instead we drop it into the first empty slot inside the current content
+ * bounds, so the board's total height (and therefore the fit scale of every
+ * other card) is unchanged. If the content is genuinely full, it's placed
+ * bottom-aligned within the existing bounds (overlapping, for the user to drag
+ * out) rather than extending the board — again leaving the other cards put. */
+export function placeFreeform(
+	card: DashboardCard,
+	existing: DashboardCard[],
+	boardWidth: number,
+	columns: number,
+	gap: number,
+	rowHeight: number,
+): void {
+	const colW = Math.max(1, (boardWidth - (columns - 1) * gap) / columns);
+	const w = clamp(card.w || MIN_W, MIN_W, columns);
+	const h = Math.max(card.h || MIN_H, MIN_H);
+	const fw = clamp((w * colW + (w - 1) * gap) / boardWidth, 0.02, 1);
+	const fh = h * rowHeight + (h - 1) * gap;
+
+	// Existing footprints in the board's mixed units (fx/fw are width fractions,
+	// fy/fh are pixels). Cards without free-form coords yet are ignored.
+	const rects = existing
+		.filter(
+			(c) =>
+				c !== card &&
+				typeof c.fx === "number" &&
+				typeof c.fy === "number" &&
+				typeof c.fw === "number" &&
+				typeof c.fh === "number",
+		)
+		.map((c) => ({ x: c.fx as number, y: c.fy as number, w: c.fw as number, h: c.fh as number }));
+	const contentBottom = rects.reduce((m, r) => Math.max(m, r.y + r.h), 0);
+	const overlaps = (x: number, y: number) =>
+		rects.some((r) => x < r.x + r.w && x + fw > r.x && y < r.y + r.h && y + fh > r.y);
+
+	const place = (fx: number, fy: number) => {
+		card.fx = clamp(fx, 0, 1 - fw);
+		card.fy = Math.max(0, fy);
+		card.fw = fw;
+		card.fh = fh;
+		// Keep the legacy grid units consistent so later seeding stays sane.
+		card.w = w;
+		card.h = h;
+		card.x = clamp(Math.round(card.fx * columns), 0, columns - w);
+		card.y = Math.max(0, Math.round(card.fy / (rowHeight + gap)));
+	};
+
+	// Scan the current content area for the first free slot (top-to-bottom,
+	// left-to-right); a card dropped here never changes the board's height.
+	const stepY = rowHeight + gap;
+	const stepX = (colW + gap) / boardWidth;
+	for (let y = 0; y + fh <= contentBottom + 0.5; y += stepY) {
+		for (let x = 0; x + fw <= 1.0001; x += stepX) {
+			const fx = Math.min(x, 1 - fw);
+			if (!overlaps(fx, y)) {
+				place(fx, y);
+				return;
+			}
+		}
+	}
+
+	// No gap in the content: bottom-align within the existing bounds so the board
+	// doesn't grow (the new card overlaps, ready to be dragged into place).
+	place(0, Math.max(0, contentBottom - fh));
+}
+
 /** Position a card on the free-form board. Horizontal uses percentages so the
  * board reflows with the pane; vertical uses pixels. */
 export function applyCardPosition(el: HTMLElement, card: DashboardCard): void {
@@ -135,18 +208,37 @@ export function applyCardPositionFitted(
 	el: HTMLElement,
 	card: DashboardCard,
 	vScale: number,
+	boardWidth: number,
 ): void {
-	// Horizontal placement (fx/fw, board-width fractions) is resolution- and
-	// timing-independent, so always apply it straight from the stored values.
-	applyCardPosition(el, card);
-	if (!(vScale < 1)) return;
+	// Horizontal placement. When the board width is known, snap the LEFT and
+	// RIGHT edges to whole pixels (deriving the width from them) so two
+	// side-by-side cards share the exact same pixel. Percentage widths round
+	// left and width independently, so `round(left) + round(width)` and the
+	// neighbour's `round(left)` can land a pixel apart — the thin vertical seam
+	// between adjacent cards. Fall back to percentages if the width isn't known.
+	const fx = clamp(card.fx ?? 0, 0, 1);
+	const fw = clamp(card.fw ?? 0.25, 0.02, 1);
+	const leftFrac = clamp(fx, 0, 1 - fw);
+	if (boardWidth > 0) {
+		const left = Math.round(leftFrac * boardWidth);
+		const right = Math.round((leftFrac + fw) * boardWidth);
+		el.style.left = `${left}px`;
+		el.style.width = `${Math.max(1, right - left)}px`;
+	} else {
+		el.style.left = `${leftFrac * 100}%`;
+		el.style.width = `${fw * 100}%`;
+	}
 
-	// Squeeze the vertical layout to fit. Stored fy/fh stay put — only the inline
-	// top/height shown this frame are scaled, preserving relative spacing.
-	const top = Math.max(0, card.fy ?? 0) * vScale;
-	const height = (card.fh ?? MIN_H_PX) * vScale;
+	// Vertical placement. Snap the TOP and BOTTOM edges the same way so stacked
+	// cards meet on the exact pixel too. When the layout overflows the board
+	// (vScale < 1) the edges are scaled first; otherwise they're used as-is.
+	const scale = vScale < 1 ? vScale : 1;
+	const fy = Math.max(0, card.fy ?? 0);
+	const fh = card.fh ?? MIN_H_PX;
+	const top = Math.round(fy * scale);
+	const bottom = Math.round((fy + fh) * scale);
 	el.style.top = `${top}px`;
-	el.style.height = `${height}px`;
+	el.style.height = `${Math.max(MIN_H_PX, bottom - top)}px`;
 }
 
 /** The proportional vertical scale (0..1] that fits every card's stored layout
@@ -302,7 +394,10 @@ export function enableDragResize(
 		e.preventDefault();
 		e.stopPropagation();
 		const boardWidth = gridEl.clientWidth;
-		const boardHeight = gridEl.clientHeight;
+		// Fit-to-page clamps cards to the visible board; scroll mode lets the board
+		// grow downward without limit, so a card can be dragged/resized as far down
+		// as the pointer goes (the board height follows via updateBoardHeight).
+		const boardHeight = gridEl.closest(".hearth-fit") ? gridEl.clientHeight : Infinity;
 		const { xTargets, yTargets } = collectTargets(layout, card, boardWidth);
 		ctx = {
 			pointerId: e.pointerId,

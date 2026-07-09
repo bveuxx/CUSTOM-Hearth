@@ -14,7 +14,8 @@ export type CardKind =
 	| "calendar"
 	| "stats"
 	| "search"
-	| "heatmap";
+	| "heatmap"
+	| "calculator";
 
 /** A single command tile inside a "commands" card. */
 export interface CommandItem {
@@ -92,6 +93,21 @@ export interface HeatmapConfig {
 	weeks?: number;
 }
 
+/** On-screen keypad tier for a calculator card. "none" hides the pad (just the
+ * text field); "basic" is digits + arithmetic; "scientific" adds functions,
+ * constants and powers. */
+export type CalculatorKeypad = "none" | "basic" | "scientific";
+
+/** Per-card configuration for a "calculator" card. */
+export interface CalculatorConfig {
+	/** Angle unit assumed by trig functions. Default "deg". */
+	angleUnit?: "deg" | "rad";
+	/** On-screen keypad tier. Default "none". */
+	keypad?: CalculatorKeypad;
+	/** The last query typed, restored when the board reloads. */
+	lastInput?: string;
+}
+
 /** Per-card configuration for a "clock" card. All fields are optional; omitted
  * fields fall back to the defaults that match the original clock behaviour. */
 export interface ClockConfig {
@@ -114,15 +130,23 @@ export interface ClockConfig {
 }
 
 /** A single button in the mobile action bar (shown under the search bar and
- * filters in Mobile mode). `commandId` is any registered Obsidian command id
- * — Hearth's own defaults (new note, new drawing, record voice, open daily
- * note) are registered as ordinary commands too, so any button can be
- * replaced with any command from any plugin. */
+ * filters in Mobile mode). Like a launchpad tile, a button can run an Obsidian
+ * command, open a vault note/file, or open a URL — chosen by `type`. Hearth's
+ * own defaults (new note, new drawing, record voice, open daily note) are
+ * registered as ordinary commands too, so any button can be replaced with any
+ * command from any plugin. */
 export interface MobileActionButton {
 	id: string;
 	label: string;
 	icon: string;
-	commandId: string;
+	/** What the button does. Defaults to "command" when absent (older buttons
+	 * stored only `commandId`). */
+	type?: "command" | "note" | "url";
+	/** Command id, vault path, or URL depending on `type`. */
+	target?: string;
+	/** @deprecated Legacy command id from before `type`/`target` existed. Still
+	 * read as a fallback when `target` is unset so old buttons keep working. */
+	commandId?: string;
 }
 
 /** A single tile inside a "links" (launchpad) card. */
@@ -182,6 +206,8 @@ export interface DashboardCard {
 	savedSearch?: SavedSearchConfig;
 	/** kind === "heatmap": metric and range. */
 	heatmap?: HeatmapConfig;
+	/** kind === "calculator": angle unit, last input and history. */
+	calculator?: CalculatorConfig;
 
 	// ---- Live content ----
 	/** Auto-refresh interval in seconds for live content (embed / web). 0 or
@@ -289,6 +315,9 @@ export interface HomeSettings {
 	logo: string;
 	searchPlaceholder: string;
 	showNewNoteButton: boolean;
+	/** What the single button beside the search bar does: create a new note, or
+	 * run a web search for the current search-field contents. */
+	newNoteButtonMode: "newNote" | "searchOnline";
 	/** Also search inside note bodies (full-text), not just names/tags/properties. */
 	searchContents: boolean;
 
@@ -359,6 +388,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	logo: "",
 	searchPlaceholder: "Search or command",
 	showNewNoteButton: true,
+	newNoteButtonMode: "newNote",
 	searchContents: true,
 
 	backgroundKind: "default",
@@ -464,10 +494,10 @@ function starterCards(): DashboardCard[] {
  * exactly like swapping in any other plugin's command. */
 export function defaultMobileActionButtons(): MobileActionButton[] {
 	return [
-		{ id: "action-new-note", label: "New note", icon: "plus", commandId: "hearth:new-note" },
-		{ id: "action-new-drawing", label: "New drawing", icon: "pen-tool", commandId: "hearth:new-drawing" },
-		{ id: "action-record-voice", label: "Record voice", icon: "mic", commandId: "hearth:record-voice" },
-		{ id: "action-daily-note", label: "Daily note", icon: "calendar", commandId: "hearth:open-daily-note" },
+		{ id: "action-new-note", label: "New note", icon: "plus", type: "command", target: "hearth:new-note" },
+		{ id: "action-new-drawing", label: "New drawing", icon: "pen-tool", type: "command", target: "hearth:new-drawing" },
+		{ id: "action-record-voice", label: "Record voice", icon: "mic", type: "command", target: "hearth:record-voice" },
+		{ id: "action-daily-note", label: "Daily note", icon: "calendar", type: "command", target: "hearth:open-daily-note" },
 	];
 }
 
@@ -490,6 +520,7 @@ export function cloneCard(card: DashboardCard): DashboardCard {
 	if (card.savedSearch) copy.savedSearch = { ...card.savedSearch };
 	if (card.heatmap) copy.heatmap = { ...card.heatmap };
 	if (card.clock) copy.clock = { ...card.clock };
+	if (card.calculator) copy.calculator = { ...card.calculator };
 	return copy;
 }
 
@@ -654,6 +685,9 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 	if (!Array.isArray(raw.mobileActionButtons)) {
 		s.mobileActionButtons = defaultMobileActionButtons();
 	}
+	// The short-lived "split" pill mode was replaced by a plain single button
+	// whose action is chosen here; fall back to the original New-note behaviour.
+	if ((s.newNoteButtonMode as string) === "split") s.newNoteButtonMode = "newNote";
 	// Drop the obsolete single-board field so it can't shadow the dashboards.
 	delete (s as unknown as { cards?: unknown }).cards;
 }

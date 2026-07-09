@@ -29,6 +29,7 @@ import {
 	GridLayout,
 	GRID_GAP,
 	layoutHeight,
+	placeFreeform,
 	ROW_HEIGHT,
 } from "./grid";
 
@@ -148,13 +149,21 @@ export function renderDashboard(
 			// overlap when the window is made short (clamping each card on its own
 			// piled them at the top).
 			const vScale = fitVerticalScale(cards, grid.clientHeight);
+			const boardWidth = grid.clientWidth;
 			for (const card of cards) {
 				const el = gridLayout.elements.get(card);
-				if (el) applyCardPositionFitted(el, card, vScale);
+				if (el) applyCardPositionFitted(el, card, vScale, boardWidth);
 			}
 			applyEdgeMerging(grid);
 		};
-		const observer = new ResizeObserver(debounce(refit, 60, false));
+		// Apply the fit synchronously on the next frame, before the browser
+		// paints, so cards never flash at their unscaled (taller) positions first.
+		// That unscaled first frame is what made every existing card visibly jump
+		// when a new card was added: the board briefly rendered at full height and
+		// then snapped back once the debounced observer squeezed it. Fitting up
+		// front means the very first painted frame is already the final layout.
+		activeWindow.requestAnimationFrame(refit);
+		const observer = new ResizeObserver(debounce(refit, 60, true));
 		observer.observe(grid);
 		component.register(() => observer.disconnect());
 	}
@@ -355,7 +364,19 @@ function renderToolbar(view: HomeView, container: HTMLElement): void {
 						.setTitle(templateName(template))
 						.setIcon(template.icon)
 						.onClick(() => {
-							activeCards(view.plugin.settings).push(cardFromTemplate(template));
+							const s = view.plugin.settings;
+							const card = cardFromTemplate(template);
+							// Place the new card into a free slot in the current layout so
+							// it never shifts the cards already on the board (placeFreeform).
+							placeFreeform(
+								card,
+								renderCards(s),
+								effectiveMaxWidth(s),
+								effectiveColumns(s),
+								GRID_GAP,
+								effectiveRowHeight(s) || ROW_HEIGHT,
+							);
+							activeCards(s).push(card);
 							persistAndRender(view);
 						}),
 				);

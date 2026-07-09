@@ -1,6 +1,7 @@
 import {
 	BackgroundConfig,
 	BackgroundKind,
+	CalculatorConfig,
 	CalendarConfig,
 	CardKind,
 	ClockConfig,
@@ -61,6 +62,7 @@ const CARD_KINDS: CardKind[] = [
 	"stats",
 	"search",
 	"heatmap",
+	"calculator",
 ];
 
 /** Serialize the whole dashboard setup to a pretty JSON string. */
@@ -125,6 +127,25 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 		h: clampNum(r.h, RANGE.cardH.min, RANGE.cardH.max, 2),
 	};
 
+	// Preserve the live free-form geometry so an exported layout round-trips
+	// faithfully between devices. Without this the coordinates the board actually
+	// renders with (fx/fy/fw/fh) were dropped on import and re-derived from the
+	// legacy x/y/w/h grid units — which go stale the moment a card is dragged —
+	// so a shared/synced layout reverted to its pre-arrange positions.
+	// fx/fw are board-width fractions (0..1); fy/fh are absolute pixels (>= 0).
+	if (typeof r.fx === "number" && Number.isFinite(r.fx)) {
+		card.fx = Math.max(0, Math.min(1, r.fx));
+	}
+	if (typeof r.fw === "number" && Number.isFinite(r.fw)) {
+		card.fw = Math.max(0.02, Math.min(1, r.fw));
+	}
+	if (typeof r.fy === "number" && Number.isFinite(r.fy)) {
+		card.fy = Math.max(0, r.fy);
+	}
+	if (typeof r.fh === "number" && Number.isFinite(r.fh)) {
+		card.fh = Math.max(0, r.fh);
+	}
+
 	const title = str(r.title);
 	if (title !== undefined) card.title = title;
 	const target = str(r.target);
@@ -169,6 +190,9 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 	}
 	if (r.heatmap && typeof r.heatmap === "object") {
 		card.heatmap = sanitizeHeatmap(r.heatmap as Record<string, unknown>);
+	}
+	if (r.calculator && typeof r.calculator === "object") {
+		card.calculator = sanitizeCalculator(r.calculator as Record<string, unknown>);
 	}
 
 	return card;
@@ -250,6 +274,15 @@ function sanitizeHeatmap(r: Record<string, unknown>): HeatmapConfig {
 	const cfg: HeatmapConfig = {};
 	if (r.metric === "modified" || r.metric === "created") cfg.metric = r.metric;
 	if (typeof r.weeks === "number") cfg.weeks = r.weeks;
+	return cfg;
+}
+
+function sanitizeCalculator(r: Record<string, unknown>): CalculatorConfig {
+	const cfg: CalculatorConfig = {};
+	if (r.angleUnit === "deg" || r.angleUnit === "rad") cfg.angleUnit = r.angleUnit;
+	if (r.keypad === "basic" || r.keypad === "scientific" || r.keypad === "none") cfg.keypad = r.keypad;
+	const lastInput = str(r.lastInput);
+	if (lastInput !== undefined) cfg.lastInput = lastInput;
 	return cfg;
 }
 

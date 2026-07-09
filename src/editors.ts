@@ -125,18 +125,28 @@ export class CardSettingsModal extends Modal {
 							}).open();
 						}),
 				);
-				new Setting(containerEl)
-					.setName(t().editors.embed.zoom)
-					.setDesc(t().editors.embed.zoomDesc)
-					.addSlider((s) =>
-						s
-							.setLimits(50, 200, 10)
-							.setValue(Math.round((card.scale ?? 1) * 100))
-							.onChange((v) => {
-								card.scale = v === 100 ? undefined : v / 100;
-								this.opts.save();
-							}),
-					);
+			new Setting(containerEl)
+				.setName(t().editors.embed.zoom)
+				.setDesc(t().editors.embed.zoomDesc)
+				.addSlider((s) => {
+					s.setLimits(50, 200, 10)
+						.setValue(Math.round((card.scale ?? 1) * 100))
+						.setDynamicTooltip()
+						.onChange((v) => {
+							card.scale = v === 100 ? undefined : v / 100;
+							this.opts.save();
+						});
+				})
+				.addExtraButton((b) =>
+					b
+						.setIcon("rotate-ccw")
+						.setTooltip(t().settings.resetSlider)
+						.onClick(() => {
+							card.scale = undefined;
+							this.opts.save();
+							this.render();
+						}),
+				);
 				new Setting(containerEl)
 					.setName(t().editors.embed.editable)
 					.setDesc(t().editors.embed.editableDesc)
@@ -229,7 +239,39 @@ export class CardSettingsModal extends Modal {
 			case "heatmap":
 				this.heatmapEditor(containerEl);
 				break;
+			case "calculator":
+				this.calculatorEditor(containerEl);
+				break;
 		}
+	}
+
+	private calculatorEditor(containerEl: HTMLElement): void {
+		const cfg = (this.card.calculator ??= {});
+		new Setting(containerEl)
+			.setName(t().editors.calculator.angleUnit)
+			.setDesc(t().editors.calculator.angleUnitDesc)
+			.addDropdown((d) => {
+				d.addOption("deg", t().editors.calculator.degrees);
+				d.addOption("rad", t().editors.calculator.radians);
+				d.setValue(cfg.angleUnit ?? "deg").onChange((v) => {
+					cfg.angleUnit = v === "rad" ? "rad" : undefined;
+					this.opts.save();
+					this.opts.rerender();
+				});
+			});
+		new Setting(containerEl)
+			.setName(t().editors.calculator.keypad)
+			.setDesc(t().editors.calculator.keypadDesc)
+			.addDropdown((d) => {
+				d.addOption("none", t().editors.calculator.keypadNone);
+				d.addOption("basic", t().editors.calculator.keypadBasic);
+				d.addOption("scientific", t().editors.calculator.keypadScientific);
+				d.setValue(cfg.keypad ?? "none").onChange((v) => {
+					cfg.keypad = v === "none" ? undefined : (v as "basic" | "scientific");
+					this.opts.save();
+					this.opts.rerender();
+				});
+			});
 	}
 
 	private calendarEditor(containerEl: HTMLElement): void {
@@ -275,18 +317,28 @@ export class CardSettingsModal extends Modal {
 				this.opts.save();
 			});
 		});
-		new Setting(containerEl)
+		const weeks = new Setting(containerEl)
 			.setName(t().editors.heatmap.weeks)
-			.setDesc(t().editors.heatmap.weeksDesc)
-			.addSlider((s) =>
-				s
-					.setLimits(8, 53, 1)
-					.setValue(cfg.weeks ?? 26)
-					.onChange((v) => {
-						cfg.weeks = v === 26 ? undefined : v;
-						this.opts.save();
-					}),
-			);
+			.setDesc(t().editors.heatmap.weeksDesc);
+		weeks.addSlider((s) => {
+			s.setLimits(8, 53, 1)
+				.setValue(cfg.weeks ?? 26)
+				.setDynamicTooltip()
+				.onChange((v) => {
+					cfg.weeks = v === 26 ? undefined : v;
+					this.opts.save();
+				});
+		});
+		weeks.addExtraButton((b) =>
+			b
+				.setIcon("rotate-ccw")
+				.setTooltip(t().settings.resetSlider)
+				.onClick(() => {
+					cfg.weeks = undefined;
+					this.opts.save();
+					this.render();
+				}),
+		);
 	}
 
 	private savedSearchEditor(containerEl: HTMLElement): void {
@@ -486,18 +538,28 @@ export class CardSettingsModal extends Modal {
 					this.opts.save();
 				}),
 			);
-		new Setting(containerEl)
+		const buttonSize = new Setting(containerEl)
 			.setName(t().editors.commands.buttonSize)
-			.setDesc(t().editors.commands.buttonSizeDesc)
-			.addSlider((s) =>
-				s
-					.setLimits(60, 180, 10)
-					.setValue(card.tileSize ?? 90)
-					.onChange((v) => {
-						card.tileSize = v === 90 ? undefined : v;
-						this.opts.save();
-					}),
-			);
+			.setDesc(t().editors.commands.buttonSizeDesc);
+		buttonSize.addSlider((s) => {
+			s.setLimits(60, 180, 10)
+				.setValue(card.tileSize ?? 90)
+				.setDynamicTooltip()
+				.onChange((v) => {
+					card.tileSize = v === 90 ? undefined : v;
+					this.opts.save();
+				});
+		});
+		buttonSize.addExtraButton((b) =>
+			b
+				.setIcon("rotate-ccw")
+				.setTooltip(t().settings.resetSlider)
+				.onClick(() => {
+					card.tileSize = undefined;
+					this.opts.save();
+					this.render();
+				}),
+		);
 
 		new Setting(containerEl).setName(t().editors.commands.heading).setHeading();
 		const commands = (this.card.commands ??= []);
@@ -854,6 +916,7 @@ export class CardSettingsModal extends Modal {
 			sl
 				.setLimits(0, 1, 0.05)
 				.setValue(card.cardOpacity ?? 1)
+				.setDynamicTooltip()
 				.onChange((v) => {
 					card.cardOpacity = v;
 					this.opts.save();

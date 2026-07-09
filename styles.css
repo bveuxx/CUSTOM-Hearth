@@ -199,6 +199,7 @@
 	display: flex;
 }
 
+
 /* ---- Search results dropdown --------------------------------------- */
 
 .hearth-search-results {
@@ -208,15 +209,30 @@
 	top: calc(100% + 6px);
 	left: 0;
 	right: 0;
-	/* Above every dashboard element (cards, overlays, toolbars). */
-	z-index: 100;
+	/* Above every dashboard element (cards, overlays, toolbars) and the mobile
+	 * action bar. */
+	z-index: 200;
 	max-height: min(360px, 50vh);
 	overflow-y: auto;
 	border-radius: 12px;
 	border: 1px solid var(--background-modifier-border);
-	background: var(--background-primary);
+	/* Force an opaque surface even if the theme's --background-primary carries
+	 * alpha: the extra flat gradient layer stacks on top of the base colour so a
+	 * wallpaper or the Hearth background layer can't bleed through and wash out
+	 * the result text (which read as "there but invisible" on mobile). */
+	background-color: var(--background-primary);
+	background-image:
+		linear-gradient(var(--background-primary), var(--background-primary)),
+		linear-gradient(var(--background-primary), var(--background-primary));
 	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
 	padding: 6px;
+}
+
+/* On mobile keep the list short enough to stay above the on-screen keyboard
+ * (with the search anchored to the top via hearth-search-active) instead of
+ * extending down behind it. */
+.is-mobile .hearth-search-results {
+	max-height: 42vh;
 }
 
 .hearth-result {
@@ -386,7 +402,10 @@
 	border: 1px solid var(--background-modifier-border);
 	/* --card-opacity (0..1) tints the card surface without dimming content. */
 	background: color-mix(in srgb, var(--background-primary) calc(var(--card-opacity, 1) * 100%), transparent);
-	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+	/* Drop shadow via a variable so merged edges can drop it (see below) and
+	 * hover can lift it without re-declaring the whole shadow. */
+	--hearth-card-lift: 0 2px 12px rgba(0, 0, 0, 0.06);
+	box-shadow: var(--hearth-card-lift);
 	overflow: hidden;
 	transition: box-shadow 120ms ease, transform 120ms ease;
 }
@@ -424,7 +443,7 @@
 }
 
 .hearth-card:hover {
-	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+	--hearth-card-lift: 0 6px 20px rgba(0, 0, 0, 0.12);
 }
 
 .hearth-card-head {
@@ -547,17 +566,59 @@
 	height: 100%;
 }
 
-/* Obsidian/Excalidraw set an inline height on the embed's own root element.
- * We can't beat an inline height with a stylesheet height (inline wins), so
- * don't try: clamp it with max-height (a different property — no conflict)
- * and let flex-grow stretch the item to fill the card. height:100% covers the
- * no-inline case. min-height:0 lets flex shrink below content size. */
+/* Obsidian renders a canvas/Excalidraw embed as:
+ *   <p> › span.internal-embed › (div.embed-title + svg.canvas-minimap)
+ * To make the drawing fill the card without leaving an empty "chin" (or, worse,
+ * shoving the drawing down), every wrapper from the paragraph down to the embed
+ * has to become a flex column that fills the height, and then ONLY the drawing
+ * itself may grow — the title bar must keep its natural size. Each step below is
+ * one link in that chain. */
+
+/* The paragraph (direct child of the host) fills the card. margin:0 kills the
+ * paragraph spacing that would otherwise show as a gap around the drawing. */
 .hearth-embed-live > * {
 	flex: 1 1 auto;
 	min-height: 0;
 	width: 100%;
 	height: 100%;
 	max-height: 100%;
+	margin: 0;
+}
+
+/* The paragraph and the embed span must be flex columns so their single child
+ * (the embed, then the drawing) can flex-grow to fill instead of sitting at its
+ * natural size. The two-class prefix outranks a theme's `.markdown-rendered p`
+ * spacing so the paragraph's own margin can't reappear as a strip below the
+ * drawing. */
+.markdown-rendered.hearth-embed-live p {
+	display: flex;
+	flex-direction: column;
+	margin: 0;
+}
+
+.hearth-embed-live .internal-embed,
+.hearth-embed-live .markdown-embed {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	width: 100%;
+	max-height: 100%;
+	margin: 0;
+}
+
+/* Grow ONLY the drawing to take the space left after the embed's title bar —
+ * never the title bar itself, or it balloons and pushes the drawing down (that
+ * was the bug). A canvas embed is a static `svg.canvas-minimap` whose viewBox
+ * keeps the drawing scaled and centred as it grows; Excalidraw/other file embeds
+ * use their own viewport element. */
+.hearth-embed-live .canvas-minimap,
+.hearth-embed-live .canvas-wrapper,
+.hearth-embed-live .excalidraw-embedded-view {
+	flex: 1 1 auto;
+	min-height: 0;
+	width: 100%;
+	height: 100%;
 }
 
 /* Daily-note card: the "create today's note" prompt button. */
@@ -644,6 +705,71 @@
 	font-family: var(--font-monospace);
 	font-size: 0.8rem;
 	resize: vertical;
+}
+
+/* ---- Settings tab: foldable sections --------------------------------
+   These styles apply in Obsidian's settings UI (not the home view), so they're
+   not scoped under .hearth-view. Each section is a .hearth-section with a
+   clickable heading (.hearth-section-head) that toggles the body below it. */
+
+.hearth-section {
+	margin-bottom: 8px;
+}
+
+/* The heading row mirrors Obsidian's own .setting-item-heading look but is
+   interactive (click to fold). */
+.hearth-section-head {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 14px 0 10px;
+	cursor: pointer;
+	user-select: none;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.hearth-section-head:hover .hearth-section-title {
+	color: var(--interactive-accent);
+}
+
+.hearth-section-titles {
+	flex: 1;
+	min-width: 0;
+}
+
+.hearth-section-title {
+	font-size: var(--font-ui-medium);
+	font-weight: 600;
+	color: var(--text-normal);
+	transition: color 120ms ease;
+}
+
+.hearth-section-desc {
+	margin-top: 4px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	line-height: 1.4;
+}
+
+/* The chevron rotates to indicate collapsed state. */
+.hearth-section-chevron {
+	display: flex;
+	color: var(--text-muted);
+	transition: transform 180ms ease;
+}
+
+.hearth-section-chevron.is-rotated {
+	transform: rotate(-90deg);
+}
+
+.hearth-section-body {
+	/* Smooth collapse/expand. Only height animates; display:none is the real
+	   toggle (so inputs don't remain focusable when hidden). */
+	transition: opacity 150ms ease;
+}
+
+.hearth-section.is-collapsed .hearth-section-head {
+	border-bottom-color: transparent;
 }
 
 /* Lists (bookmarks) */
@@ -821,6 +947,113 @@
 	font-family: var(--font-text);
 	font-size: 0.92rem;
 	line-height: 1.5;
+}
+
+/* Calculator */
+.hearth-calc {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	overflow: hidden;
+}
+
+.hearth-calc-input {
+	width: 100%;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 1rem;
+	padding: 8px 10px;
+	outline: none;
+}
+
+.hearth-calc-input:focus {
+	border-color: var(--interactive-accent);
+}
+
+.hearth-calc-result {
+	font-size: clamp(1.4rem, 4.5vw, 2rem);
+	font-weight: 700;
+	line-height: 1.15;
+	color: var(--text-normal);
+	letter-spacing: -0.01em;
+	word-break: break-word;
+	min-height: 1.2em;
+}
+
+.hearth-calc-result.is-error {
+	color: var(--text-faint);
+	font-weight: 400;
+}
+
+.hearth-calc-note {
+	font-size: 0.8rem;
+	color: var(--text-muted);
+	min-height: 1em;
+}
+
+/* On-screen keypad — fills the remaining card height so keys grow both ways
+ * when the card is resized (grid-auto-rows: 1fr stretches rows to fill). */
+.hearth-calc-keys {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	grid-auto-rows: minmax(32px, 1fr);
+	gap: 4px;
+}
+
+.hearth-calc-keys.is-hidden {
+	display: none;
+}
+
+.hearth-calc-key {
+	/* Fill the whole grid cell so keys grow in height (not just spread apart)
+	 * as the row tracks stretch. Obsidian's buttons set a fixed height, so an
+	 * explicit 100% is needed — grid's default stretch alone won't override it. */
+	height: 100%;
+	width: 100%;
+	min-height: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 0.95rem;
+	cursor: pointer;
+	transition: background 0.1s ease;
+}
+
+.hearth-calc-key:hover {
+	background: var(--background-modifier-hover);
+}
+
+.hearth-calc-key.is-op {
+	color: var(--interactive-accent);
+	font-weight: 600;
+}
+
+.hearth-calc-key.is-fn {
+	font-size: 0.82rem;
+	color: var(--text-muted);
+}
+
+.hearth-calc-key.is-eq {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+	font-weight: 700;
+}
+
+.hearth-calc-key.is-eq:hover {
+	background: var(--interactive-accent-hover);
 }
 
 /* Links / launchpad */
@@ -1423,6 +1656,54 @@
 	display: none;
 }
 
+/* ---- Mobile hard stop (keep content above the control bar) ----------- */
+
+/* On mobile, Obsidian's own control bar overlays the bottom of the view.
+ * env(safe-area-inset-bottom) only covers the OS home indicator, not that bar,
+ * so absolutely-positioned content (the action bar) and the fit-to-page board
+ * could slide underneath it and hide buttons. Reserve a fixed hard stop on top
+ * of the safe-area inset so nothing can ever end up behind the control bar. */
+:root {
+	--hearth-mobile-safe-bottom: calc(env(safe-area-inset-bottom, 0px) + 64px);
+}
+
+/* Shrink the scroll/board area so fit-to-page squeezes cards into the space
+ * above the control bar instead of clipping the bottom row behind it. */
+.is-mobile .hearth-scroll {
+	padding-bottom: var(--hearth-mobile-safe-bottom);
+}
+
+/* Lift the pinned action bar clear of the control bar. `bottom` (not padding)
+ * because the bar is absolutely positioned, so padding-bottom wouldn't move it
+ * up off the scroll's inner edge. */
+.is-mobile .hearth-mobile-actions {
+	bottom: var(--hearth-mobile-safe-bottom);
+	padding-bottom: 4px;
+}
+
+/* ---- Mobile search focus (keyboard up) ------------------------------- */
+
+/* While the search field is focused on mobile (keyboard up), hide the action
+ * bar entirely so it can't slide over the search field, and anchor the search
+ * to the top so the results list stays above the keyboard instead of behind it.
+ * Set on focus from search.ts, so it's reliable even when the viewport-size
+ * keyboard heuristic doesn't fire. */
+.hearth-view.hearth-search-active .hearth-mobile-actions {
+	display: none;
+}
+
+.hearth-view.hearth-search-active .hearth-scroll,
+.hearth-view.hearth-kbd-open .hearth-scroll {
+	justify-content: flex-start;
+	/* Let the field/results scroll into the visible area above the keyboard. */
+	overflow-y: auto;
+}
+
+.hearth-view.hearth-search-active .hearth-inner,
+.hearth-view.hearth-kbd-open .hearth-inner {
+	justify-content: flex-start;
+}
+
 /* ---- Empty board (no cards): centre the search like a launcher ------ */
 
 /* Make the scroll a flex column so the inner can reliably fill its height. */
@@ -1506,6 +1787,18 @@
 .hearth-card.merge-bottom { border-bottom-color: transparent; }
 .hearth-card.merge-left { border-left-color: transparent; }
 .hearth-card.merge-right { border-right-color: transparent; }
+
+/* Drop the drop-shadow on any card that shares a full edge with a neighbour.
+ * The base shadow (0 2px 12px) is offset 2px downward, so a card stacked above
+ * another casts a soft dark band onto it — a visible horizontal seam right where
+ * the two should read as one tile (and a fainter one between side-by-side cards
+ * from the blur). Removing the lift on merged edges makes the pair flush. */
+.hearth-card.merge-top,
+.hearth-card.merge-bottom,
+.hearth-card.merge-left,
+.hearth-card.merge-right {
+	--hearth-card-lift: 0 0 0 0 transparent;
+}
 
 .hearth-card-body.has-bg {
 	background: var(--card-bg);

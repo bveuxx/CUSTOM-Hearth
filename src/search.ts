@@ -72,6 +72,36 @@ export class SearchSection {
 		this.inputEl.addEventListener("focus", () => this.update());
 		this.inputEl.addEventListener("keydown", (e) => this.onKeyDown(e));
 
+		// On mobile, focusing the field pops the on-screen keyboard. Flag it
+		// directly (don't rely only on the visualViewport size heuristic, which
+		// misfires on some devices) so CSS can hide the action bar and anchor the
+		// search to the top — otherwise the buttons slide over the field and the
+		// results list ends up behind the keyboard.
+		if (Platform.isMobile) {
+			const root = this.view.contentEl;
+			this.inputEl.addEventListener("focus", () => {
+				root.addClass("hearth-search-active");
+				// Pull the field to the top of the scroll area once the keyboard has
+				// animated up, so the results dropdown below it lands in the visible
+				// area above the keyboard instead of behind it. The delay lets the
+				// viewport settle first; the CSS anchor handles the rest immediately.
+				window.setTimeout(() => {
+					if (root.ownerDocument.activeElement === this.inputEl) {
+						this.inputEl.scrollIntoView({ block: "start" });
+					}
+				}, 300);
+			});
+			this.inputEl.addEventListener("blur", () => {
+				// Delay so a tap that lands on a result fires before the layout
+				// shifts back (blur precedes the result's click on the same tap).
+				window.setTimeout(() => {
+					if (root.ownerDocument.activeElement !== this.inputEl) {
+						root.removeClass("hearth-search-active");
+					}
+				}, 200);
+			});
+		}
+
 		return bar;
 	}
 

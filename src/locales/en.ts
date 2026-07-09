@@ -62,6 +62,8 @@ export const en = {
 	header: {
 		newNote: "New note",
 		newNoteAria: "Create new note",
+		searchOnline: "Search online",
+		searchOnlineAria: "Search the web for the current query",
 	},
 	search: {
 		placeholder: "Search the vault",
@@ -160,8 +162,16 @@ export const en = {
 
 	// ---- Plugin settings tab -------------------------------------------
 	settings: {
+		/** Shared across every slider/section control. */
+		resetSlider: "Reset to default",
+		/** Reset button next to text fields whose factory default is meaningful. */
+		resetField: "Reset to default",
+		collapseSection: "Collapse section",
+		expandSection: "Expand section",
 		appearance: {
 			heading: "Appearance",
+			headingDesc:
+				"Title, logo, search bar and overall content width.",
 			showTitle: "Show title",
 			showTitleDesc: "Display the big title/logo at the top.",
 			title: "Title",
@@ -174,11 +184,19 @@ export const en = {
 				"Also match text inside note bodies, not just names, tags and " +
 				"properties. Body matches appear after name matches with a snippet.",
 			showNewNoteButton: "Show “New note” button",
+			newNoteButtonMode: "Search-bar button",
+			newNoteButtonModeDesc:
+				"What the button beside the search bar does: create a new note, or " +
+				"search the web for the current search-field contents.",
+			newNoteButtonModeNewNote: "New note",
+			newNoteButtonModeSearchOnline: "Search online",
 			contentWidth: "Content width",
 			contentWidthDesc: "Maximum width of the home content, in pixels.",
 		},
 		background: {
 			heading: "Background",
+			headingDesc:
+				"The backdrop behind the home view, and how much it shows through.",
 			type: "Background type",
 			value: "Background value",
 			valueColorDesc: "A CSS color, e.g. #1e1e2e or rgb(30,30,46).",
@@ -197,6 +215,8 @@ export const en = {
 		},
 		behaviour: {
 			heading: "Behaviour",
+			headingDesc:
+				"When and where Hearth opens, and the phone/tablet search-only mode.",
 			openOnStartup: "Open on startup",
 			openOnStartupDesc: "Open the home view when the vault loads.",
 			replaceNewTabs: "Replace new tabs",
@@ -211,8 +231,8 @@ export const en = {
 			headingDesc:
 				"In Mobile mode (search only), this row of buttons replaces the " +
 				"“New note” button beside the search bar, appearing under the " +
-				"search field and filters instead. Any button can be pointed at " +
-				"any command.",
+				"search field and filters instead. Each button can run a command, " +
+				"open a note or file, or open a URL — just like a launchpad tile.",
 			showActionBar: "Show action bar",
 			labelPlaceholder: "Label",
 			iconPlaceholder: "Icon",
@@ -244,6 +264,8 @@ export const en = {
 		},
 		dashboard: {
 			heading: "Dashboard",
+			headingDesc:
+				"Sizing and transparency of the card grid. Cards themselves are added and configured on the board.",
 			fitToPage: "Fit to page",
 			fitToPageDesc: "Keep the dashboard to one screen instead of allowing scroll.",
 			compact: "Compact spacing",
@@ -301,6 +323,7 @@ export const en = {
 			stats: "Vault statistics",
 			search: "Query",
 			heatmap: "Activity heatmap",
+			calculator: "Calculator",
 		},
 		linkTypes: {
 			note: "Note",
@@ -463,6 +486,17 @@ export const en = {
 			customFormatDesc: "A moment.js format, e.g. ddd D MMM or YYYY/MM/DD.",
 			customFormatPlaceholder: "ddd D MMM",
 		},
+		calculator: {
+			angleUnit: "Angle unit",
+			angleUnitDesc: "Unit assumed by trig functions like sin and cos.",
+			degrees: "Degrees",
+			radians: "Radians",
+			keypad: "Keypad",
+			keypadDesc: "Show an on-screen keypad on the card: basic (digits and operations) or scientific (adds functions, powers and constants).",
+			keypadNone: "Hidden",
+			keypadBasic: "Basic",
+			keypadScientific: "Scientific",
+		},
 		colors: {
 			heading: "Colors",
 			headingDesc: "Accent and background tint for this card.",
@@ -519,6 +553,9 @@ export const en = {
 		},
 		text: {
 			placeholder: "Jot something down…",
+		},
+		calculator: {
+			placeholder: "2 + 2, 10 km to miles, 10 € to USD…",
 		},
 		daily: {
 			createToday: "Create today's note",
@@ -652,6 +689,7 @@ export const en = {
 		search: "Query",
 		heatmap: "Activity heatmap",
 		text: "Text / jot-down",
+		calculator: "Calculator",
 	},
 
 	// ---- File-type filter labels ---------------------------------------
