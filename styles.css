@@ -860,6 +860,18 @@
 	margin-top: 4px;
 }
 
+/* Clickable links inside task text (wikilinks / markdown links). */
+.hearth-task-link {
+	color: var(--link-color, var(--interactive-accent));
+	text-decoration: var(--link-decoration, underline);
+	cursor: pointer;
+}
+
+.hearth-task-link:hover {
+	color: var(--link-color-hover, var(--interactive-accent-hover));
+	text-decoration: var(--link-decoration-hover, underline);
+}
+
 .hearth-task-due {
 	flex-shrink: 0;
 	font-size: 0.78rem;

@@ -1,4 +1,4 @@
-import { App, Command, FuzzySuggestModal, TFile } from "obsidian";
+import { App, Command, FuzzySuggestModal, Modal, Setting, TFile } from "obsidian";
 import { t } from "./i18n";
 
 /**
@@ -58,5 +58,62 @@ export class CommandPickerModal extends FuzzySuggestModal<Command> {
 
 	onChooseItem(command: Command): void {
 		this.onChoose(command);
+	}
+}
+
+/**
+ * A small modal to edit a Kanban card's Tasks-plugin metadata: a due date and a
+ * priority. Pre-filled from the card's current values; submitting reports the
+ * chosen due (YYYY-MM-DD or "") and priority ("high"/"medium"/"low" or "").
+ */
+export class TaskMetadataModal extends Modal {
+	private due: string;
+	private priority: string;
+	private onSubmit: (due: string, priority: string) => void;
+
+	constructor(
+		app: App,
+		due: string,
+		priority: string,
+		onSubmit: (due: string, priority: string) => void,
+	) {
+		super(app);
+		this.due = due;
+		this.priority = priority;
+		this.onSubmit = onSubmit;
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.createEl("h3", { text: t().cards.tasks.editMetadata });
+
+		new Setting(contentEl).setName(t().cards.tasks.dueDate).addText((txt) => {
+			txt.inputEl.type = "date";
+			txt.setValue(this.due).onChange((v) => (this.due = v));
+		});
+
+		new Setting(contentEl).setName(t().cards.tasks.priority).addDropdown((d) => {
+			d.addOption("", t().cards.tasks.priorityNone);
+			d.addOption("high", t().cards.tasks.priorityHigh);
+			d.addOption("medium", t().cards.tasks.priorityMedium);
+			d.addOption("low", t().cards.tasks.priorityLow);
+			d.setValue(this.priority).onChange((v) => (this.priority = v));
+		});
+
+		new Setting(contentEl)
+			.addButton((b) =>
+				b
+					.setButtonText(t().cards.tasks.save)
+					.setCta()
+					.onClick(() => {
+						this.onSubmit(this.due.trim(), this.priority);
+						this.close();
+					}),
+			)
+			.addButton((b) => b.setButtonText(t().cards.tasks.cancel).onClick(() => this.close()));
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
 	}
 }

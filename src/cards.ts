@@ -18,6 +18,7 @@ import { evaluate as evaluateCalc } from "./calculator";
 import { cachedRates, loadRates } from "./currency";
 import { EXCALIDRAW_PLUGIN_ID, iconForFile, isExcalidraw } from "./filetypes";
 import { QueryHit, runQuery, searchFileContents } from "./query";
+import { TaskMetadataModal } from "./pickers";
 import { makeClickable } from "./ui";
 import { parseNaturalDate, formatRelativeDate } from "./dates";
 import { t } from "./i18n";
@@ -2205,16 +2206,25 @@ function priorityLevel(priority: string): "high" | "medium" | "low" | "other" {
 	return "other";
 }
 
+/** A readable label for a priority value: a raw word (e.g. TaskNotes' "high")
+ * is shown as-is, but an emoji priority (⏫/🔼/🔽) is mapped to its level word so
+ * the list doesn't show a bare emoji. */
+function priorityDisplayLabel(priority: string): string {
+	if (/[a-z0-9]/i.test(priority)) return priority;
+	const level = priorityLevel(priority);
+	return level === "other" ? priority : level; // CSS capitalizes the word
+}
+
 /** A small colored dot showing a task's priority. With `dotOnly` (used by
- * Kanban cards, whose priority is an emoji rather than a word) it renders just
- * the coloured dot inline, with the raw value in the tooltip; otherwise it also
- * shows the value as a label. */
+ * Kanban board cards to keep them compact) it renders just the coloured dot
+ * inline, with the value in the tooltip; otherwise it also shows a readable
+ * label beside the dot. */
 function renderPriority(parent: HTMLElement, priority: string, dotOnly = false): void {
 	const chip = parent.createDiv(`hearth-task-priority is-${priorityLevel(priority)}`);
 	if (dotOnly) chip.addClass("is-dot-only");
 	chip.createDiv("hearth-task-priority-dot");
-	if (!dotOnly) chip.createSpan({ cls: "hearth-task-priority-label", text: priority });
-	chip.setAttribute("title", `Priority: ${priority}`);
+	if (!dotOnly) chip.createSpan({ cls: "hearth-task-priority-label", text: priorityDisplayLabel(priority) });
+	chip.setAttribute("title", `Priority: ${priorityDisplayLabel(priority)}`);
 }
 
 /** Sort tasks by: due date → scheduled date → priority → created date.
@@ -2301,11 +2311,12 @@ async function loadAndRenderTasks(
 
 	const listEl = container.createDiv("hearth-list hearth-tasks");
 	const today: string = moment().format("YYYY-MM-DD");
-	for (const hit of list) renderTaskRow(view, listEl, hit, today, refresh);
+	for (const hit of list) renderTaskRow(view, cfg, listEl, hit, today, refresh);
 }
 
 function renderTaskRow(
 	view: HomeView,
+	cfg: TasksConfig,
 	listEl: HTMLElement,
 	hit: TaskHit,
 	today: string,
@@ -2336,12 +2347,13 @@ function renderTaskRow(
 		row.createDiv({ cls: "hearth-task-status", text: hit.status });
 	}
 
-	row.createDiv({ cls: "hearth-list-label hearth-task-text", text: hit.text || hit.file.basename });
+	const label = row.createDiv({ cls: "hearth-list-label hearth-task-text" });
+	fillTaskText(view, label, hit.text || hit.file.basename, hit.file.path);
 	// Kanban cards show the board column they belong to as a small badge.
 	if (hit.boardColumn) row.createDiv({ cls: "hearth-task-status hearth-task-column", text: hit.boardColumn });
-	// Kanban priorities are emoji, so show just the coloured dot; TaskNotes
-	// priorities are words, so keep the labelled chip.
-	if (hit.priority) renderPriority(row, hit.priority, !!hit.boardColumn);
+	// The list has room for a labelled priority chip (a bare dot is easy to
+	// miss); board cards stay dot-only for compactness.
+	if (hit.priority) renderPriority(row, hit.priority);
 	const dueLabel = formatDueLabel(hit);
 	if (dueLabel) {
 		const due = row.createDiv({ cls: "hearth-task-due", text: dueLabel });
@@ -2356,8 +2368,8 @@ function renderTaskRow(
 	const open = () => void openTask(view, hit);
 	row.addEventListener("click", open);
 	makeClickable(row, open, hit.text || hit.file.basename);
-	// Kanban list rows get the same right-click "convert to note" as board cards.
-	if (hit.boardColumn && hit.line >= 0) attachKanbanCardMenu(view, hit, row, refresh);
+	// Kanban list rows get the same right-click menu as board cards.
+	if (hit.boardColumn && hit.line >= 0) attachKanbanCardMenu(view, cfg, hit, row, refresh);
 }
 
 /** A Kanban board: tasks grouped into status columns, draggable between them.
@@ -2646,7 +2658,8 @@ function renderTaskKanban(
 				});
 			});
 		}
-		textRow.createDiv({ cls: "hearth-kanban-card-text", text: hit.text || hit.file.basename });
+		const cardText = textRow.createDiv({ cls: "hearth-kanban-card-text" });
+		fillTaskText(view, cardText, hit.text || hit.file.basename, hit.file.path);
 			// Kanban priority shows as a single coloured dot inline with the title;
 			// TaskNotes keeps its labelled chip in the meta row below.
 			if (source === "kanban" && hit.priority) renderPriority(textRow, hit.priority, true);
@@ -2665,9 +2678,9 @@ function renderTaskKanban(
 			const open = () => void openTask(view, hit);
 			cardEl.addEventListener("click", open);
 			makeClickable(cardEl, open, hit.text || hit.file.basename);
-			// Kanban source: right-click to convert the card into its own note
-			// (like the Kanban plugin), replacing the card text with a link.
-			if (source === "kanban" && hit.line >= 0) attachKanbanCardMenu(view, hit, cardEl, refresh);
+			// Kanban source: right-click menu (edit metadata, convert to note,
+			// delete) on the card.
+			if (source === "kanban" && hit.line >= 0) attachKanbanCardMenu(view, cfg, hit, cardEl, refresh);
 		}
 
 		// Kanban source: a per-column "add card" affordance that appends a new
@@ -3095,10 +3108,12 @@ async function markCardsDone(view: HomeView, hits: TaskHit[]): Promise<void> {
 	if (changed) await view.app.vault.modify(file, lines.join("\n"));
 }
 
-/** Attach a right-click menu to a Kanban card element offering "Convert to
- * note" (mirrors the Kanban plugin). */
+/** Attach a right-click menu to a Kanban card element: edit its due/priority
+ * (extended mode), convert it into its own note (mirrors the Kanban plugin),
+ * or delete it from the board. */
 function attachKanbanCardMenu(
 	view: HomeView,
+	cfg: TasksConfig,
 	hit: TaskHit,
 	el: HTMLElement,
 	refresh: () => void,
@@ -3107,14 +3122,127 @@ function attachKanbanCardMenu(
 		e.preventDefault();
 		e.stopPropagation();
 		const menu = new Menu();
+		if (cfg.kanbanExtended) {
+			menu.addItem((item) =>
+				item
+					.setTitle(t().cards.tasks.editMetadata)
+					.setIcon("calendar-clock")
+					.onClick(() => {
+						const level = hit.priority ? priorityLevel(hit.priority) : "other";
+						new TaskMetadataModal(
+							view.app,
+							hit.due ?? "",
+							level === "other" ? "" : level,
+							(due, priority) => {
+								void setKanbanCardMetadata(view, hit, due, priority).then((ok) => {
+									if (!ok) new Notice(t().notices.taskChangedOnDisk);
+									refresh();
+								});
+							},
+						).open();
+					}),
+			);
+		}
 		menu.addItem((item) =>
 			item
 				.setTitle(t().cards.tasks.convertToNote)
 				.setIcon("file-output")
 				.onClick(() => void convertKanbanCardToNote(view, hit).then(refresh)),
 		);
+		menu.addItem((item) =>
+			item
+				.setTitle(t().cards.tasks.deleteCard)
+				.setIcon("trash-2")
+				.onClick(() => {
+					void deleteKanbanCard(view, hit).then((ok) => {
+						if (!ok) new Notice(t().notices.taskChangedOnDisk);
+						refresh();
+					});
+				}),
+		);
 		menu.showAtMouseEvent(e);
 	});
+}
+
+/** Render task text into `el`, turning `[[wikilinks]]` and `[label](url)` into
+ * clickable links (the rest stays plain text). Link clicks open the target and
+ * stop propagation so they don't also trigger the card's open-on-click. */
+function fillTaskText(view: HomeView, el: HTMLElement, text: string, sourcePath: string): void {
+	const re = /\[\[([^\]]+?)\]\]|\[([^\]]+?)\]\(([^)]+?)\)/g;
+	let last = 0;
+	let m: RegExpExecArray | null;
+	while ((m = re.exec(text)) !== null) {
+		if (m.index > last) el.appendText(text.slice(last, m.index));
+		if (m[1] != null) {
+			const [target, alias] = m[1].split("|");
+			const link = el.createSpan({ cls: "hearth-task-link", text: (alias ?? target).trim() });
+			link.addEventListener("click", (ev) => {
+				ev.stopPropagation();
+				ev.preventDefault();
+				void view.app.workspace.openLinkText(target.trim(), sourcePath, false);
+			});
+		} else {
+			const link = el.createSpan({ cls: "hearth-task-link", text: m[2] });
+			const url = m[3];
+			link.addEventListener("click", (ev) => {
+				ev.stopPropagation();
+				ev.preventDefault();
+				if (/^https?:\/\//i.test(url)) window.open(url, "_blank");
+				else void view.app.workspace.openLinkText(url, sourcePath, false);
+			});
+		}
+		last = re.lastIndex;
+	}
+	if (last < text.length) el.appendText(text.slice(last));
+	if (!el.childNodes.length) el.appendText(text);
+}
+
+/** Set (or clear) a Kanban card's due date and priority, rewriting the card
+ * line's Tasks-plugin metadata in place while preserving its text and any link.
+ * `due` is "" to clear; `priority` is "high"/"medium"/"low" or "" to clear. */
+async function setKanbanCardMetadata(
+	view: HomeView,
+	hit: TaskHit,
+	due: string,
+	priority: string,
+): Promise<boolean> {
+	const content = await view.app.vault.read(hit.file);
+	const lines = content.split("\n");
+	const cur = lines[hit.line];
+	const m = cur != null ? KANBAN_CARD_RE.exec(cur) : null;
+	if (!m || stripTaskMetadata(m[2]) !== stripTaskMetadata(hit.text)) return false;
+	// Strip any existing due field and priority emoji from the card text, then
+	// re-append the new markers.
+	const dueRe = new RegExp(`📅[^\\n\\r${TASK_EMOJI_CLASS}]*`, "gu");
+	const base = m[2].replace(dueRe, "").replace(/[🔺⏫🔼🔽⏬]/gu, "").replace(/\s+/g, " ").trim();
+	const prefix = cur.slice(0, cur.length - m[2].length);
+	lines[hit.line] = `${prefix}${base}${buildMetadataSuffix(due, priority)}`.trimEnd();
+	await view.app.vault.modify(hit.file, lines.join("\n"));
+	return true;
+}
+
+/** Delete a Kanban card (its checkbox line plus any nested continuation lines,
+ * and one trailing blank line) from the board note. Bails if the stored line no
+ * longer matches the card. */
+async function deleteKanbanCard(view: HomeView, hit: TaskHit): Promise<boolean> {
+	const content = await view.app.vault.read(hit.file);
+	const lines = content.split("\n");
+	const cur = lines[hit.line];
+	const m = cur != null ? KANBAN_CARD_RE.exec(cur) : null;
+	if (!m || stripTaskMetadata(m[2]) !== stripTaskMetadata(hit.text)) return false;
+	const indent = (/^(\s*)/.exec(cur)?.[1] ?? "").length;
+	let end = hit.line + 1;
+	while (end < lines.length) {
+		const l = lines[end];
+		if (l.trim() === "") break;
+		if ((/^(\s*)/.exec(l)?.[1] ?? "").length <= indent) break;
+		end++;
+	}
+	let removeEnd = end;
+	if (lines[removeEnd]?.trim() === "") removeEnd++;
+	lines.splice(hit.line, removeEnd - hit.line);
+	await view.app.vault.modify(hit.file, lines.join("\n"));
+	return true;
 }
 
 /** Convert a Kanban card into its own note (like the Kanban plugin): create a

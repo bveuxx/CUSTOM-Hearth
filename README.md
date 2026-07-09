@@ -125,19 +125,22 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   heading becomes a column and the checkbox items beneath it become cards.
   Read it either as a **list** or as Hearth's own **Kanban board**: drag cards
   between the board's real columns (Hearth rewrites the note, moving the item
-  under the target heading), tick a card to complete it in place, add new
-  cards straight into a column, and **right-click a card to convert it into its
-  own note** (like the Kanban plugin) — the card becomes a link. A column's
-  **check icon** marks it a *done column*, so cards completed automatically when
-  dragged or added there (and the ones already in it complete at once). Turn on
-  **Tasks-plugin metadata** to parse the
+  under the target heading), tick a card to complete it in place, and add new
+  cards straight into a column. Card text renders **`[[wikilinks]]` and
+  Markdown links** as clickable links. **Right-click a card** (on the board or
+  in the list) to **edit its due date & priority**, **convert it into its own
+  note** (like the Kanban plugin — the card becomes a link), or **delete** it.
+  A column's **check icon** marks it a *done column*, so cards complete
+  automatically when dragged or added there (and the ones already in it
+  complete at once). Turn on **Tasks-plugin metadata** to parse the
   [obsidian-tasks](https://github.com/obsidian-tasks-group/obsidian-tasks)
   emoji fields inside each card (📅 due, ⏫/🔼/🔽 priority, 🔁 recurrence) so due
-  dates and priorities show (priority as a single coloured dot beside the
-  title) and sort; in this mode the **add-card form** gains due-date and
-  priority pickers that write those markers straight onto the card. Leave it
-  off to read the board as-is. Everything is written back in Kanban's own
-  format, so the board stays fully editable in the Kanban plugin.
+  dates and priorities show (priority as a coloured dot on board cards, a
+  labelled chip in the list) and sort; in this mode the **add-card form** and
+  the right-click editor both let you set due date and priority, written as
+  those markers onto the card. Leave it off to read the board as-is.
+  Everything is written back in Kanban's own format, so the board stays fully
+  editable in the Kanban plugin.
 - **Mini calendar** — a month grid resolved from the core Daily notes plugin's
   format/folder, with a dot on days that already have a note. Optional ISO week
   numbers and an edit-count heatmap tint; click an empty day to create that
@@ -306,6 +309,12 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 [`src/locales/README.md`](src/locales/README.md) for the walkthrough.
 
 ## Shipped:
+
+> **v1.6.8.5-beta** — Kanban board fixes: card text now renders **clickable
+> links** (`[[wikilinks]]` and Markdown links); right-click a card to **edit
+> its due date & priority** on existing cards (not just when adding); the
+> **list view shows priority** as a labelled chip; and cards can be **deleted**
+> from the right-click menu.
 
 > **v1.6.8.4-beta** — Kanban board refinements: right-click a card to
 > **convert it into its own note** (replacing the card with a link, like the
