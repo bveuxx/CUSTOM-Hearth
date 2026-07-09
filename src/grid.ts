@@ -394,7 +394,10 @@ export function enableDragResize(
 		e.preventDefault();
 		e.stopPropagation();
 		const boardWidth = gridEl.clientWidth;
-		const boardHeight = gridEl.clientHeight;
+		// Fit-to-page clamps cards to the visible board; scroll mode lets the board
+		// grow downward without limit, so a card can be dragged/resized as far down
+		// as the pointer goes (the board height follows via updateBoardHeight).
+		const boardHeight = gridEl.closest(".hearth-fit") ? gridEl.clientHeight : Infinity;
 		const { xTargets, yTargets } = collectTargets(layout, card, boardWidth);
 		ctx = {
 			pointerId: e.pointerId,
