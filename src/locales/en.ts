@@ -491,6 +491,11 @@ export const en = {
 			angleUnitDesc: "Unit assumed by trig functions like sin and cos.",
 			degrees: "Degrees",
 			radians: "Radians",
+			keypad: "Keypad",
+			keypadDesc: "Show an on-screen keypad. Toggle tiers with the keypad button on the card.",
+			keypadNone: "Hidden",
+			keypadBasic: "Basic",
+			keypadScientific: "Scientific",
 			history: "History",
 			historyDesc: "Previously evaluated queries kept on this card.",
 			clearHistory: "Clear history",
@@ -553,8 +558,9 @@ export const en = {
 			placeholder: "Jot something down…",
 		},
 		calculator: {
-			placeholder: "2 + 2, 10 km to miles, 20% of 150…",
+			placeholder: "2 + 2, 10 km to miles, 10 € to USD…",
 			reuse: "Click to reuse",
+			keypadToggle: "Toggle keypad (hidden / basic / scientific)",
 		},
 		daily: {
 			createToday: "Create today's note",

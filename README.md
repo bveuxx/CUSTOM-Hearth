@@ -141,9 +141,13 @@ toolbar; configure each one from the card itself (title, content, colors, size).
 - **Calculator** — a Wolfram-Alpha-style input box that evaluates as you type:
   arithmetic and math functions (`sqrt`, `sin`, `log`, `5!`, `2^10`…), **unit
   conversions** across length, mass, temperature, time, volume, area, speed and
-  data (`10 km to miles`, `100 f in c`, `1 gb to mb`), and **plain-language**
-  queries (`20% of 150`, `5 squared`, `3 x 4`). Press **Enter** to keep a
-  result in the card's history; everything is computed locally (no network).
+  data (`10 km to miles`, `100 f in c`, `1 gb to mb`), **currency** conversions
+  using live ECB rates (`10 € to USD`, `$5 in czk`), and **plain-language**
+  queries (`20% of 150`, `5 squared`, `3 x 4`). An optional on-screen **keypad**
+  toggles between hidden, basic and scientific tiers. Press **Enter** to keep a
+  result in the card's history. Everything except currency is computed locally;
+  exchange rates are fetched once and cached, and currency degrades gracefully
+  offline.
 
 ### Live content
 
