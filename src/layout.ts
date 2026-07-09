@@ -280,6 +280,7 @@ function sanitizeHeatmap(r: Record<string, unknown>): HeatmapConfig {
 function sanitizeCalculator(r: Record<string, unknown>): CalculatorConfig {
 	const cfg: CalculatorConfig = {};
 	if (r.angleUnit === "deg" || r.angleUnit === "rad") cfg.angleUnit = r.angleUnit;
+	if (r.keypad === "basic" || r.keypad === "scientific" || r.keypad === "none") cfg.keypad = r.keypad;
 	const lastInput = str(r.lastInput);
 	if (lastInput !== undefined) cfg.lastInput = lastInput;
 	if (Array.isArray(r.history)) {

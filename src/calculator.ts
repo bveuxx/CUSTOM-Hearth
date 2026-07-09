@@ -6,16 +6,32 @@
  *   1. Arithmetic:        `2 + 2`, `3 * (4 + 5)`, `2^10`, `sqrt(16)`, `sin(30)`
  *   2. Unit conversions:  `10 km to miles`, `100 f in c`, `1 hour in minutes`
  *   3. Plain language:    `20% of 150`, `3 plus 4`, `10 squared`, `2 x 3`
+ *   4. Currency:          `10 € to USD`, `$5 in czk` (needs exchange rates)
  *
- * Everything is computed locally — no network, no dependencies — so it works
- * offline and on mobile just like the rest of Hearth.
+ * Everything except currency is computed locally — no network, no dependencies.
+ * Currency conversions use exchange rates the caller supplies (fetched and
+ * cached by src/currency.ts); without them a currency query reports that rates
+ * are unavailable rather than guessing.
  */
+import { CURRENCY_CODES, CURRENCY_SYMBOLS } from "./currency";
 
 /** Options that tune how an expression is evaluated. */
 export interface CalcOptions {
 	/** Angle unit assumed for trig functions and their inverses. Default "deg"
 	 * (so `sin(30)` is 0.5, which is what most casual users expect). */
 	angleUnit?: "deg" | "rad";
+	/** Exchange rates for currency conversions: each ISO code (lowercase) mapped
+	 * to its units per one unit of some shared base, including that base = 1.
+	 * Omitted when no rates are available (offline / not yet fetched). */
+	rates?: Record<string, number>;
+}
+
+const CURRENCY_SET = new Set(CURRENCY_CODES);
+
+/** Resolve a raw token to an ISO currency code, or null if it isn't one. */
+function lookupCurrency(raw: string): string | null {
+	const key = raw.trim().toLowerCase();
+	return CURRENCY_SET.has(key) ? key : null;
 }
 
 /** A successful evaluation. */
@@ -467,6 +483,22 @@ function normalizeExpression(input: string): string {
 	return s.trim();
 }
 
+/** Rewrite currency signs to ISO codes so "$10" / "10€" become "10 usd" /
+ * "10 eur" — a form the conversion parser understands. Runs before conversion
+ * detection so both prefix and suffix symbols, and a bare target sign, resolve. */
+function normalizeCurrencySymbols(input: string): string {
+	const signs = Object.keys(CURRENCY_SYMBOLS).join("");
+	const cls = `[${signs.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}]`;
+	let s = input;
+	// Sign directly before a number: "$10" → "10 usd".
+	s = s.replace(new RegExp(`(${cls})\\s*(\\d[\\d.,]*)`, "g"), (_m, sign: string, num: string) => `${num} ${CURRENCY_SYMBOLS[sign]} `);
+	// Sign directly after a number: "10€" → "10 eur".
+	s = s.replace(new RegExp(`(\\d[\\d.,]*)\\s*(${cls})`, "g"), (_m, num: string, sign: string) => `${num} ${CURRENCY_SYMBOLS[sign]} `);
+	// Any remaining bare sign (e.g. a conversion target "… to £").
+	s = s.replace(new RegExp(cls, "g"), (sign) => ` ${CURRENCY_SYMBOLS[sign]} `);
+	return s.replace(/\s+/g, " ").trim();
+}
+
 /** Strip conversational lead-ins/trailers ("what is …", "= "). */
 function stripFiller(input: string): string {
 	let s = input.trim();
@@ -509,7 +541,8 @@ function tryConvert(input: string, opts: CalcOptions): CalcResult | null {
 
 	const targetLinear = lookupUnit(targetRaw);
 	const targetTemp = lookupTemp(targetRaw);
-	if (!targetLinear && !targetTemp) return null; // "to" wasn't a conversion.
+	const targetCurrency = lookupCurrency(targetRaw);
+	if (!targetLinear && !targetTemp && !targetCurrency) return null; // not a conversion.
 
 	// Split the left side into a numeric expression and its trailing source unit.
 	const src = extractTrailingUnit(leftRaw);
@@ -520,6 +553,30 @@ function tryConvert(input: string, opts: CalcOptions): CalcResult | null {
 		value = evaluateExpression(src.expr, opts);
 	} catch {
 		return null;
+	}
+
+	// Currency conversions need externally-supplied exchange rates.
+	if (targetCurrency || src.currency) {
+		if (!targetCurrency || !src.currency) {
+			return { ok: false, error: "Can't convert between currency and other units" };
+		}
+		const rates = opts.rates;
+		if (!rates) return { ok: false, error: "Exchange rates unavailable" };
+		const rFrom = rates[src.currency];
+		const rTo = rates[targetCurrency];
+		if (!rFrom || !rTo) {
+			const missing = (!rFrom ? src.currency : targetCurrency).toUpperCase();
+			return { ok: false, error: `No exchange rate for ${missing}` };
+		}
+		// Rates are per shared base, so cross-convert through the base.
+		const out = (value / rFrom) * rTo;
+		const rounded = Math.round(out * 100) / 100;
+		return {
+			ok: true,
+			value: out,
+			formatted: `${formatNumber(rounded)} ${targetCurrency.toUpperCase()}`,
+			note: `${formatNumber(value)} ${src.currency.toUpperCase()} → ${targetCurrency.toUpperCase()}`,
+		};
 	}
 
 	// Temperature conversions are affine and stay within the temperature domain.
@@ -554,7 +611,7 @@ function tryConvert(input: string, opts: CalcOptions): CalcResult | null {
 /** Pull a trailing unit token off an expression like "10 km" or "5 * 2 kg". */
 function extractTrailingUnit(
 	leftRaw: string,
-): { expr: string; linear?: LinearUnit; temp?: string } | null {
+): { expr: string; linear?: LinearUnit; temp?: string; currency?: string } | null {
 	const trimmed = leftRaw.trim();
 	// Match a trailing unit token as the candidate unit. The token must start
 	// with a letter/symbol (so a bare number isn't mistaken for a unit) but may
@@ -569,6 +626,8 @@ function extractTrailingUnit(
 	if (linear) return { expr: exprPart, linear };
 	const temp = lookupTemp(unitRaw);
 	if (temp) return { expr: exprPart, temp };
+	const currency = lookupCurrency(unitRaw);
+	if (currency) return { expr: exprPart, currency };
 	return null;
 }
 
@@ -586,7 +645,7 @@ function evaluateExpression(input: string, opts: CalcOptions): number {
  * This is the single entry point the calculator card calls.
  */
 export function evaluate(rawInput: string, opts: CalcOptions = {}): CalcResult {
-	const input = stripFiller(rawInput);
+	const input = stripFiller(normalizeCurrencySymbols(rawInput));
 	if (!input) return { ok: false, error: "" };
 
 	// Unit conversion first (it recognises the "… to/in/as unit" shape).

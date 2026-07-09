@@ -101,10 +101,17 @@ export interface CalcHistoryEntry {
 	result: string;
 }
 
+/** On-screen keypad tier for a calculator card. "none" hides the pad (just the
+ * text field); "basic" is digits + arithmetic; "scientific" adds functions,
+ * constants and powers. */
+export type CalculatorKeypad = "none" | "basic" | "scientific";
+
 /** Per-card configuration for a "calculator" card. */
 export interface CalculatorConfig {
 	/** Angle unit assumed by trig functions. Default "deg". */
 	angleUnit?: "deg" | "rad";
+	/** On-screen keypad tier. Default "none". */
+	keypad?: CalculatorKeypad;
 	/** The last query typed, restored when the board reloads. */
 	lastInput?: string;
 	/** Recently evaluated queries, newest first (capped when stored). */

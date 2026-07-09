@@ -958,8 +958,15 @@
 	overflow: hidden;
 }
 
+.hearth-calc-top {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
 .hearth-calc-input {
-	width: 100%;
+	flex: 1 1 auto;
+	min-width: 0;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: var(--radius-m);
 	background: var(--background-primary);
@@ -972,6 +979,59 @@
 
 .hearth-calc-input:focus {
 	border-color: var(--interactive-accent);
+}
+
+.hearth-calc-keypad-toggle {
+	flex: 0 0 auto;
+	color: var(--text-muted);
+}
+
+/* On-screen keypad */
+.hearth-calc-keys {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 4px;
+}
+
+.hearth-calc-keys.is-hidden {
+	display: none;
+}
+
+.hearth-calc-key {
+	padding: 8px 0;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-family: var(--font-monospace);
+	font-size: 0.95rem;
+	cursor: pointer;
+	transition: background 0.1s ease;
+}
+
+.hearth-calc-key:hover {
+	background: var(--background-modifier-hover);
+}
+
+.hearth-calc-key.is-op {
+	color: var(--interactive-accent);
+	font-weight: 600;
+}
+
+.hearth-calc-key.is-fn {
+	font-size: 0.82rem;
+	color: var(--text-muted);
+}
+
+.hearth-calc-key.is-eq {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: var(--interactive-accent);
+	font-weight: 700;
+}
+
+.hearth-calc-key.is-eq:hover {
+	background: var(--interactive-accent-hover);
 }
 
 .hearth-calc-result {
