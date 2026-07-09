@@ -114,15 +114,23 @@ export interface ClockConfig {
 }
 
 /** A single button in the mobile action bar (shown under the search bar and
- * filters in Mobile mode). `commandId` is any registered Obsidian command id
- * — Hearth's own defaults (new note, new drawing, record voice, open daily
- * note) are registered as ordinary commands too, so any button can be
- * replaced with any command from any plugin. */
+ * filters in Mobile mode). Like a launchpad tile, a button can run an Obsidian
+ * command, open a vault note/file, or open a URL — chosen by `type`. Hearth's
+ * own defaults (new note, new drawing, record voice, open daily note) are
+ * registered as ordinary commands too, so any button can be replaced with any
+ * command from any plugin. */
 export interface MobileActionButton {
 	id: string;
 	label: string;
 	icon: string;
-	commandId: string;
+	/** What the button does. Defaults to "command" when absent (older buttons
+	 * stored only `commandId`). */
+	type?: "command" | "note" | "url";
+	/** Command id, vault path, or URL depending on `type`. */
+	target?: string;
+	/** @deprecated Legacy command id from before `type`/`target` existed. Still
+	 * read as a fallback when `target` is unset so old buttons keep working. */
+	commandId?: string;
 }
 
 /** A single tile inside a "links" (launchpad) card. */
@@ -468,10 +476,10 @@ function starterCards(): DashboardCard[] {
  * exactly like swapping in any other plugin's command. */
 export function defaultMobileActionButtons(): MobileActionButton[] {
 	return [
-		{ id: "action-new-note", label: "New note", icon: "plus", commandId: "hearth:new-note" },
-		{ id: "action-new-drawing", label: "New drawing", icon: "pen-tool", commandId: "hearth:new-drawing" },
-		{ id: "action-record-voice", label: "Record voice", icon: "mic", commandId: "hearth:record-voice" },
-		{ id: "action-daily-note", label: "Daily note", icon: "calendar", commandId: "hearth:open-daily-note" },
+		{ id: "action-new-note", label: "New note", icon: "plus", type: "command", target: "hearth:new-note" },
+		{ id: "action-new-drawing", label: "New drawing", icon: "pen-tool", type: "command", target: "hearth:new-drawing" },
+		{ id: "action-record-voice", label: "Record voice", icon: "mic", type: "command", target: "hearth:record-voice" },
+		{ id: "action-daily-note", label: "Daily note", icon: "calendar", type: "command", target: "hearth:open-daily-note" },
 	];
 }
 

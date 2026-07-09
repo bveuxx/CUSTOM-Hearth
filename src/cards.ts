@@ -277,6 +277,50 @@ function stripFrontmatter(text: string): string {
 	return match ? text.slice(match[0].length) : text;
 }
 
+/**
+ * Make links inside rendered Markdown clickable. Obsidian only resolves link
+ * clicks inside a real Markdown view; anchors rendered into a custom container
+ * (like a dashboard embed) do nothing on their own. A delegated click listener
+ * on the stable host handles internal (wiki) links, external URLs and tags —
+ * and keeps working as the content node is re-rendered underneath it.
+ */
+function wireMarkdownLinks(view: HomeView, host: HTMLElement, sourcePath: string): void {
+	host.addEventListener("click", (evt) => {
+		const anchor = (evt.target as HTMLElement | null)?.closest("a");
+		if (!(anchor instanceof HTMLAnchorElement) || !host.contains(anchor)) return;
+
+		if (anchor.classList.contains("external-link")) {
+			const href = anchor.getAttribute("href");
+			if (href) {
+				evt.preventDefault();
+				window.open(href, "_blank");
+			}
+			return;
+		}
+
+		if (anchor.classList.contains("tag")) {
+			const tag = anchor.getAttribute("href");
+			if (tag) {
+				evt.preventDefault();
+				const search = view.app.internalPlugins.getPluginById("global-search");
+				const instance = search?.instance as
+					| { openGlobalSearch?: (query: string) => void }
+					| undefined;
+				instance?.openGlobalSearch?.(`tag:${tag}`);
+			}
+			return;
+		}
+
+		if (anchor.classList.contains("internal-link")) {
+			const linktext = anchor.getAttribute("data-href") || anchor.getAttribute("href");
+			if (linktext) {
+				evt.preventDefault();
+				void view.app.workspace.openLinkText(linktext, sourcePath, true);
+			}
+		}
+	});
+}
+
 /** Render a Markdown file's real content (not a transclusion placeholder). */
 async function renderMarkdownFile(
 	view: HomeView,
@@ -286,6 +330,7 @@ async function renderMarkdownFile(
 ): Promise<void> {
 	const raw = await view.app.vault.cachedRead(file);
 	await MarkdownRenderer.render(view.app, stripFrontmatter(raw), host, file.path, component);
+	wireMarkdownLinks(view, host, file.path);
 }
 
 /**
@@ -304,6 +349,7 @@ function renderEditableEmbed(
 	body.addClass("is-jot-host");
 	const preview = wrap.createDiv("hearth-embed markdown-rendered hearth-jot-preview");
 	preview.setAttribute("title", t().cards.embed.editHint);
+	wireMarkdownLinks(view, preview, file.path);
 	const area = wrap.createEl("textarea", {
 		cls: "hearth-text hearth-embed-edit hearth-jot-edit",
 		attr: { placeholder: t().cards.embed.emptyNotePlaceholder },
@@ -1056,6 +1102,7 @@ function renderText(
 	body.addClass("is-jot-host");
 	const preview = wrap.createDiv("hearth-jot-preview markdown-rendered");
 	preview.setAttribute("title", t().cards.embed.editHint);
+	wireMarkdownLinks(view, preview, "");
 	const area = wrap.createEl("textarea", {
 		cls: "hearth-text hearth-jot-edit",
 		attr: { placeholder: t().cards.text.placeholder },
