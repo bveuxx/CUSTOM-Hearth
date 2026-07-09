@@ -183,6 +183,16 @@ export const en = {
 			searchContentsDesc:
 				"Also match text inside note bodies, not just names, tags and " +
 				"properties. Body matches appear after name matches with a snippet.",
+			searchEngine: "Search engine",
+			searchEngineDesc:
+				"Which engine powers the search bar. Omnisearch requires the " +
+				"Omnisearch community plugin to be installed and enabled.",
+			searchEngineBuiltin: "Hearth (built-in)",
+			searchEngineOmnisearch: "Omnisearch",
+			omnisearchMissing:
+				"Omnisearch isn’t installed or enabled. Install and enable it, " +
+				"then select it again.",
+			omnisearchInstallLink: "Open Omnisearch in Community plugins",
 			showNewNoteButton: "Show “New note” button",
 			newNoteButtonMode: "Search-bar button",
 			newNoteButtonModeDesc:

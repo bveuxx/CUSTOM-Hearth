@@ -2,9 +2,10 @@ import { App, Notice, PluginSettingTab, setIcon, Setting, SliderComponent, TextC
 import type HearthPlugin from "./main";
 import { FILE_TYPE_GROUPS, fileTypeLabel } from "./filetypes";
 import { CommandPickerModal } from "./pickers";
-import { BackgroundKind, DEFAULT_SETTINGS, defaultMobileActionButtons, MobileActionButton } from "./types";
+import { BackgroundKind, DEFAULT_SETTINGS, defaultMobileActionButtons, HomeSettings, MobileActionButton } from "./types";
 import { exportLayout, importLayout } from "./layout";
 import { confirmAction } from "./ui";
+import { isOmnisearchAvailable, OMNISEARCH_PLUGIN_ID } from "./omnisearch";
 import { t } from "./i18n";
 
 /** Keys of HomeSettings whose default lives in DEFAULT_SETTINGS as a number —
@@ -37,6 +38,22 @@ export class HomeSettingTab extends PluginSettingTab {
 
 	private async save(): Promise<void> {
 		await this.plugin.saveSettings();
+	}
+
+	/** Tell the user Omnisearch isn't available and offer a one-click jump to it
+	 * in Obsidian's Community-plugins browser (via the `show-plugin` URI). */
+	private promptInstallOmnisearch(): void {
+		const frag = document.createDocumentFragment();
+		frag.appendText(t().settings.appearance.omnisearchMissing + " ");
+		const link = frag.createEl("a", {
+			text: t().settings.appearance.omnisearchInstallLink,
+			href: `obsidian://show-plugin?id=${OMNISEARCH_PLUGIN_ID}`,
+		});
+		link.addEventListener("click", (e) => {
+			e.preventDefault();
+			window.open(link.href);
+		});
+		new Notice(frag, 10000);
 	}
 
 	display(): void {
@@ -270,6 +287,31 @@ export class HomeSettingTab extends PluginSettingTab {
 					await this.save();
 				}),
 			);
+
+		new Setting(containerEl)
+			.setName(t().settings.appearance.searchEngine)
+			.setDesc(t().settings.appearance.searchEngineDesc)
+			.addDropdown((d) => {
+				d.addOption("builtin", t().settings.appearance.searchEngineBuiltin)
+					.addOption("omnisearch", t().settings.appearance.searchEngineOmnisearch)
+					.setValue(s.searchEngine)
+					.onChange(async (v) => {
+						const engine = v as HomeSettings["searchEngine"];
+						// Guard the Omnisearch choice: if the plugin isn't there,
+						// prompt the user to install it and snap the dropdown back to
+						// the built-in engine rather than silently saving a mode that
+						// can't work.
+						if (engine === "omnisearch" && !isOmnisearchAvailable(this.plugin.app)) {
+							this.promptInstallOmnisearch();
+							d.setValue("builtin");
+							s.searchEngine = "builtin";
+							await this.save();
+							return;
+						}
+						s.searchEngine = engine;
+						await this.save();
+					});
+			});
 
 		new Setting(containerEl)
 			.setName(t().settings.appearance.showNewNoteButton)

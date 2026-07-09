@@ -1,7 +1,8 @@
 import { Command, Component, debounce, Platform, setIcon, TAbstractFile, TFile, TFolder } from "obsidian";
 import type { HomeView } from "./view";
 import { FILE_TYPE_GROUPS, FileTypeGroup, fileTypeLabel, groupForFile, iconForFile, OTHER_GROUP_ID } from "./filetypes";
-import { QueryHit, runQuery, searchFileContents } from "./query";
+import { QueryFilter, QueryHit, runQuery, searchFileContents } from "./query";
+import { isOmnisearchAvailable, searchWithOmnisearch } from "./omnisearch";
 import { t } from "./i18n";
 
 /** Recently opened-via-search files, kept in the vault's local storage (never
@@ -210,14 +211,26 @@ export class SearchSection {
 			return;
 		}
 
-		const hits = runQuery(this.view.app, query, {
-			filter: {
-				includeFolders: !this.activeFilter || this.activeFilter === "folders",
-				includeFiles: this.activeFilter !== "folders",
-				groupId: this.activeFilter && this.activeFilter !== "folders" ? this.activeFilter : null,
-			},
-			limit: MAX_RESULTS,
-		});
+		const filter: QueryFilter = {
+			includeFolders: !this.activeFilter || this.activeFilter === "folders",
+			includeFiles: this.activeFilter !== "folders",
+			groupId: this.activeFilter && this.activeFilter !== "folders" ? this.activeFilter : null,
+		};
+
+		// Omnisearch mode: hand plain queries to the Omnisearch plugin instead of
+		// the built-in engine. It only runs when the plugin is actually available;
+		// otherwise (and for tag/property syntax, which Omnisearch doesn't use) we
+		// fall through to the built-in search below.
+		if (
+			this.view.plugin.settings.searchEngine === "omnisearch" &&
+			query &&
+			isOmnisearchAvailable(this.view.app)
+		) {
+			this.runOmnisearch(query, filter);
+			return;
+		}
+
+		const hits = runQuery(this.view.app, query, { filter, limit: MAX_RESULTS });
 		this.renderFileRows(hits);
 
 		// Full-text body search runs after the instant name results and appends
@@ -234,6 +247,18 @@ export class SearchSection {
 				this.renderFileRows([...hits, ...extra]);
 			});
 		}
+	}
+
+	/** Query Omnisearch and render its results. Guarded by generation so a slow
+	 * response can't overwrite a newer query the user has already moved on to. */
+	private runOmnisearch(query: string, filter: QueryFilter): void {
+		const gen = this.generation;
+		void searchWithOmnisearch(this.view.app, query, { filter, limit: MAX_RESULTS }).then(
+			(hits) => {
+				if (gen !== this.generation) return;
+				this.renderFileRows(hits);
+			},
+		);
 	}
 
 	/** With nothing typed, quietly offer recently opened files instead of an

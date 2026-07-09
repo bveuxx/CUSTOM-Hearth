@@ -320,6 +320,10 @@ export interface HomeSettings {
 	newNoteButtonMode: "newNote" | "searchOnline";
 	/** Also search inside note bodies (full-text), not just names/tags/properties. */
 	searchContents: boolean;
+	/** Which engine powers the search bar: Hearth's built-in vault search, or the
+	 * Omnisearch community plugin (only usable when Omnisearch is installed and
+	 * enabled — Hearth falls back to the built-in engine otherwise). */
+	searchEngine: "builtin" | "omnisearch";
 
 	// ---- Background ----
 	backgroundKind: BackgroundKind;
@@ -390,6 +394,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	showNewNoteButton: true,
 	newNoteButtonMode: "newNote",
 	searchContents: true,
+	searchEngine: "builtin",
 
 	backgroundKind: "default",
 	backgroundValue: "",

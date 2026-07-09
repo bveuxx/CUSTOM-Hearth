@@ -68,6 +68,14 @@ with three transparent modes:
   Folders, Canvas, Bases, Excalidraw…), each with a fitting icon. Click a
   filter to drop down its matching items; hide any you don't want in settings.
 - **New note button** — creates a note in your configured default location.
+- **Omnisearch engine** *(optional)* — the search bar uses Hearth's built-in
+  engine by default, but you can switch it to
+  [Omnisearch](https://github.com/scambier/obsidian-omnisearch) in
+  **Settings → Appearance → Search engine**. When selected, plain queries are
+  routed through the installed Omnisearch plugin (its results, ranking and
+  snippets), while `>` command mode and the file-type filters keep working. If
+  Omnisearch isn't installed or enabled, Hearth prompts you to install it and
+  stays on the built-in engine.
 
 ## Dashboard cards
 
