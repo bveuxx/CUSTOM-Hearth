@@ -2171,6 +2171,51 @@
 	color: var(--text-faint);
 }
 
+/* The column-name badge shown on a Kanban-source task in the list layout,
+ * reusing the pill styling of the TaskNotes status badge. */
+.hearth-task-column {
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+}
+
+/* "Add card" control at the bottom of a Kanban column (Kanban source). */
+.hearth-kanban-add {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 6px;
+	border-radius: 6px;
+	color: var(--text-faint);
+	font-size: 0.8rem;
+	cursor: pointer;
+}
+
+.hearth-kanban-add:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+}
+
+.hearth-kanban-add-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.hearth-kanban-add-icon .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+.hearth-kanban-add-input {
+	width: 100%;
+	resize: none;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	padding: 6px 8px;
+	font-size: 0.85rem;
+	font-family: inherit;
+}
+
 /* ---- Activity heatmap card ------------------------------------------ */
 .hearth-heatmap {
 	display: flex;

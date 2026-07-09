@@ -7,15 +7,23 @@ import { t } from "./i18n";
  */
 export class FilePickerModal extends FuzzySuggestModal<TFile> {
 	private onChoose: (file: TFile) => void;
+	private filter?: (file: TFile) => boolean;
 
-	constructor(app: App, onChoose: (file: TFile) => void, placeholder?: string) {
+	constructor(
+		app: App,
+		onChoose: (file: TFile) => void,
+		placeholder?: string,
+		filter?: (file: TFile) => boolean,
+	) {
 		super(app);
 		this.onChoose = onChoose;
+		this.filter = filter;
 		this.setPlaceholder(placeholder ?? t().pickers.fileToEmbed);
 	}
 
 	getItems(): TFile[] {
-		return this.app.vault.getFiles();
+		const files = this.app.vault.getFiles();
+		return this.filter ? files.filter(this.filter) : files;
 	}
 
 	getItemText(file: TFile): string {

@@ -44,8 +44,18 @@ export interface TasksConfig {
 	 * in scope. "tasknotes" reads frontmatter from the TaskNotes community
 	 * plugin's task notes instead, using the field-name mapping configured in
 	 * Settings → Hearth (TaskNotes has no stable public API to query, so this
-	 * reads its files the same way TaskNotes itself does: frontmatter). */
-	source?: "checkbox" | "tasknotes";
+	 * reads its files the same way TaskNotes itself does: frontmatter).
+	 * "kanban" reads a single Kanban-plugin board note, where each `##` heading
+	 * is a column and the checkbox items beneath it are that column's cards. */
+	source?: "checkbox" | "tasknotes" | "kanban";
+	/** Kanban source: path to the board note. When empty, Hearth auto-detects
+	 * the first note in scope whose frontmatter carries `kanban-plugin`. */
+	kanbanFile?: string;
+	/** Kanban source: when true, parse the Tasks-plugin emoji metadata written
+	 * inside each card (📅 due, ⏫/🔼/🔽 priority, 🔁 recurrence) so due dates and
+	 * priorities show and sort — interoperable with the obsidian-tasks plugin.
+	 * When false (default) cards are read as-is (plain text). */
+	kanbanExtended?: boolean;
 	/** How `folders` is applied. "all" (default) scans the whole vault. */
 	folderScope?: "all" | "whitelist" | "blacklist";
 	folders?: string[];

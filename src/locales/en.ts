@@ -45,6 +45,7 @@ export const en = {
 		couldNotUpdateTaskStatus: "Hearth: couldn't update the task status.",
 		couldNotCompleteRecurring: "Hearth: couldn't mark the recurring task instance complete.",
 		couldNotUndoRecurring: "Hearth: couldn't undo the recurring task completion.",
+		couldNotAddKanbanCard: "Hearth: couldn't add the card to the Kanban board.",
 		layoutCopied: "Hearth: layout copied to clipboard.",
 		clipboardUnavailable: "Hearth: couldn't access the clipboard.",
 		pasteLayoutFirst: "Hearth: paste a layout to import first.",
@@ -439,9 +440,22 @@ export const en = {
 			sourceDesc:
 				"Markdown checkboxes work anywhere. TaskNotes reads that plugin's " +
 				"task notes via frontmatter (field names configurable in Settings → " +
-				"Hearth, since TaskNotes has no API for other plugins to query it).",
+				"Hearth, since TaskNotes has no API for other plugins to query it). " +
+				"Kanban reads a single Kanban-plugin board note, one column per heading.",
 			sourceCheckbox: "Markdown checkboxes",
 			sourceTaskNotes: "TaskNotes plugin",
+			sourceKanban: "Kanban plugin",
+			kanbanBoard: "Board note",
+			kanbanBoardDesc:
+				"The Kanban-plugin board to read. Leave empty to auto-detect the first " +
+				"note in scope with a “kanban-plugin” frontmatter key.",
+			kanbanBoardPlaceholder: "Auto-detect",
+			pickBoard: "Pick a Kanban board",
+			kanbanExtended: "Tasks-plugin metadata",
+			kanbanExtendedDesc:
+				"Parse the obsidian-tasks emoji metadata inside each card (📅 due, " +
+				"⏫/🔼/🔽 priority, 🔁 recurrence) so due dates and priorities show and " +
+				"sort. Off reads cards as-is (plain text).",
 			layout: "Layout",
 			layoutDesc:
 				"List, or a Kanban board grouped by status. On the board, drag cards " +
@@ -555,6 +569,7 @@ export const en = {
 			commandsEmpty: "Add commands in card settings",
 			tasksEnable: "Enable the TaskNotes plugin, or switch source to checkboxes",
 			tasksEmpty: "No open tasks",
+			kanbanNoBoard: "No Kanban board found — pick a board note in card settings, or create one with the Kanban plugin",
 		},
 		embed: {
 			editHint: "Double-click to edit",
@@ -605,6 +620,8 @@ export const en = {
 			hideColumn: (label: string) => `Hide "${label}" column`,
 			markOccurrence: "Mark today's occurrence complete",
 			recurring: "Recurring",
+			addCard: "Add card",
+			addCardPlaceholder: "Card text…",
 		},
 	},
 

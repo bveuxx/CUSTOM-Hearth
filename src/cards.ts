@@ -52,6 +52,24 @@ const moment: MomentFn = createMoment as unknown as MomentFn;
 /** Community plugin id for TaskNotes (used by "tasks" cards in TaskNotes mode). */
 const TASKNOTES_PLUGIN_ID = "tasknotes";
 
+/** Frontmatter key the Kanban plugin writes on every board note. Used both to
+ * auto-detect a board when none is configured and to confirm a chosen file is
+ * actually a Kanban board. */
+const KANBAN_FRONTMATTER_KEY = "kanban-plugin";
+
+/** Marks the start of the Kanban plugin's trailing settings block
+ * (`%% kanban:settings`). Everything from this line to end-of-file is board
+ * metadata, not cards, so parsing and card insertion stop here. */
+const KANBAN_SETTINGS_RE = /^\s*%%\s*kanban:settings/i;
+
+/** A Kanban board column: its `##` heading text and the line range
+ * `[headingLine, endLine)` (endLine exclusive) that holds its cards. */
+interface KanbanColumn {
+	heading: string;
+	headingLine: number;
+	endLine: number;
+}
+
 /** Render a card's body based on its kind. */
 export function renderCardBody(
 	view: HomeView,
@@ -2083,6 +2101,10 @@ interface TaskHit {
 	/** Raw TaskNotes priority value (e.g. high/normal/low), shown as an
 	 * indicator dot + label. */
 	priority?: string;
+	/** Kanban source: the board column (heading) this card currently lives
+	 * under. Used to group cards in the Kanban layout and as the status badge
+	 * in the list layout. */
+	boardColumn?: string;
 }
 
 /** Whether `path` is in scope per the card's folder whitelist/blacklist. An
@@ -2234,6 +2256,7 @@ async function loadAndRenderTasks(
 	const source = cfg.source ?? "checkbox";
 
 	let hits: TaskHit[];
+	let boardColumns: string[] | undefined;
 	if (source === "tasknotes") {
 		if (!view.app.plugins.enabledPlugins.has(TASKNOTES_PLUGIN_ID)) {
 			emptyState(container, "list-todo", t().cards.empty.tasksEnable);
@@ -2242,6 +2265,14 @@ async function loadAndRenderTasks(
 		// A quick "+" to create a new task via TaskNotes' own command.
 		renderTaskNotesAddButton(view, container);
 		hits = collectTaskNotesTasks(view, cfg);
+	} else if (source === "kanban") {
+		const board = await collectKanbanTasks(view, cfg);
+		if (!board.file) {
+			emptyState(container, "list-todo", t().cards.empty.kanbanNoBoard);
+			return;
+		}
+		hits = board.hits;
+		boardColumns = board.columns.map((c) => c.heading);
 	} else {
 		hits = await collectCheckboxTasks(view, cfg);
 	}
@@ -2249,7 +2280,7 @@ async function loadAndRenderTasks(
 	sortTasks(hits);
 
 	if (cfg.layout === "kanban") {
-		renderTaskKanban(view, cfg, hits, container, refresh);
+		renderTaskKanban(view, cfg, hits, container, refresh, boardColumns);
 		return;
 	}
 
@@ -2301,6 +2332,8 @@ function renderTaskRow(
 	}
 
 	row.createDiv({ cls: "hearth-list-label hearth-task-text", text: hit.text || hit.file.basename });
+	// Kanban cards show the board column they belong to as a small badge.
+	if (hit.boardColumn) row.createDiv({ cls: "hearth-task-status hearth-task-column", text: hit.boardColumn });
 	if (hit.priority) renderPriority(row, hit.priority);
 	const dueLabel = formatDueLabel(hit);
 	if (dueLabel) {
@@ -2328,6 +2361,7 @@ function renderTaskKanban(
 	hits: TaskHit[],
 	container: HTMLElement,
 	refresh: () => void,
+	boardColumns?: string[],
 ): void {
 	const source = cfg.source ?? "checkbox";
 	const doneValue = (view.plugin.settings.taskNotesDoneValue.trim() || "done");
@@ -2346,7 +2380,17 @@ function renderTaskKanban(
 		return col;
 	};
 
-	if (source === "checkbox") {
+	if (source === "kanban") {
+		// Columns are the board's own headings, kept in board order — including
+		// empty lanes, so a card can be dragged into a column that has no cards
+		// yet. Cards whose heading somehow isn't listed fall into "No status".
+		for (const heading of boardColumns ?? []) ensure(heading.toLowerCase(), heading);
+		for (const hit of hits) {
+			const key = (hit.boardColumn ?? "").trim().toLowerCase();
+			const col = columnFor.get(key) ?? ensure(t().cards.tasks.noStatus.toLowerCase(), t().cards.tasks.noStatus);
+			col.hits.push(hit);
+		}
+	} else if (source === "checkbox") {
 		ensure("open", t().cards.tasks.toDo);
 		ensure("done", t().cards.tasks.done);
 		for (const hit of hits) columnFor.get(hit.done ? "done" : "open")!.hits.push(hit);
@@ -2405,7 +2449,16 @@ function renderTaskKanban(
 
 	// Move a dragged task into a target column and persist the change.
 	const moveTo = (hit: TaskHit, col: Column) => {
-		if (source === "checkbox") {
+		if (source === "kanban") {
+			// Relocate the card's checkbox line under the target heading in the
+			// board note. Done state (the checkbox itself) is left untouched — in
+			// the Kanban plugin a column and a card's completion are independent.
+			if ((hit.boardColumn ?? "") === col.label) return;
+			void moveKanbanCard(view, hit, col.label).then((ok) => {
+				if (!ok) new Notice(t().notices.taskChangedOnDisk);
+				refresh();
+			});
+		} else if (source === "checkbox") {
 			const wantDone = col.key === "done";
 			if (hit.done === wantDone) return;
 			void setCheckboxState(view, hit, wantDone).then((ok) => {
@@ -2525,8 +2578,26 @@ function renderTaskKanban(
 		// it completes today's instance and advances scheduled without
 		// retiring the task.
 		const textRow = cardEl.createDiv("hearth-kanban-card-row");
-		if (source !== "checkbox" && hit.recurrence) {
+		if (source === "tasknotes" && hit.recurrence) {
 			renderRecurringCheckbox(view, hit, today, textRow, refresh);
+		} else if (source === "kanban" && hit.line >= 0) {
+			// Kanban cards are Markdown checkboxes: a checkbox toggles the card's
+			// done state in place, independent of which column it's in.
+			const check = textRow.createEl("input", {
+				cls: "hearth-task-check",
+				attr: { type: "checkbox" },
+			});
+			check.checked = hit.done;
+			const stop = (e: Event) => e.stopPropagation();
+			check.addEventListener("click", stop);
+			check.addEventListener("mousedown", stop);
+			check.addEventListener("pointerdown", stop);
+			check.addEventListener("change", () => {
+				void setCheckboxState(view, hit, check.checked).then((ok) => {
+					if (!ok) new Notice(t().notices.taskChangedOnDisk);
+					refresh();
+				});
+			});
 		}
 		textRow.createDiv({ cls: "hearth-kanban-card-text", text: hit.text || hit.file.basename });
 			const meta = cardEl.createDiv("hearth-kanban-card-meta");
@@ -2545,7 +2616,62 @@ function renderTaskKanban(
 			cardEl.addEventListener("click", open);
 			makeClickable(cardEl, open, hit.text || hit.file.basename);
 		}
+
+		// Kanban source: a per-column "add card" affordance that appends a new
+		// `- [ ]` item under this column's heading in the board note.
+		if (source === "kanban") renderKanbanAddCard(view, cfg, col.label, colBody, refresh);
 	}
+}
+
+/** Render a compact "+ Add card" control at the bottom of a Kanban column. On
+ * click it swaps to a text input; Enter (or blur with text) appends a new
+ * unchecked card under the column's heading, Escape/empty blur cancels. */
+function renderKanbanAddCard(
+	view: HomeView,
+	cfg: TasksConfig,
+	heading: string,
+	colBody: HTMLElement,
+	refresh: () => void,
+): void {
+	const addBtn = colBody.createDiv({ cls: "hearth-kanban-add" });
+	setIcon(addBtn.createSpan("hearth-kanban-add-icon"), "plus");
+	addBtn.createSpan({ cls: "hearth-kanban-add-label", text: t().cards.tasks.addCard });
+	addBtn.addEventListener("click", (e) => {
+		e.stopPropagation();
+		addBtn.hide();
+		const input = colBody.createEl("textarea", {
+			cls: "hearth-kanban-add-input",
+			attr: { rows: "1", placeholder: t().cards.tasks.addCardPlaceholder },
+		});
+		input.focus();
+		let committed = false;
+		const cancel = () => {
+			if (committed) return;
+			input.remove();
+			addBtn.show();
+		};
+		const commit = () => {
+			if (committed) return;
+			const text = input.value.trim();
+			if (!text) return cancel();
+			committed = true;
+			void addKanbanCard(view, cfg, heading, text).then((ok) => {
+				if (!ok) new Notice(t().notices.couldNotAddKanbanCard);
+				refresh();
+			});
+		};
+		input.addEventListener("keydown", (ke) => {
+			if (ke.key === "Enter" && !ke.shiftKey) {
+				ke.preventDefault();
+				commit();
+			} else if (ke.key === "Escape") {
+				ke.preventDefault();
+				cancel();
+			}
+		});
+		input.addEventListener("blur", commit);
+		input.addEventListener("click", (ce) => ce.stopPropagation());
+	});
 }
 
 /** Scan plain Markdown `- [ ]`/`- [x]` checkboxes in every in-scope note. A
@@ -2653,6 +2779,207 @@ function collectTaskNotesTasks(view: HomeView, cfg: TasksConfig): TaskHit[] {
 	return hits;
 }
 
+// ---- Kanban plugin board -------------------------------------------------
+
+/** Resolve the Kanban board note for a card. Prefers the explicitly configured
+ * `kanbanFile` path; otherwise auto-detects the first in-scope note whose
+ * frontmatter carries the `kanban-plugin` key the Kanban plugin writes. */
+function resolveKanbanFile(view: HomeView, cfg: TasksConfig): TFile | null {
+	const path = cfg.kanbanFile?.trim();
+	if (path) {
+		const f = view.app.vault.getAbstractFileByPath(path);
+		return f instanceof TFile ? f : null;
+	}
+	for (const file of view.app.vault.getMarkdownFiles()) {
+		if (!inTaskScope(file.path, cfg)) continue;
+		const fm = view.app.metadataCache.getFileCache(file)?.frontmatter;
+		if (fm && KANBAN_FRONTMATTER_KEY in fm) return file;
+	}
+	return null;
+}
+
+/** Parse a Kanban board's `##` headings into ordered columns with the line
+ * range that holds each column's cards. Frontmatter and the trailing
+ * `%% kanban:settings` block are excluded. `footerStart` marks where the
+ * settings block begins (or EOF), so callers never write past the cards. */
+function parseKanbanColumns(lines: string[]): { columns: KanbanColumn[]; footerStart: number } {
+	let footerStart = lines.length;
+	for (let i = 0; i < lines.length; i++) {
+		if (KANBAN_SETTINGS_RE.test(lines[i])) {
+			footerStart = i;
+			break;
+		}
+	}
+	// Skip YAML frontmatter so a `---` fence isn't mistaken for content.
+	let start = 0;
+	if (lines[0]?.trim() === "---") {
+		for (let i = 1; i < footerStart; i++) {
+			if (lines[i].trim() === "---") {
+				start = i + 1;
+				break;
+			}
+		}
+	}
+	const columns: KanbanColumn[] = [];
+	for (let i = start; i < footerStart; i++) {
+		const m = /^##\s+(.+?)\s*$/.exec(lines[i]);
+		if (!m) continue;
+		if (columns.length) columns[columns.length - 1].endLine = i;
+		columns.push({ heading: m[1].trim(), headingLine: i, endLine: footerStart });
+	}
+	return { columns, footerStart };
+}
+
+/** The checkbox-item pattern shared by the Kanban parser (a card is a plain
+ * Markdown task item, same as a checkbox task). */
+const KANBAN_CARD_RE = /^\s*[-*+]\s\[([ xX])\]\s*(.*)$/;
+
+/** Read a Kanban board note: each `##` heading is a column and each checkbox
+ * item beneath it is a card. In extended mode the Tasks-plugin emoji metadata
+ * (📅 due, ⏫/🔼/🔽 priority, 🔁 recurrence) is parsed off each card so due dates
+ * and priorities display and sort; otherwise cards are read as-is (plain text).
+ * Returns the ordered columns too, so the Kanban layout can show empty lanes. */
+async function collectKanbanTasks(
+	view: HomeView,
+	cfg: TasksConfig,
+): Promise<{ hits: TaskHit[]; columns: KanbanColumn[]; file: TFile | null }> {
+	const file = resolveKanbanFile(view, cfg);
+	if (!file) return { hits: [], columns: [], file: null };
+	const content = await view.app.vault.cachedRead(file);
+	const lines = content.split("\n");
+	const { columns } = parseKanbanColumns(lines);
+	const extended = cfg.kanbanExtended ?? false;
+	const hits: TaskHit[] = [];
+	for (const col of columns) {
+		for (let i = col.headingLine + 1; i < col.endLine; i++) {
+			const m = KANBAN_CARD_RE.exec(lines[i]);
+			if (!m) continue;
+			const rawText = m[2].trim();
+			let text = rawText;
+			let due: string | null = null;
+			let dueRaw: string | null = null;
+			let priority: string | undefined;
+			let recurrence: string | undefined;
+			if (extended) {
+				const dueExpr = readEmojiField(rawText, "📅");
+				if (dueExpr) {
+					dueRaw = dueExpr;
+					due = /^\d{4}-\d{2}-\d{2}$/.test(dueExpr) ? dueExpr : parseNaturalDate(dueExpr);
+				}
+				priority = readPriorityEmoji(rawText);
+				recurrence = readEmojiField(rawText, "🔁") ?? undefined;
+				text = stripTaskMetadata(rawText);
+			}
+			hits.push({
+				file,
+				line: i,
+				text,
+				done: m[1].toLowerCase() === "x",
+				due,
+				dueRaw,
+				scheduled: null,
+				created: file.stat.ctime,
+				recurrence,
+				priority,
+				boardColumn: col.heading,
+			});
+		}
+	}
+	return { hits, columns, file };
+}
+
+/** The Tasks-plugin priority emoji present on a card (highest→lowest), or
+ * undefined. Returned raw; priorityLevel()/renderPriority() map it to a level
+ * and show it as the label. */
+function readPriorityEmoji(text: string): string | undefined {
+	const m = /[🔺⏫🔼🔽⏬]/u.exec(text);
+	return m ? m[0] : undefined;
+}
+
+/** Every Tasks-plugin metadata emoji marker, used to strip metadata from a
+ * card's display text and to compare cards ignoring their metadata. */
+const TASK_EMOJI_CLASS = "📅⏳🛫🔁✅➕⏫🔼🔽🔺⏬";
+
+/** Strip all Tasks-plugin emoji metadata (each marker and its trailing value up
+ * to the next marker) from a task's text, collapsing leftover whitespace. Used
+ * for clean Kanban card display and for stable text comparison on writeback
+ * (idempotent, so a raw and an already-stripped text compare equal). */
+function stripTaskMetadata(text: string): string {
+	const re = new RegExp(`[${TASK_EMOJI_CLASS}][^\\n\\r${TASK_EMOJI_CLASS}]*`, "gu");
+	return text.replace(re, "").replace(/\s+/g, " ").trim();
+}
+
+/** Move a Kanban card's checkbox line (plus any nested continuation lines) out
+ * of its current column and under `targetHeading` in the board note. Leaves the
+ * card's done state untouched — column and completion are independent. Bails
+ * (returning false) if the stored line no longer matches the card. */
+async function moveKanbanCard(view: HomeView, hit: TaskHit, targetHeading: string): Promise<boolean> {
+	const content = await view.app.vault.read(hit.file);
+	const lines = content.split("\n");
+	const cur = lines[hit.line];
+	const m = cur != null ? KANBAN_CARD_RE.exec(cur) : null;
+	if (!m) return false; // line changed under us
+	if (stripTaskMetadata(m[2]) !== stripTaskMetadata(hit.text)) return false;
+
+	// Capture the card block: the item line plus any deeper-indented, non-blank
+	// continuation lines (nested content that belongs to the card).
+	const indent = (/^(\s*)/.exec(cur)?.[1] ?? "").length;
+	let end = hit.line + 1;
+	while (end < lines.length) {
+		const l = lines[end];
+		if (l.trim() === "") break;
+		if ((/^(\s*)/.exec(l)?.[1] ?? "").length <= indent) break;
+		end++;
+	}
+	const block = lines.slice(hit.line, end);
+	// Also drop one trailing blank line so blanks don't accumulate on each move.
+	let removeEnd = end;
+	if (lines[removeEnd]?.trim() === "") removeEnd++;
+	lines.splice(hit.line, removeEnd - hit.line);
+
+	if (!insertCardBlock(lines, targetHeading, block)) return false;
+	await view.app.vault.modify(hit.file, lines.join("\n"));
+	return true;
+}
+
+/** Append a new unchecked card under `heading` in the configured board note. */
+async function addKanbanCard(
+	view: HomeView,
+	cfg: TasksConfig,
+	heading: string,
+	text: string,
+): Promise<boolean> {
+	const file = resolveKanbanFile(view, cfg);
+	if (!file) return false;
+	const content = await view.app.vault.read(file);
+	const lines = content.split("\n");
+	const card = `- [ ] ${text.replace(/\r?\n/g, " ").trim()}`;
+	if (!insertCardBlock(lines, heading, [card])) return false;
+	await view.app.vault.modify(file, lines.join("\n"));
+	return true;
+}
+
+/** Insert a card block after the last existing card in the named column (or
+ * right after the heading when the column is empty), keeping a blank line
+ * before whatever follows. Mutates `lines`. Returns false if the column heading
+ * isn't found. */
+function insertCardBlock(lines: string[], heading: string, block: string[]): boolean {
+	const { columns } = parseKanbanColumns(lines);
+	const target = columns.find((c) => c.heading === heading);
+	if (!target) return false;
+	let insertAt = target.headingLine + 1;
+	for (let i = target.headingLine + 1; i < target.endLine; i++) {
+		if (KANBAN_CARD_RE.test(lines[i])) insertAt = i + 1;
+	}
+	// When the column is empty, skip a blank line right under the heading so the
+	// card sits directly below it rather than after the gap.
+	if (insertAt === target.headingLine + 1 && lines[insertAt]?.trim() === "") insertAt++;
+	const toInsert = [...block];
+	if (lines[insertAt] != null && lines[insertAt].trim() !== "") toInsert.push("");
+	lines.splice(insertAt, 0, ...toInsert);
+	return true;
+}
+
 /** Read the value of a Tasks-plugin emoji field from a checkbox line, e.g.
  * `📅 tomorrow` or `📅 2024-01-15`. Returns the trimmed value up to the next
  * known emoji marker (⏳ 🛫 🔁 ✅ ➕ ⏫ 🔼 🔽) or end of line, or null when the
@@ -2692,10 +3019,10 @@ async function setCheckboxState(view: HomeView, hit: TaskHit, done: boolean): Pr
 	const line = lines[hit.line];
 	const match = line != null ? CHECKBOX_MARKER.exec(line) : null;
 	if (!match) return false; // line no longer a checkbox — file changed under us
-	// Confirm it's still the same task, comparing text with any 📅 due date
-	// stripped (dates can shift without changing the task).
-	const strip = (t: string) => t.replace(/📅\s*[^\n\r⏳🛫🔁✅➕⏫🔼🔽]*/u, "").trim();
-	if (strip(line.slice(match[0].length)) !== strip(hit.text)) return false;
+	// Confirm it's still the same task, comparing text with all Tasks-plugin
+	// metadata stripped (a due date or priority can change without changing the
+	// task; Kanban cards store their text already stripped of metadata).
+	if (stripTaskMetadata(line.slice(match[0].length)) !== stripTaskMetadata(hit.text)) return false;
 	lines[hit.line] = line.replace(
 		CHECKBOX_MARKER,
 		(_m, pre: string, _state: string, post: string) => `${pre}${done ? "x" : " "}${post}`,

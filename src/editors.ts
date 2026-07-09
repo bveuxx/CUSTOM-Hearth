@@ -635,11 +635,60 @@ export class CardSettingsModal extends Modal {
 			.addDropdown((d) => {
 				d.addOption("checkbox", t().editors.tasks.sourceCheckbox);
 				d.addOption("tasknotes", t().editors.tasks.sourceTaskNotes);
+				d.addOption("kanban", t().editors.tasks.sourceKanban);
 				d.setValue(cfg.source ?? "checkbox").onChange((v) => {
 					cfg.source = v as TasksConfig["source"];
 					this.opts.save();
+					this.render();
 				});
 			});
+
+		// Kanban source: pick the board note and choose plain vs. Tasks-plugin
+		// (extended) card parsing.
+		if (cfg.source === "kanban") {
+			const boardSetting = new Setting(containerEl)
+				.setName(t().editors.tasks.kanbanBoard)
+				.setDesc(t().editors.tasks.kanbanBoardDesc);
+			boardSetting.addText((txt) =>
+				txt
+					.setPlaceholder(t().editors.tasks.kanbanBoardPlaceholder)
+					.setValue(cfg.kanbanFile ?? "")
+					.onChange((v) => {
+						cfg.kanbanFile = v.trim() || undefined;
+						this.opts.save();
+					}),
+			);
+			boardSetting.addExtraButton((b) =>
+				b
+					.setIcon("file-symlink")
+					.setTooltip(t().editors.tasks.pickBoard)
+					.onClick(() => {
+						new FilePickerModal(
+							this.app,
+							(file) => {
+								cfg.kanbanFile = file.path;
+								this.opts.save();
+								this.render();
+							},
+							t().editors.tasks.pickBoard,
+							(file) => {
+								const fm = this.app.metadataCache.getFileCache(file)?.frontmatter;
+								return !!fm && "kanban-plugin" in fm;
+							},
+						).open();
+					}),
+			);
+
+			new Setting(containerEl)
+				.setName(t().editors.tasks.kanbanExtended)
+				.setDesc(t().editors.tasks.kanbanExtendedDesc)
+				.addToggle((tg) =>
+					tg.setValue(cfg.kanbanExtended ?? false).onChange((v) => {
+						cfg.kanbanExtended = v || undefined;
+						this.opts.save();
+					}),
+				);
+		}
 
 		new Setting(containerEl)
 			.setName(t().editors.tasks.layout)

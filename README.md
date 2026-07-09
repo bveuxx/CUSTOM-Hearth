@@ -98,8 +98,9 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   optional auto-refresh interval and an "open in browser" fallback for sites
   that refuse to be framed.
 - **Tasks** — scans Markdown checkboxes (with 📅 due-date parsing,
-  click-to-toggle, click-to-open at the line) or reads TaskNotes task notes via
-  frontmatter. Folder whitelist/blacklist for scope. Click **+** (top-right,
+  click-to-toggle, click-to-open at the line), reads TaskNotes task notes via
+  frontmatter, or reads a [Kanban](https://github.com/obsidian-community/obsidian-kanban)
+  plugin board note. Folder whitelist/blacklist for scope. Click **+** (top-right,
   TaskNotes source) to create a new task via TaskNotes' own command. Tasks are
   sorted by **due → scheduled → priority → created**. Due dates show as short
   relative labels (**Today**, **Tomorrow**, **Yesterday**, the weekday for the
@@ -118,6 +119,19 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   TaskNotes tasks show a **priority indicator** read from a configurable
   frontmatter field, and a drop outline previews where a dragged card will
   land.
+- **Kanban plugin board** — point the Tasks card at a
+  [Kanban](https://github.com/obsidian-community/obsidian-kanban) board note
+  (or let Hearth auto-detect one by its `kanban-plugin` frontmatter). Each `##`
+  heading becomes a column and the checkbox items beneath it become cards.
+  Read it either as a **list** or as Hearth's own **Kanban board**: drag cards
+  between the board's real columns (Hearth rewrites the note, moving the item
+  under the target heading), tick a card to complete it in place, and add new
+  cards straight into a column. Turn on **Tasks-plugin metadata** to parse the
+  [obsidian-tasks](https://github.com/obsidian-tasks-group/obsidian-tasks)
+  emoji fields inside each card (📅 due, ⏫/🔼/🔽 priority, 🔁 recurrence) so due
+  dates and priorities show and sort — or leave it off to read the board
+  as-is. Everything is written back in Kanban's own format, so the board stays
+  fully editable in the Kanban plugin.
 - **Mini calendar** — a month grid resolved from the core Daily notes plugin's
   format/folder, with a dot on days that already have a note. Optional ISO week
   numbers and an edit-count heatmap tint; click an empty day to create that
@@ -286,6 +300,14 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 [`src/locales/README.md`](src/locales/README.md) for the walkthrough.
 
 ## Shipped:
+
+> **v1.6.8.3-beta** — the Tasks card can now read a
+> [Kanban](https://github.com/obsidian-community/obsidian-kanban) plugin board
+> note: each heading is a column and each checkbox item a card. Show it as a
+> list or as a drag-and-drop board that rewrites the note in Kanban's own
+> format, tick cards done in place, and add cards into a column. An optional
+> **Tasks-plugin metadata** mode parses the obsidian-tasks emoji fields
+> (📅 due, priority, 🔁 recurrence) for interoperability.
 
 > **v1.6** — task due dates show as short relative labels ("Today", "Tomorrow",
 > "Yesterday", "Friday", "Next Friday", "15 Jul"), free-form launchpad tiles
