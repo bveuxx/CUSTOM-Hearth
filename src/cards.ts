@@ -1287,7 +1287,7 @@ function renderCalculator(view: HomeView, card: DashboardCard, body: HTMLElement
 	// text input reports selectionStart 0, not null, so keys would otherwise
 	// insert at the start on the first tap after a render with restored text.
 	const caret = (): [number, number] => {
-		if (document.activeElement !== input) return [input.value.length, input.value.length];
+		if (activeDocument.activeElement !== input) return [input.value.length, input.value.length];
 		return [input.selectionStart ?? input.value.length, input.selectionEnd ?? input.value.length];
 	};
 
