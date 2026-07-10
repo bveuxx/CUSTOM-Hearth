@@ -162,7 +162,7 @@ export function renderDashboard(
 		// when a new card was added: the board briefly rendered at full height and
 		// then snapped back once the debounced observer squeezed it. Fitting up
 		// front means the very first painted frame is already the final layout.
-		activeWindow.requestAnimationFrame(refit);
+		window.requestAnimationFrame(refit);
 		const observer = new ResizeObserver(debounce(refit, 60, true));
 		observer.observe(grid);
 		component.register(() => observer.disconnect());

@@ -3782,7 +3782,9 @@ async function collectKanbanTasks(
 			const linkedFile = soleLinkedNote(view, extended ? text : stripTaskMetadata(rawText), file.path);
 			let completeInstances: string[] | undefined;
 			if (extended && linkedFile) {
-				const fm = view.app.metadataCache.getFileCache(linkedFile)?.frontmatter;
+				const fm = view.app.metadataCache.getFileCache(linkedFile)?.frontmatter as
+					| Record<string, unknown>
+					| undefined;
 				if (fm) {
 					const fmStr = (k: string): string | null => {
 						const v = fm[k];
