@@ -25,6 +25,22 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: "1.7.1.10-beta",
+		tldr:
+			"Plugin view opacity, take two: the previous fix only cleared the outer " +
+			"chrome, so the view's body stayed filled. Now the card's translucency " +
+			"shows through the whole hosted view.",
+		features: [],
+		fixes: [
+			"Plugin view card: the hosted view's body no longer stays opaque when the " +
+				"card opacity is lowered. The base-surface background variables are now " +
+				"neutralised within the card, so whichever element draws the pane " +
+				"background (including side-panel views that use --background-secondary) " +
+				"shows the card surface through it. Accent surfaces — hover, selection, " +
+				"inputs — keep their look.",
+		],
+	},
+	{
 		version: "1.7.1.9-beta",
 		tldr:
 			"Plugin view cards now honour card opacity: the hosted view's own solid " +

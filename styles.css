@@ -578,6 +578,19 @@
 	min-height: 0;
 	width: 100%;
 	overflow: hidden;
+
+	/* The hosted view paints a solid base surface — clearing the wrapper
+	 * backgrounds below wasn't enough because the fill lives on a deeper element
+	 * (and a side-panel view may draw with --background-secondary, not
+	 * --background-primary). Neutralise the base-surface variables *within the
+	 * host* so whichever element draws the pane background shows the card's
+	 * translucent surface through it, honouring --card-opacity like every other
+	 * card. Accent surfaces (hover, selection, inputs, code) use --*-modifier-*
+	 * variables, which are untouched, so they keep their look. */
+	--background-primary: transparent;
+	--background-primary-alt: transparent;
+	--background-secondary: transparent;
+	--background-secondary-alt: transparent;
 }
 
 .hearth-leaf-host > .workspace-leaf {
@@ -587,17 +600,15 @@
 	height: 100%;
 }
 
-/* The hosted view carries Obsidian's own opaque --background-primary on its
- * leaf/content/header wrappers, which would paint over the card's translucent
- * surface and make the card look fully filled regardless of its opacity. Clear
- * those wrapper backgrounds so the card surface (and its --card-opacity) shows
- * through, exactly like every other card. The view's own inner elements keep
- * their styling — only the outermost chrome is made transparent. */
+/* Belt-and-braces: also clear the standard chrome wrappers directly, in case a
+ * theme hard-codes their background to a literal colour instead of the variable
+ * neutralised above. !important because plugin CSS and theme CSS load order
+ * isn't guaranteed and this transparency is the whole point of the card. */
 .hearth-leaf-host .workspace-leaf,
 .hearth-leaf-host .workspace-leaf-content,
 .hearth-leaf-host .view-content,
 .hearth-leaf-host .view-header {
-	background: transparent;
+	background: transparent !important;
 }
 
 /* Obsidian renders a canvas/Excalidraw embed as:
