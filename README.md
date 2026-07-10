@@ -358,121 +358,30 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 
 ## Shipped:
 
-> **v1.6.8.19-beta** — the **"What's new" dialog** is now backed by a
-> continuous, accumulating changelog: each release prepends an entry and older
-> entries are kept, so the popup shows exactly the entries newer than the
-> version you last saw (newest first), each with its own version heading,
-> TL;DR, new features and fixes.
-
-> **v1.6.8.18-beta** — fix the **"What's new" dialog** not appearing when
-> upgrading into the first build that shipped it: an existing vault that simply
-> predated the `lastSeenVersion` setting was mistaken for a fresh install and
-> seeded silently. A true first run is now detected from having no persisted
-> data at all, so upgraders see the release notes while first-time users don't.
-
-> **v1.6.8.17-beta** — a **"What's new" dialog** now pops up after the plugin
-> updates (once per version, never on a fresh install), summarising the release
-> with a TL;DR plus grouped lists of new features and bug fixes. The last-seen
-> version is remembered in settings so the dialog only appears once per update.
-
-> **v1.6.8.16-beta** — three Tasks-card additions: the add-card form now
-> **previews the note template** body (editable) when creating a card as a note;
-> a per-add **Create as note** toggle sits in the form itself; and the
-> **Markdown-checkbox** source gains **custom task states** — define your own
-> `[symbol] Label` states (defaults: To do / In progress / Done) and each becomes
-> a draggable board column that writes its checkbox symbol.
-
-> **v1.6.8.15-beta** — a new **New tasks as notes** toggle (Kanban source):
-> when on, adding a card creates it as its own note (a link on the board) right
-> away instead of an inline checkbox — applying the same convert-to-note template
-> and metadata-to-frontmatter options, so you skip the add-then-convert step.
-
-> **v1.6.8.14-beta** — the quick view now also lets you **edit a converted
-> card's description**: for a card linked to a note, the description textarea
-> writes back to the note body (bullets, frontmatter preserved), alongside the
-> already-editable frontmatter metadata.
-
-> **v1.6.8.13-beta** — a **converted card's metadata is editable again**: the
-> quick view and right-click "Edit dates & priority" for a card linked to a note
-> now write changes straight to that note's **frontmatter** (its description is
-> still edited in the note). Recurring converted cards complete per-occurrence in
-> the note's frontmatter (complete_instances + next scheduled), like TaskNotes.
-
-> **v1.6.8.12-beta** — Tasks-card follow-ups: a **converted card keeps showing
-> its dates & priority** on the board — read back from the linked note's
-> frontmatter — so scraping metadata to frontmatter no longer hides it. **Convert
-> to note** now moves the card's **description into the note** (as bullet points)
-> rather than leaving it on the board, and a linked card's metadata/description
-> are edited in the note itself. **Recurring** checkbox / Kanban tasks (with a 🔁)
-> now complete **per-occurrence** like TaskNotes: checking stamps today's ✅ and
-> rolls the date to the next occurrence, resetting to open the next day instead
-> of retiring the task.
-
-> **v1.6.8.11-beta** — Tasks-card note workflow: clicking a checkbox task or
-> Kanban card now opens a compact **quick view** — its metadata and description,
-> editable in place, with buttons to open the full note or delete the task —
-> instead of jumping straight into the note (a per-card **Quick view on click**
-> toggle, on by default). **Convert to note** gains two per-card options: seed
-> the new note from a **template** (`{{title}}`/`{{date}}`/`{{time}}`), and
-> **scrape the card's metadata into frontmatter** instead of leaving the emoji
-> markers on the board link.
-
-> **v1.6.8.10-beta** — the Kanban board's sort control now lives **on each
-> column** (an icon in the column header) instead of a shared board header, so
-> every column sorts independently — a column with no choice of its own follows
-> the card's default sort. The list layout keeps its single header control.
-
-> **v1.6.8.9-beta** — Tasks-card parity and polish: the Markdown-checkbox source
-> gains its own **Dates & priorities** toggle (on by default) mirroring the
-> Kanban source, so checkboxes can be read as plain text; **right-click a
-> checkbox** to edit its dates & priority now works on the Kanban board too (not
-> just the list); every list and board gets a minimalistic, always-visible
-> **sort control** (Smart / Due / Priority / Created / Alphabetical, reversible)
-> that persists per card; and the list **"show completed"** toggle now adds
-> completed tasks *below* open ones instead of letting them crowd the list out.
-
-> **v1.6.8.8-beta** — plain Markdown checkboxes now read the full obsidian-tasks
-> marks too (priority, repeat, dates) with the same indicators and editor; a
-> recurring card is anchored by its **scheduled** date only (mutually exclusive
-> with start/due); cards can carry a plain-text **description** (sub-bullets);
-> **double-click a column title to rename** it; empty checkboxes (`- [ ]`) are
-> ignored; and the done-column toggle stays hover-only even when active.
-
-> **v1.6.8.7-beta** — Kanban date/priority polish: all five priorities now
-> have distinct colours (highest/lowest read apart from high/low), the repeat
-> picker is a deterministic dropdown + interval (no free text), a repeat and
-> fixed dates are mutually exclusive, and the list layout gains a minimalistic
-> header (task count + quick-add). The feature is now called simply **Dates &
-> priorities**.
-
-> **v1.6.8.6-beta** — fuller obsidian-tasks metadata on Kanban cards: start
-> (🛫), scheduled (⏳) and done (✅) dates alongside due, a 5-level priority
-> (🔺⏫🔼🔽⏬) and recurrence (🔁). The add-card form and a new right-click
-> **task-metadata editor** provide input fields for all of them, cards show
-> compact date/priority **indicators**, and checking a card off stamps its ✅
-> done date.
-
-> **v1.6.8.5-beta** — Kanban board fixes: card text now renders **clickable
-> links** (`[[wikilinks]]` and Markdown links); right-click a card to **edit
-> its due date & priority** on existing cards (not just when adding); the
-> **list view shows priority** as a labelled chip; and cards can be **deleted**
-> from the right-click menu.
-
-> **v1.6.8.4-beta** — Kanban board refinements: right-click a card to
-> **convert it into its own note** (replacing the card with a link, like the
-> Kanban plugin); mark any column a **done column** (its check icon) so cards
-> auto-complete when dragged/added there; the extended-mode **add-card form**
-> gains due-date and priority pickers that write the Tasks markers onto the
-> card; and a card's priority now shows as a single coloured **dot** beside the
-> title instead of a duplicated emoji.
-
-> **v1.6.8.3-beta** — the Tasks card can now read a
-> [Kanban](https://github.com/obsidian-community/obsidian-kanban) plugin board
-> note: each heading is a column and each checkbox item a card. Show it as a
-> list or as a drag-and-drop board that rewrites the note in Kanban's own
-> format, tick cards done in place, and add cards into a column. An optional
-> **Tasks-plugin metadata** mode parses the obsidian-tasks emoji fields
-> (📅 due, priority, 🔁 recurrence) for interoperability.
+> **v1.7.0** — a major Tasks-card release, plus search and release-notes
+> additions (everything from the 1.6.8 beta series). The Tasks card can now read
+> and edit **[Kanban](https://github.com/obsidian-community/obsidian-kanban)
+> plugin boards** — each heading a column, each checkbox a card — as a list or a
+> drag-and-drop board that rewrites the note in Kanban's own format. Cards
+> understand the full **obsidian-tasks metadata**: start (🛫), scheduled (⏳),
+> due (📅) and done (✅) dates, a 5-level priority (🔺⏫🔼🔽⏬, each a distinct
+> colour) and recurrence (🔁), shown as compact indicators with a right-click
+> editor and add-card pickers — read from Kanban cards and plain **Markdown
+> checkboxes** alike, and you can define your own **custom task states**
+> (`[symbol] Label`) that each become a draggable board column. Clicking a task
+> opens a compact **quick view** for editing metadata and description in place;
+> **convert to note** turns a card into its own linked note (optionally from a
+> template, scraping metadata into frontmatter and moving the description into
+> the note), or new cards can be **created as notes** outright. Boards gain
+> **done columns**, double-click **column rename**, clickable links, per-card
+> descriptions, card deletion, an always-visible **sort** control (Smart / Due /
+> Priority / Created / Alphabetical) that lives on each column, and recurring
+> tasks that complete **per-occurrence** like TaskNotes. The search bar can
+> optionally be powered by
+> **[Omnisearch](https://github.com/scambier/obsidian-omnisearch)** when it's
+> installed, scroll-mode boards grow as you drag a card past the bottom, and a
+> **"What's new" dialog** now surfaces release notes from a continuous,
+> accumulating changelog after each update.
 
 > **v1.6** — task due dates show as short relative labels ("Today", "Tomorrow",
 > "Yesterday", "Friday", "Next Friday", "15 Jul"), free-form launchpad tiles

@@ -19,50 +19,29 @@ export interface ChangelogEntry {
  *
  * Invariant: `CHANGELOG[0].version` must equal the `manifest.json` version of
  * the release being cut, so the top entry is what a freshly-updated user sees.
+ *
+ * The 1.7.0 entry aggregates the whole 1.6.8 beta series (everything since the
+ * previous stable, 1.6.7). Future stable/beta releases prepend their own entry.
  */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
-		version: "1.6.8.19-beta",
+		version: "1.7.0",
 		tldr:
-			"The “What's new” dialog is now backed by a continuous changelog: each " +
-			"release adds an entry on top and older entries are kept, so the popup " +
-			"shows exactly what changed since you last opened it.",
-		features: [
-			"Changelog entries accumulate over releases (newest first) instead of " +
-				"being overwritten each version; the popup lists only what's new since " +
-				"your last-seen version.",
-		],
-		fixes: [],
-	},
-	{
-		version: "1.6.8.18-beta",
-		tldr:
-			"Fix the “What's new” dialog not appearing for people upgrading into the " +
-			"first build that shipped it.",
-		features: [],
-		fixes: [
-			"An existing vault that simply predated the lastSeenVersion setting was " +
-				"mistaken for a fresh install and seeded silently. A true first run is now " +
-				"detected from having no persisted data at all, so upgraders see the " +
-				"release notes while first-time users don't.",
-		],
-	},
-	{
-		version: "1.6.8.17-beta",
-		tldr:
-			"A big Tasks-card release (the 1.6.8 beta series). Hearth now reads and " +
-			"edits Kanban plugin boards, understands the full obsidian-tasks metadata " +
-			"(dates, 5-level priority, recurrence), and gives every card a quick-view " +
-			"popover for editing in place. You can define custom checkbox task states, " +
-			"convert cards into notes (or create them as notes outright), and the " +
-			"search bar can now be powered by Omnisearch.",
+			"A major Tasks-card release. Hearth now reads and edits Kanban plugin " +
+			"boards, understands the full obsidian-tasks metadata (dates, 5-level " +
+			"priority, recurrence), and gives every card a quick-view popover for " +
+			"editing in place. You can define custom checkbox task states, convert " +
+			"cards into notes (or create them as notes outright), point the search bar " +
+			"at Omnisearch, and a new “What's new” dialog surfaces release notes after " +
+			"each update.",
 		features: [
 			"Kanban plugin boards: a Tasks card can read a Kanban board note — each " +
 				"heading becomes a column and each checkbox a card. Show it as a list or a " +
 				"drag-and-drop board that rewrites the note in Kanban's own format.",
 			"Full obsidian-tasks metadata: start (🛫), scheduled (⏳), due (📅) and done " +
 				"(✅) dates, a 5-level priority (🔺⏫🔼🔽⏬) and recurrence (🔁), shown as " +
-				"compact card indicators with a right-click editor and add-card pickers.",
+				"compact card indicators with a right-click editor and add-card pickers — " +
+				"read from Kanban cards and plain Markdown checkboxes alike.",
 			"Custom checkbox task states: define your own “[symbol] Label” states for the " +
 				"Markdown-checkbox source (defaults To do / In progress / Done); each becomes " +
 				"a draggable board column that writes its own checkbox symbol.",
@@ -71,10 +50,8 @@ export const CHANGELOG: ChangelogEntry[] = [
 				"note or delete the task (toggle per card, on by default).",
 			"Convert to note: right-click a card to turn it into its own linked note, " +
 				"optionally seeded from a template ({{title}}/{{date}}/{{time}}) and with its " +
-				"metadata scraped into frontmatter and its description moved into the note.",
-			"New tasks as notes: an optional toggle so adding a card creates it as its own " +
-				"note (a link on the board) right away instead of an inline checkbox — with a " +
-				"template preview in the add form.",
+				"metadata scraped into frontmatter and its description moved into the note; " +
+				"new cards can also be created as notes outright.",
 			"Optional Omnisearch engine: point the search bar at the Omnisearch community " +
 				"plugin when it's installed, with a graceful fall back to Hearth's built-in " +
 				"vault search.",
@@ -88,8 +65,11 @@ export const CHANGELOG: ChangelogEntry[] = [
 			"Editable converted cards: a card linked to a note keeps showing its dates & " +
 				"priority (read back from frontmatter) and its metadata and description can be " +
 				"edited straight from the quick view.",
-			"Scroll-mode boards now grow while you drag a card down, so you can drop past " +
-				"the current bottom without fighting the scroll.",
+			"Scroll-mode boards grow while you drag a card down, so you can drop past the " +
+				"current bottom without fighting the scroll.",
+			"A “What's new” dialog surfaces release notes after an update, backed by a " +
+				"continuous, accumulating changelog that shows only what changed since the " +
+				"version you last saw (never on a fresh install).",
 		],
 		fixes: [
 			"All five priorities now use distinct colours, so highest/lowest read apart " +
