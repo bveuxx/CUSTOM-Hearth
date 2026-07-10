@@ -25,6 +25,25 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: "1.7.1.3-beta",
+		tldr:
+			"Dataview card table polish: table results now auto-fit their columns to " +
+			"content (and scroll sideways when wider than the card) instead of being " +
+			"stretched to the card width, and you can drag a column header's edge to " +
+			"set a manual width that's remembered per card.",
+		features: [
+			"Dataview tables: drag a column header's right edge to resize it. The first " +
+				"drag freezes the auto-fitted widths into a fixed layout, and the widths " +
+				"are remembered per card and re-applied whenever Dataview refreshes the " +
+				"table. Change the query's columns and the manual layout resets to auto-fit.",
+		],
+		fixes: [
+			"Dataview tables no longer stretch to fill the card width (which squashed or " +
+				"inflated columns unevenly) — columns auto-fit their content and a wide " +
+				"table scrolls horizontally inside the card, like a table in a note.",
+		],
+	},
+	{
 		version: "1.7.1.2-beta",
 		tldr:
 			"A new Dataview card. When the Dataview community plugin is installed, " +

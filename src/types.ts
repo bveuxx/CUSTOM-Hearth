@@ -220,6 +220,13 @@ export interface DataviewConfig {
 	/** How `query` is interpreted. "dql" (default) runs it as a Dataview query;
 	 * "js" runs it as DataviewJS (arbitrary JavaScript). */
 	language?: "dql" | "js";
+	/** Manual per-column pixel widths for a rendered TABLE, in column order.
+	 * When set (non-empty), the table renders with a fixed layout at these
+	 * widths — drag a column's right edge to resize. Absent/empty keeps the
+	 * auto-fit layout (columns sized to content). Ignored and reset when the
+	 * table's column count no longer matches the array length (e.g. the query
+	 * changed), so a stale layout never mangles a different result. */
+	columnWidths?: number[];
 }
 
 /** Per-card configuration for a "clock" card. All fields are optional; omitted
@@ -650,7 +657,7 @@ export function cloneCard(card: DashboardCard): DashboardCard {
 	if (card.heatmap) copy.heatmap = { ...card.heatmap };
 	if (card.clock) copy.clock = { ...card.clock };
 	if (card.calculator) copy.calculator = { ...card.calculator };
-	if (card.dataview) copy.dataview = { ...card.dataview };
+	if (card.dataview) copy.dataview = { ...card.dataview, columnWidths: card.dataview.columnWidths ? [...card.dataview.columnWidths] : undefined };
 	return copy;
 }
 

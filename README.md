@@ -235,7 +235,10 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   text you'd put in a ```` ```dataview ```` block — or switch the query type to
   **DataviewJS** for a ```` ```dataviewjs ```` script (`dv` API in scope; runs
   arbitrary JavaScript, so only use code you trust). Links in the results are
-  clickable. The card runs with no "current note", so global queries (e.g.
+  clickable. **Table** results auto-fit their columns to content and scroll
+  horizontally when wider than the card; drag a column header's right edge to
+  set a manual width (remembered per card, and re-applied when Dataview
+  refreshes). The card runs with no "current note", so global queries (e.g.
   `FROM #tag`) work fully; a query relying on `this.file` has no file to resolve
   to on the dashboard.
 

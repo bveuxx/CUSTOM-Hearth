@@ -2349,16 +2349,72 @@
 	resize: vertical;
 }
 
-/* Dataview card body: let Dataview's own rendered output (tables, lists, task
-   lists) fill the width and scroll within the card. */
+/* Dataview card body: Dataview's own rendered output (tables, lists, task
+   lists). A table wider than the card scrolls horizontally here instead of
+   forcing the whole board wider. */
 .hearth-dataview {
 	width: 100%;
 	max-width: 100%;
-	overflow: auto;
+	overflow-x: auto;
 }
 
+/* Auto-fit columns: size each column to its content (the browser's auto table
+   layout) rather than stretching the table to the card width, which squashed
+   or inflated columns unevenly. */
 .hearth-dataview table {
-	width: 100%;
+	width: auto;
+	table-layout: auto;
+}
+
+/* Keep a single long-text column (note bodies, paths) from ballooning: wrap
+   past a sensible width instead of pushing every other column off-screen. */
+.hearth-dataview th,
+.hearth-dataview td {
+	max-width: 32ch;
+	overflow-wrap: anywhere;
+}
+
+/* Manual column widths (drag-resized): a fixed layout honours the per-column
+   <col> widths exactly, so the 32ch auto cap must step aside. */
+.hearth-dataview table.hearth-dv-manual th,
+.hearth-dataview table.hearth-dv-manual td {
+	max-width: none;
+}
+
+/* Header cells host a drag handle at their right edge. */
+.hearth-dataview th.hearth-dv-th {
+	position: relative;
+}
+
+.hearth-dv-col-resizer {
+	position: absolute;
+	top: 0;
+	right: -3px;
+	width: 7px;
+	height: 100%;
+	cursor: col-resize;
+	user-select: none;
+	touch-action: none;
+	/* Above the cell content so it's always grabbable, but invisible until hover. */
+	z-index: 2;
+}
+
+.hearth-dv-col-resizer::after {
+	content: "";
+	position: absolute;
+	top: 15%;
+	right: 3px;
+	width: 2px;
+	height: 70%;
+	border-radius: 1px;
+	background: var(--interactive-accent);
+	opacity: 0;
+	transition: opacity 0.12s ease;
+}
+
+.hearth-dv-col-resizer:hover::after,
+.hearth-dv-col-resizer.is-dragging::after {
+	opacity: 0.7;
 }
 
 /* Shared task-detail fields (priority, repeat, dates) — used by the Kanban
