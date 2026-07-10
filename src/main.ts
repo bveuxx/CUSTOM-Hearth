@@ -5,6 +5,7 @@ import { HomeSettingTab } from "./settings";
 import { HEARTH_ICON_ID, HEARTH_ICON_SVG } from "./icon";
 import { EXCALIDRAW_PLUGIN_ID } from "./filetypes";
 import { setLanguage, t } from "./i18n";
+import { maybeShowWhatsNew } from "./whatsnew";
 
 /** Core "Audio recorder" plugin id, used by the "Record voice" mobile action. */
 const AUDIO_RECORDER_PLUGIN_ID = "audio-recorder";
@@ -68,6 +69,9 @@ export default class HearthPlugin extends Plugin {
 
 		this.app.workspace.onLayoutReady(() => {
 			if (this.settings.openOnStartup) void this.activateView();
+			// Pop the release-notes dialog after an update (but not on a fresh
+			// install). Runs once layout is ready so it doesn't fight startup.
+			void maybeShowWhatsNew(this);
 		});
 	}
 

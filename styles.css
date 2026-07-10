@@ -2791,3 +2791,53 @@
 	z-index: 15;
 	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
+
+/* ── "What's new" release-notes dialog ─────────────────────────────────── */
+.hearth-whatsnew-modal {
+	max-width: 620px;
+}
+
+.hearth-whatsnew-modal .hearth-whatsnew-intro {
+	margin: 0 0 12px;
+	color: var(--text-muted);
+}
+
+.hearth-whatsnew-tldr {
+	margin: 0 0 16px;
+	padding: 12px 14px;
+	border-radius: 8px;
+	background: var(--background-secondary);
+	border-left: 3px solid var(--interactive-accent);
+}
+
+.hearth-whatsnew-tldr p {
+	margin: 0;
+}
+
+.hearth-whatsnew-modal h4 {
+	margin: 18px 0 6px;
+	font-size: 0.8rem;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+}
+
+.hearth-whatsnew-tldr h4 {
+	margin: 0 0 6px;
+}
+
+.hearth-whatsnew-section ul {
+	margin: 0;
+	padding-left: 1.2em;
+}
+
+.hearth-whatsnew-section li {
+	margin: 5px 0;
+	line-height: 1.45;
+}
+
+.hearth-whatsnew-footer {
+	margin: 18px 0 0;
+	font-size: 0.82rem;
+	color: var(--text-muted);
+}

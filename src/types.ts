@@ -450,6 +450,12 @@ export interface HomeSettings {
 
 	// ---- Layout ----
 	maxWidth: number;
+
+	// ---- Internal bookkeeping ----
+	/** The plugin version whose release notes the user last saw. Used to decide
+	 * when to pop the "What's new" dialog after an update. Empty on a fresh
+	 * install (which is seeded silently, without showing the dialog). */
+	lastSeenVersion: string;
 }
 
 export const DEFAULT_SETTINGS: HomeSettings = {
@@ -500,6 +506,8 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	taskNotesDoneValue: "done",
 
 	maxWidth: 1600,
+
+	lastSeenVersion: "",
 };
 
 /** The cards a brand-new vault starts with. Coordinates and sizes are taken

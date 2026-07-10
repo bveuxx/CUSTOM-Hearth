@@ -79,6 +79,17 @@ export const en = {
 		cancel: "Cancel",
 	},
 
+	// ---- "What's new" release-notes dialog -----------------------------
+	whatsNew: {
+		title: (version: string) => `What's new in Hearth ${version}`,
+		intro: "Thanks for updating! Here's everything that landed since the last stable release.",
+		tldr: "TL;DR",
+		features: "New features",
+		fixes: "Bug fixes & polish",
+		close: "Got it",
+		footer: "Full details live in the plugin's README.",
+	},
+
 	// ---- File pickers --------------------------------------------------
 	pickers: {
 		fileToEmbed: "Pick a file to embed…",

@@ -358,6 +358,11 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 
 ## Shipped:
 
+> **v1.6.8.17-beta** — a **"What's new" dialog** now pops up after the plugin
+> updates (once per version, never on a fresh install), summarising the release
+> with a TL;DR plus grouped lists of new features and bug fixes. The last-seen
+> version is remembered in settings so the dialog only appears once per update.
+
 > **v1.6.8.16-beta** — three Tasks-card additions: the add-card form now
 > **previews the note template** body (editable) when creating a card as a note;
 > a per-add **Create as note** toggle sits in the form itself; and the
