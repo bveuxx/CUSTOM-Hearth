@@ -2700,13 +2700,14 @@
 	font-size: 0.82rem;
 }
 
-/* When "Hide base header" is on, hide the embedded Bases view's own toolbar
- * (view switcher + filter/property controls) so the card shows only results.
- * Scoped to the opted-in host so no other embed is affected; several candidate
- * selectors cover Obsidian's Bases markup across versions. */
-.hearth-embed-hide-base-header .bases-toolbar,
-.hearth-embed-hide-base-header .bases-tbar,
-.hearth-embed-hide-base-header .bases-embed-title {
+/* When "Hide base header" is on, hide the embedded Bases view's own header
+ * (the .bases-header wrapper, which holds the .bases-toolbar — view switcher and
+ * filter/property/sort/search controls) so the card shows only results. Hiding
+ * the outer .bases-header collapses its space; the inner selector is a fallback
+ * in case a future Bases build drops the wrapper. Scoped to the opted-in host so
+ * no other embed is affected. */
+.hearth-embed-hide-base-header .bases-header,
+.hearth-embed-hide-base-header .bases-toolbar {
 	display: none !important;
 }
 

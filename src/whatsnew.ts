@@ -25,6 +25,18 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: "1.7.1.6-beta",
+		tldr:
+			"Fix for “Hide base header”: it now hides the whole Bases header wrapper " +
+			"so no empty strip is left where the toolbar was.",
+		features: [],
+		fixes: [
+			"“Hide base header” no longer leaves an empty gap at the top of the card — " +
+				"it hides the Bases header container (.bases-header), not just the toolbar " +
+				"inside it, so the reserved space collapses and the results sit flush.",
+		],
+	},
+	{
 		version: "1.7.1.5-beta",
 		tldr:
 			"Embed cards that show a .base file gain a “Hide base header” option that " +
