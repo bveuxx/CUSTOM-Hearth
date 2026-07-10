@@ -3215,6 +3215,9 @@ class TaskMetadataModal extends Modal {
  * Save button writes them back; otherwise the metadata is shown read-only. */
 class TaskDetailModal extends Modal {
 	private read: (() => { meta: TaskMeta; description: string }) | null = null;
+	/** For a linked card, the editable description textarea (its content is
+	 * written back to the note body on save). */
+	private linkedDescArea: HTMLTextAreaElement | null = null;
 	constructor(
 		private readonly view: HomeView,
 		private readonly cfg: TasksConfig,
@@ -3231,7 +3234,7 @@ class TaskDetailModal extends Modal {
 		const editable = taskMetaEnabled(cfg, hit);
 		// A card linked to a note stores its metadata in that note's frontmatter
 		// (edited here, written back there) and its description inside the note
-		// (shown read-only — edit it in the note itself).
+		// body (edited in a textarea below the metadata, written back to the note).
 		const linked = !!hit.linkedFile;
 
 		const title = contentEl.createEl("h3", { cls: "hearth-taskdetail-title" });
@@ -3247,11 +3250,19 @@ class TaskDetailModal extends Modal {
 			};
 			this.read = buildTaskDetailFields(contentEl, current, hit.description ?? "", isKanban && !linked);
 			if (linked && hit.linkedFile) {
-				// Description lives inside the linked note; show it read-only below
-				// the editable metadata fields.
-				const descHost = contentEl.createDiv();
+				// Description lives inside the linked note — edit it in its own
+				// textarea, prefilled from the note body once it loads.
+				const descWrap = contentEl.createDiv({ cls: "hearth-taskdetail" });
+				const descRow = descWrap.createDiv({ cls: "hearth-taskdetail-row is-description" });
+				descRow.createSpan({ cls: "hearth-taskdetail-label", text: t().cards.tasks.description });
+				const area = descRow.createEl("textarea", {
+					cls: "hearth-taskdetail-desc",
+					attr: { rows: "3", placeholder: t().cards.tasks.descriptionPlaceholder },
+				});
+				this.linkedDescArea = area;
 				void readNoteDescription(view, hit.linkedFile).then((desc) => {
-					if (desc) renderTaskDescription(descHost, desc);
+					// Don't clobber edits the user already started typing.
+					if (!area.value) area.value = desc;
 				});
 			}
 		} else {
@@ -3282,10 +3293,14 @@ class TaskDetailModal extends Modal {
 					.onClick(() => {
 						if (this.read) {
 							const r = this.read();
-							void setKanbanCardMetadata(view, hit, r.meta, r.description).then((ok) => {
+							const descArea = this.linkedDescArea;
+							void (async () => {
+								const ok = await setKanbanCardMetadata(view, hit, r.meta, r.description);
 								if (!ok) new Notice(t().notices.taskChangedOnDisk);
+								// A linked card's description is written back to the note body.
+								if (hit.linkedFile && descArea) await writeNoteDescription(view, hit.linkedFile, descArea.value);
 								this.refresh();
-							});
+							})();
 						}
 						this.close();
 					}),
@@ -3583,6 +3598,26 @@ async function readNoteDescription(view: HomeView, file: TFile): Promise<string>
 		.map((l) => l.replace(/^\s*(?:[-*+]|\d+\.)\s+/, "").trim())
 		.filter(Boolean)
 		.join("\n");
+}
+
+/** Write a linked note's description (the body below its frontmatter) from the
+ * quick-view editor: keeps the frontmatter intact and replaces the body with the
+ * edited lines as bullet points. */
+async function writeNoteDescription(view: HomeView, file: TFile, description: string): Promise<void> {
+	try {
+		const content = await view.app.vault.read(file);
+		const fm = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/.exec(content)?.[0] ?? "";
+		const bullets = description
+			.split(/\r?\n/)
+			.map((l) => l.trim())
+			.filter(Boolean)
+			.map((l) => `- ${l}`)
+			.join("\n");
+		const next = fm ? (bullets ? `${fm.replace(/\r?\n?$/, "\n")}\n${bullets}\n` : fm) : bullets ? `${bullets}\n` : "";
+		await view.app.vault.modify(file, next);
+	} catch {
+		new Notice(t().notices.taskChangedOnDisk);
+	}
 }
 
 /** Read a Kanban board note: each `##` heading is a column and each checkbox

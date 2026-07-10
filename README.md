@@ -149,10 +149,10 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   and can optionally **scrape the card's metadata into the note's frontmatter**
   instead of leaving the emoji markers on the board link — all set per card in
   its settings. A converted card keeps showing its dates & priority on the board
-  (read back from the linked note's frontmatter), and its metadata stays
-  **editable straight from the card** — the quick view and right-click editor
-  write changes back to the note's frontmatter — while its description is edited
-  in the note itself. A column's **check icon** marks
+  (read back from the linked note's frontmatter), and both its metadata and
+  **description stay editable straight from the card** — the quick view writes
+  the metadata to the note's frontmatter and the description to the note body. A
+  column's **check icon** marks
   it a *done column*, so cards complete automatically when dragged or added
   there (and the ones already in it complete at once). Turn on **Dates &
   priorities** to read the marks each card carries (compatible with
@@ -348,6 +348,11 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 [`src/locales/README.md`](src/locales/README.md) for the walkthrough.
 
 ## Shipped:
+
+> **v1.6.8.14-beta** — the quick view now also lets you **edit a converted
+> card's description**: for a card linked to a note, the description textarea
+> writes back to the note body (bullets, frontmatter preserved), alongside the
+> already-editable frontmatter metadata.
 
 > **v1.6.8.13-beta** — a **converted card's metadata is editable again**: the
 > quick view and right-click "Edit dates & priority" for a card linked to a note
