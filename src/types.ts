@@ -597,7 +597,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	 * Opacity is low enough that foreground reads clearly; blur is gentle so
 	 * the image is still recognizable, not a wash of colour. */
 	backgroundOpacity: 0.35,
-	backgroundBlur: 6,
+	backgroundBlur: 2,
 
 	openOnStartup: true,
 	replaceNewTabs: true,
@@ -608,9 +608,10 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	mobileActionButtons: [],
 
 	compact: false,
-	cardOpacity: 0.6,
-	// Off by default — frosted glass is opt-in, so existing boards look unchanged.
-	cardBlur: 0,
+	cardOpacity: 0.5,
+	// Frosted glass on by default: a translucent card surface with a gentle blur
+	// of the background behind it. Pairs with the 0.5 opacity above.
+	cardBlur: 7,
 
 	hiddenFilters: [],
 
@@ -888,10 +889,10 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 		s.activeDashboardId = s.dashboards[0].id;
 	}
 	if (typeof s.rowHeight !== "number" || s.rowHeight <= 0) s.rowHeight = 92;
-	if (typeof s.cardOpacity !== "number") s.cardOpacity = 0.6;
-	if (typeof s.cardBlur !== "number") s.cardBlur = 0;
+	if (typeof s.cardOpacity !== "number") s.cardOpacity = 0.5;
+	if (typeof s.cardBlur !== "number") s.cardBlur = 7;
 	if (typeof s.backgroundOpacity !== "number") s.backgroundOpacity = 0.35;
-	if (typeof s.backgroundBlur !== "number") s.backgroundBlur = 6;
+	if (typeof s.backgroundBlur !== "number") s.backgroundBlur = 2;
 	// Fit-to-page is the default for fresh installs; existing users keep their
 	// choice (only backfill when the field is missing entirely).
 	if (typeof raw.fitToPage !== "boolean") s.fitToPage = true;

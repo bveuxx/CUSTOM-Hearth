@@ -25,6 +25,22 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: "1.7.1.12-beta",
+		tldr:
+			"New default look: frosted-glass cards out of the box (card opacity 0.50, " +
+			"card blur 7) over a lighter background blur (2). Existing vaults keep " +
+			"their current settings — reset a slider (↺) to adopt the new default.",
+		features: [],
+		fixes: [
+			"Refreshed the default appearance: card opacity 0.50 and card blur 7 " +
+				"(frosted glass on by default), and background blur softened from 6 to 2 " +
+				"(background opacity unchanged at 0.35). Only affects fresh installs and " +
+				"sliders reset to default — your existing values are untouched. The " +
+				"global sliders for both card opacity and card blur live in " +
+				"Settings → Dashboard.",
+		],
+	},
+	{
 		version: "1.7.1.11-beta",
 		tldr:
 			"Frosted glass: cards can now blur what's behind them. A global “Card " +
