@@ -2306,6 +2306,28 @@
 	font-family: inherit;
 }
 
+/* "Create as note" toggle in the add-card form. */
+.hearth-kanban-add-note {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 0.8rem;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.hearth-kanban-add-note input {
+	margin: 0;
+}
+
+/* Custom checkbox-statuses editor: a small monospaced list. */
+.hearth-tasks-statuses-input {
+	width: 100%;
+	font-family: var(--font-monospace);
+	font-size: 0.82rem;
+	line-height: 1.5;
+}
+
 /* Shared task-detail fields (priority, repeat, dates) — used by the Kanban
    add-card form and the edit dialog. Rows stack; label left, control right. */
 .hearth-taskdetail {

@@ -464,6 +464,12 @@ export const en = {
 				"checkbox (compatible with the obsidian-tasks plugin) so they show as " +
 				"indicators, sort the list, and can be edited from the item's " +
 				"right-click menu. Off reads checkboxes as plain text.",
+			checkboxStatuses: "Task states (board columns)",
+			checkboxStatusesDesc:
+				"The checkbox states shown as columns on a Kanban board, one per line " +
+				"as “[symbol] Label” — the symbol is the character inside “- [ ]”. Add " +
+				"“(done)” to mark a state complete. Dragging a card to a column writes " +
+				"its symbol. Leave empty for the default set (To do, In progress, Done).",
 			quickView: "Quick view on click",
 			quickViewDesc:
 				"Clicking a task opens a compact popover — its metadata and " +
@@ -649,12 +655,15 @@ export const en = {
 			createNewTask: "Create new task",
 			toDo: "To do",
 			done: "Done",
+			statusInProgress: "In progress",
 			noStatus: "No status",
 			hideColumn: (label: string) => `Hide "${label}" column`,
 			markOccurrence: "Mark today's occurrence complete",
 			recurring: "Recurring",
 			addCard: "Add card",
 			addCardPlaceholder: "Card text…",
+			createAsNote: "Create as note",
+			noteBody: "Note body",
 			convertToNote: "Convert to note",
 			editMetadata: "Edit dates & priority",
 			deleteCard: "Delete card",

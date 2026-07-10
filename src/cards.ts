@@ -2121,6 +2121,28 @@ interface TaskHit {
 	 * from that note's frontmatter and its description from the note body, and
 	 * "open note" opens it. */
 	linkedFile?: TFile | null;
+	/** Checkbox source: the raw checkbox status symbol (the char inside `- [ ]`),
+	 * used to group the task into its status column on the Kanban board. */
+	checkboxStatus?: string;
+}
+
+/** The default checkbox task states shown as Kanban columns when the card has
+ * no custom set: To do ` `, In progress `/`, Done `x` (done). */
+function defaultCheckboxStatuses(): { symbol: string; label: string; done?: boolean }[] {
+	return [
+		{ symbol: " ", label: t().cards.tasks.toDo },
+		{ symbol: "/", label: t().cards.tasks.statusInProgress },
+		{ symbol: "x", label: t().cards.tasks.done, done: true },
+	];
+}
+
+/** The card's configured checkbox statuses, or the default set. Blank/malformed
+ * entries are dropped; a status without a label falls back to its symbol. */
+function checkboxStatuses(cfg: TasksConfig): { symbol: string; label: string; done?: boolean }[] {
+	const custom = (cfg.checkboxStatuses ?? [])
+		.filter((s) => s && typeof s.symbol === "string" && s.symbol.length === 1)
+		.map((s) => ({ symbol: s.symbol, label: (s.label || "").trim() || s.symbol, done: !!s.done }));
+	return custom.length ? custom : defaultCheckboxStatuses();
 }
 
 /** Whether `path` is in scope per the card's folder whitelist/blacklist. An
@@ -2600,7 +2622,7 @@ function renderTaskKanban(
 	const doneValue = (view.plugin.settings.taskNotesDoneValue.trim() || "done");
 
 	// Build the ordered list of columns and assign each hit to one.
-	interface Column { key: string; label: string; hits: TaskHit[] }
+	interface Column { key: string; label: string; hits: TaskHit[]; statusSymbol?: string; statusDone?: boolean }
 	const columns: Column[] = [];
 	const columnFor = new Map<string, Column>();
 	const ensure = (key: string, label: string): Column => {
@@ -2624,9 +2646,25 @@ function renderTaskKanban(
 			col.hits.push(hit);
 		}
 	} else if (source === "checkbox") {
-		ensure("open", t().cards.tasks.toDo);
-		ensure("done", t().cards.tasks.done);
-		for (const hit of hits) columnFor.get(hit.done ? "done" : "open")!.hits.push(hit);
+		// One column per configured checkbox status (To do / In progress / Done by
+		// default), keyed by the status symbol. Cards whose symbol isn't in the
+		// set fall into a column of their own so nothing is hidden.
+		const statuses = checkboxStatuses(cfg);
+		for (const s of statuses) {
+			const col = ensure(s.symbol.toLowerCase(), s.label);
+			col.statusSymbol = s.symbol;
+			col.statusDone = !!s.done;
+		}
+		for (const hit of hits) {
+			const sym = hit.checkboxStatus ?? (hit.done ? "x" : " ");
+			let col = columnFor.get(sym.toLowerCase());
+			if (!col) {
+				col = ensure(sym.toLowerCase(), sym === " " ? t().cards.tasks.toDo : sym);
+				col.statusSymbol = sym;
+				col.statusDone = hit.done;
+			}
+			col.hits.push(hit);
+		}
 	} else {
 		// Collect the statuses actually present, then make sure a "done" column
 		// exists so tasks can be completed by dragging.
@@ -2714,9 +2752,11 @@ function renderTaskKanban(
 				refresh();
 			});
 		} else if (source === "checkbox") {
-			const wantDone = col.key === "done";
-			if (hit.done === wantDone) return;
-			void setCheckboxState(view, hit, wantDone).then((ok) => {
+			// Write the target column's status symbol onto the checkbox; stamp/clear
+			// the ✅ done date to match when metadata is managed.
+			const symbol = col.statusSymbol ?? (col.statusDone ? "x" : " ");
+			if ((hit.checkboxStatus ?? (hit.done ? "x" : " ")) === symbol) return;
+			void setCheckboxSymbol(view, hit, symbol, !!col.statusDone, cfg.checkboxExtended ?? true).then((ok) => {
 				if (!ok) new Notice(t().notices.taskChangedOnDisk);
 				refresh();
 			});
@@ -2744,7 +2784,7 @@ function renderTaskKanban(
 		sortHits(col.hits, colSort.key ?? globalKey, colSort.reverse ?? globalReverse);
 
 		const colEl = board.createDiv("hearth-kanban-col");
-		colEl.toggleClass("is-done-col", doneColumns.has(col.key));
+		colEl.toggleClass("is-done-col", doneColumns.has(col.key) || !!col.statusDone);
 		const head = colEl.createDiv("hearth-kanban-col-head");
 		const titleEl = head.createSpan({ cls: "hearth-kanban-col-title", text: col.label });
 		// Kanban source: double-click the title to rename the board column.
@@ -2961,10 +3001,55 @@ function renderKanbanAddCard(
 			attr: { rows: "1", placeholder: t().cards.tasks.addCardPlaceholder },
 		});
 
-		// Extended mode: dates, priority and description fields for the new card.
-		const readDetail = opts.extended
-			? buildTaskDetailFields(form, emptyMeta(), "")
+		// Extended mode: dates and priority fields for the new card (the body /
+		// description is handled separately below so it can preview the template).
+		const readMeta = opts.extended
+			? buildTaskDetailFields(form, emptyMeta(), "", false)
 			: () => ({ meta: emptyMeta(), description: "" });
+
+		// "Create as note" toggle (per-add; defaults to the card's setting).
+		const noteLabel = form.createEl("label", { cls: "hearth-kanban-add-note" });
+		const noteToggle = noteLabel.createEl("input", { attr: { type: "checkbox" } });
+		noteToggle.checked = !!cfg.newTaskAsNote;
+		noteLabel.createSpan({ text: t().cards.tasks.createAsNote });
+
+		// Body / description field. When creating as a note it's the note body,
+		// prefilled from the configured template so it's visible and editable
+		// before the note is created; otherwise it's the card's inline description.
+		const bodyWrap = form.createDiv({ cls: "hearth-taskdetail" });
+		const bodyRow = bodyWrap.createDiv({ cls: "hearth-taskdetail-row is-description" });
+		const bodyLabel = bodyRow.createSpan({ cls: "hearth-taskdetail-label" });
+		const bodyArea = bodyRow.createEl("textarea", {
+			cls: "hearth-taskdetail-desc",
+			attr: { rows: "3", placeholder: t().cards.tasks.descriptionPlaceholder },
+		});
+
+		let prefillText = "";
+		const applyPrefill = () => {
+			bodyLabel.setText(noteToggle.checked ? t().cards.tasks.noteBody : t().cards.tasks.description);
+			// Keep the body field out of the way for a plain (non-extended) checkbox
+			// add until the user opts into notes or extended metadata.
+			if (opts.extended || noteToggle.checked) bodyWrap.show();
+			else bodyWrap.hide();
+			if (!prefillText) return;
+			if (noteToggle.checked && !bodyArea.value.trim()) bodyArea.value = prefillText;
+			else if (!noteToggle.checked && bodyArea.value === prefillText) bodyArea.value = "";
+		};
+		noteToggle.addEventListener("change", applyPrefill);
+		applyPrefill();
+		// Load the template body (if any) to preview it in the field.
+		const templatePath = cfg.convertNoteTemplate?.trim();
+		if (templatePath) {
+			const tpl =
+				view.app.vault.getAbstractFileByPath(templatePath) ??
+				view.app.vault.getAbstractFileByPath(`${templatePath}.md`);
+			if (tpl instanceof TFile) {
+				void view.app.vault.read(tpl).then((raw) => {
+					prefillText = substituteConvertDateTime(raw);
+					applyPrefill();
+				});
+			}
+		}
 
 		input.focus();
 		let committed = false;
@@ -2978,13 +3063,15 @@ function renderKanbanAddCard(
 			const text = input.value.trim();
 			if (!text) return cancel();
 			committed = true;
-			const detail = readDetail();
+			const meta = readMeta().meta;
+			const body = bodyArea.value;
+			const asNote = noteToggle.checked;
 			const doneDate = opts.markDone && opts.extended ? moment().format("YYYY-MM-DD") : undefined;
-			// "New tasks as notes": create the card as its own note (a link) right
-			// away instead of an inline checkbox.
-			const add = cfg.newTaskAsNote
-				? addKanbanCardAsNote(view, cfg, heading, text, detail.meta, detail.description, opts.markDone, doneDate)
-				: addKanbanCard(view, cfg, heading, text + buildMetadataSuffix(detail.meta), opts.markDone, doneDate, detail.description);
+			// "Create as note": create the card as its own note (a link) right away
+			// instead of an inline checkbox.
+			const add = asNote
+				? addKanbanCardAsNote(view, cfg, heading, text, meta, body, opts.markDone, doneDate)
+				: addKanbanCard(view, cfg, heading, text + buildMetadataSuffix(meta), opts.markDone, doneDate, body);
 			void add.then((ok) => {
 				if (!ok) new Notice(t().notices.couldNotAddKanbanCard);
 				refresh();
@@ -3353,17 +3440,26 @@ class TaskDetailModal extends Modal {
  * emoji stay in the visible text and no dates/priority are parsed. */
 async function collectCheckboxTasks(view: HomeView, cfg: TasksConfig): Promise<TaskHit[]> {
 	const extended = cfg.checkboxExtended ?? true;
+	const statuses = checkboxStatuses(cfg);
+	// Symbols recognised as tasks: the configured ones, plus the always-valid
+	// blank/done marks. Anything else inside `- [ ]` is left alone (so a stray
+	// `- [1]` reference isn't mistaken for a task).
+	const known = new Map(statuses.map((s) => [s.symbol.toLowerCase(), s]));
 	const files = view.app.vault.getMarkdownFiles().filter((f) => inTaskScope(f.path, cfg));
 	const hits: TaskHit[] = [];
 	for (const file of files) {
 		const content = await view.app.vault.cachedRead(file);
 		const lines = content.split("\n");
 		lines.forEach((line, i) => {
-			const match = /^\s*[-*+]\s\[([ xX])\]\s*(.*)$/.exec(line);
+			const match = /^\s*[-*+]\s\[(.)\]\s*(.*)$/.exec(line);
 			if (!match) return;
+			const symbol = match[1];
+			const st = known.get(symbol.toLowerCase());
+			// Only known status symbols (or the built-in blank/done marks) count.
+			if (!st && !/[ xX]/.test(symbol)) return;
 			const raw = match[2].trim();
 			if (!raw) return; // ignore empty checkboxes ("- [ ]")
-			const done = match[1].toLowerCase() === "x";
+			const done = st ? !!st.done : symbol.toLowerCase() === "x";
 			if (!extended) {
 				// Plain mode: keep the line's text verbatim, no metadata parsing.
 				hits.push({
@@ -3371,6 +3467,7 @@ async function collectCheckboxTasks(view: HomeView, cfg: TasksConfig): Promise<T
 					line: i,
 					text: raw,
 					done,
+					checkboxStatus: symbol,
 					due: null,
 					dueRaw: null,
 					scheduled: null,
@@ -3394,6 +3491,7 @@ async function collectCheckboxTasks(view: HomeView, cfg: TasksConfig): Promise<T
 				line: i,
 				text: stripTaskMetadata(raw),
 				done,
+				checkboxStatus: symbol,
 				due,
 				dueRaw,
 				scheduled: readEmojiDate(raw, "⏳") || null,
@@ -3526,8 +3624,9 @@ function parseKanbanColumns(lines: string[]): { columns: KanbanColumn[]; footerS
 }
 
 /** The checkbox-item pattern shared by the Kanban parser (a card is a plain
- * Markdown task item, same as a checkbox task). */
-const KANBAN_CARD_RE = /^\s*[-*+]\s\[([ xX])\]\s*(.*)$/;
+ * Markdown task item, same as a checkbox task). The status char may be any
+ * single character so custom statuses (`[/]`, `[-]`, …) are handled too. */
+const KANBAN_CARD_RE = /^\s*[-*+]\s\[(.)\]\s*(.*)$/;
 
 /** The extent of a Kanban card starting at `cardLine`: its item line plus any
  * deeper-indented, non-blank continuation lines (the card's description). `end`
@@ -3963,7 +4062,7 @@ async function addKanbanCardAsNote(
 	heading: string,
 	title: string,
 	meta: TaskMeta,
-	description: string,
+	noteBody: string,
 	markDone?: boolean,
 	doneDate?: string,
 ): Promise<boolean> {
@@ -3979,24 +4078,10 @@ async function addKanbanCardAsNote(
 	} catch {
 		return false;
 	}
-	// Seed the body: optional template, then the description as bullet points.
-	const bodyParts: string[] = [];
-	const templatePath = cfg.convertNoteTemplate?.trim();
-	if (templatePath) {
-		const tpl =
-			view.app.vault.getAbstractFileByPath(templatePath) ??
-			view.app.vault.getAbstractFileByPath(`${templatePath}.md`);
-		if (tpl instanceof TFile) {
-			try {
-				bodyParts.push(applyConvertTemplate(await view.app.vault.read(tpl), safeTitle));
-			} catch {
-				// Template unreadable — carry on without it.
-			}
-		}
-	}
-	const descLines = (description ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-	if (descLines.length) bodyParts.push(descLines.map((l) => `- ${l}`).join("\n"));
-	if (bodyParts.length) await view.app.vault.modify(note, bodyParts.join("\n\n"));
+	// The note body is whatever the add form assembled (a template preview the
+	// user may have edited, or plain text) with {{title}} resolved now.
+	const body = applyConvertTemplate(noteBody ?? "", safeTitle).replace(/\s+$/, "");
+	if (body) await view.app.vault.modify(note, `${body}\n`);
 
 	// Metadata: to the note's frontmatter when scraping, else onto the board link
 	// as emoji markers (matching convert-to-note).
@@ -4384,6 +4469,18 @@ function applyConvertTemplate(raw: string, title: string): string {
 		.replace(/\{\{\s*title\s*\}\}/gi, title);
 }
 
+/** Substitute only the date/time template variables (leaving {{title}} for when
+ * the card's title is known at create time). Used to preview a template's body
+ * in the add-card form. */
+function substituteConvertDateTime(raw: string): string {
+	const now = moment();
+	return raw
+		.replace(/\{\{\s*date\s*:\s*([^}]+?)\s*\}\}/gi, (_m, f: string) => now.format(f))
+		.replace(/\{\{\s*time\s*:\s*([^}]+?)\s*\}\}/gi, (_m, f: string) => now.format(f))
+		.replace(/\{\{\s*date\s*\}\}/gi, now.format("YYYY-MM-DD"))
+		.replace(/\{\{\s*time\s*\}\}/gi, now.format("HH:mm"));
+}
+
 /** Write a card's Tasks-plugin metadata (read from its raw text) into a note's
  * YAML frontmatter, using conventional keys (priority, due, scheduled, start,
  * done, recurrence). Only fields the card actually carries are written; merges
@@ -4477,28 +4574,34 @@ function readEmojiField(text: string, emoji: string): string | null {
 }
 
 /** The checkbox marker at the start of a list item, capturing the state char so
- * only that bracket is flipped (never a stray "[x]" elsewhere in the text). */
-const CHECKBOX_MARKER = /^(\s*[-*+]\s\[)([ xX])(\])/;
+ * only that bracket is flipped (never a stray "[x]" elsewhere in the text). The
+ * state char may be any single character to support custom statuses. */
+const CHECKBOX_MARKER = /^(\s*[-*+]\s\[)(.)(\])/;
 
-/** Set a checkbox task to an explicit done state in place. Re-validates the
- * stored line against the current file (which may have changed since render)
- * and only touches the leading marker, so a stale index or a "[x]" elsewhere
- * in the text can't corrupt the file. Returns false when the line no longer
- * matches (the caller should refresh). */
-async function setCheckboxState(view: HomeView, hit: TaskHit, done: boolean): Promise<boolean> {
+
+/** Set a checkbox task's status symbol in place (used when a checkbox card is
+ * dragged between the board's status columns). Only the leading `[·]` marker is
+ * changed; when metadata is managed the ✅ done date is stamped for a done status
+ * and cleared otherwise. Returns false when the stored line no longer matches. */
+async function setCheckboxSymbol(
+	view: HomeView,
+	hit: TaskHit,
+	symbol: string,
+	done: boolean,
+	extended: boolean,
+): Promise<boolean> {
 	const content = await view.app.vault.read(hit.file);
 	const lines = content.split("\n");
 	const line = lines[hit.line];
 	const match = line != null ? CHECKBOX_MARKER.exec(line) : null;
-	if (!match) return false; // line no longer a checkbox — file changed under us
-	// Confirm it's still the same task, comparing text with all Tasks-plugin
-	// metadata stripped (a due date or priority can change without changing the
-	// task; Kanban cards store their text already stripped of metadata).
-	if (stripTaskMetadata(line.slice(match[0].length)) !== stripTaskMetadata(hit.text)) return false;
-	lines[hit.line] = line.replace(
-		CHECKBOX_MARKER,
-		(_m, pre: string, _state: string, post: string) => `${pre}${done ? "x" : " "}${post}`,
-	);
+	if (!match) return false;
+	const rest = line.slice(match[0].length);
+	if (stripTaskMetadata(rest) !== stripTaskMetadata(hit.text)) return false;
+	const marker = line
+		.slice(0, match[0].length)
+		.replace(CHECKBOX_MARKER, (_m, pre: string, _state: string, post: string) => `${pre}${symbol}${post}`);
+	const body = extended ? withDoneDate(rest, done, moment().format("YYYY-MM-DD")) : rest;
+	lines[hit.line] = `${marker}${body}`.trimEnd();
 	await view.app.vault.modify(hit.file, lines.join("\n"));
 	return true;
 }

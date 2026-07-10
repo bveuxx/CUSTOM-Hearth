@@ -94,6 +94,11 @@ export interface TasksConfig {
 	 * board) instead of an inline checkbox — applying the same convert-to-note
 	 * template / metadata-to-frontmatter options. Default false. */
 	newTaskAsNote?: boolean;
+	/** Checkbox source: the task states shown as Kanban columns, each a checkbox
+	 * symbol (the char inside `- [ ]`) with a label and an optional "done" flag.
+	 * Dragging a card between columns writes that symbol. When unset, a sensible
+	 * default set is used (To do ` `, In progress `/`, Done `x`). */
+	checkboxStatuses?: { symbol: string; label: string; done?: boolean }[];
 	/** Persistent sort order for the list/board, chosen from the card's own sort
 	 * control. "smart" (default) is the due → scheduled → priority → created
 	 * chain; the others sort by a single field. Incomplete tasks always sort

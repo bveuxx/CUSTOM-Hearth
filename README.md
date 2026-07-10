@@ -130,7 +130,11 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   status, drag column headers to reorder, and hide columns you don't need.
   TaskNotes tasks show a **priority indicator** read from a configurable
   frontmatter field, and a drop outline previews where a dragged card will
-  land.
+  land. For the **Markdown-checkbox** source you can define your own **task
+  states** — one per line as `[symbol] Label` (add `(done)` to mark a state
+  complete), e.g. `[ ] To do`, `[/] In progress`, `[x] Done (done)` — and each
+  becomes a board column; dragging a card writes that checkbox symbol. A default
+  set (To do / In progress / Done) is used until you customise it.
 - **Kanban plugin board** — point the Tasks card at a
   [Kanban](https://github.com/obsidian-community/obsidian-kanban) board note
   (or let Hearth auto-detect one by its `kanban-plugin` frontmatter). Each `##`
@@ -150,7 +154,10 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   instead of leaving the emoji markers on the board link — all set per card in
   its settings. Prefer notes over checkboxes? Turn on **New tasks as notes** and
   every card you add is created as its own note (a link on the board) straight
-  away, applying the same template and metadata options. A converted card keeps
+  away, applying the same template and metadata options. The **add-card form**
+  also carries a per-add **Create as note** toggle, and when a template is set it
+  **previews the template body** right in the form so you can edit it before the
+  note is created. A converted card keeps
   showing its dates & priority on the board (read back from the linked note's
   frontmatter), and both its metadata and **description stay editable straight
   from the card** — the quick view writes the metadata to the note's frontmatter
@@ -350,6 +357,13 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 [`src/locales/README.md`](src/locales/README.md) for the walkthrough.
 
 ## Shipped:
+
+> **v1.6.8.16-beta** — three Tasks-card additions: the add-card form now
+> **previews the note template** body (editable) when creating a card as a note;
+> a per-add **Create as note** toggle sits in the form itself; and the
+> **Markdown-checkbox** source gains **custom task states** — define your own
+> `[symbol] Label` states (defaults: To do / In progress / Done) and each becomes
+> a draggable board column that writes its checkbox symbol.
 
 > **v1.6.8.15-beta** — a new **New tasks as notes** toggle (Kanban source):
 > when on, adding a card creates it as its own note (a link on the board) right

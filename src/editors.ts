@@ -756,6 +756,45 @@ export class CardSettingsModal extends Modal {
 						this.render();
 					}),
 				);
+
+			// Custom checkbox statuses: the board columns / task states, one per
+			// line as `[symbol] Label`, with a trailing "(done)" to mark completed
+			// states. Blank uses the default set (To do / In progress / Done).
+			const defaultStatusText =
+				`[ ] ${t().cards.tasks.toDo}\n` +
+				`[/] ${t().cards.tasks.statusInProgress}\n` +
+				`[x] ${t().cards.tasks.done} (done)`;
+			const statusText = (cfg.checkboxStatuses ?? []).length
+				? (cfg.checkboxStatuses ?? [])
+						.map((s) => `[${s.symbol}] ${s.label}${s.done ? " (done)" : ""}`)
+						.join("\n")
+				: defaultStatusText;
+			new Setting(containerEl)
+				.setName(t().editors.tasks.checkboxStatuses)
+				.setDesc(t().editors.tasks.checkboxStatusesDesc)
+				.addTextArea((ta) => {
+					ta.setValue(statusText).setPlaceholder(defaultStatusText).onChange((v) => {
+						const parsed = v
+							.split("\n")
+							.map((line) => {
+								const m = /^\s*\[(.)\]\s*(.*)$/.exec(line);
+								if (!m) return null;
+								let label = m[2].trim();
+								let done = false;
+								const dm = /\(done\)\s*$/i.exec(label);
+								if (dm) {
+									done = true;
+									label = label.slice(0, dm.index).trim();
+								}
+								return { symbol: m[1], label: label || m[1], done: done || undefined };
+							})
+							.filter((s): s is { symbol: string; label: string; done: boolean | undefined } => s !== null);
+						cfg.checkboxStatuses = parsed.length ? parsed : undefined;
+						this.opts.save();
+					});
+					ta.inputEl.rows = 4;
+					ta.inputEl.addClass("hearth-tasks-statuses-input");
+				});
 		}
 
 		// Quick-view on click applies to line-based tasks (checkboxes and Kanban
