@@ -85,7 +85,11 @@ toolbar; configure each one from the card itself (title, content, colors, size).
 - **Embed** — embed a note (`.md`), image, canvas, or `.base` file, rendered
   through Obsidian's own renderer. A per-card **zoom** control scales content to
   fit. Markdown notes can be made **editable** — rendered by default, switch to a
-  raw editor on double-click, saving straight back to the vault.
+  raw editor on double-click, saving straight back to the vault. Give a card a
+  **second view** (a second file to embed, with its own zoom and editable
+  options) and it grows a **switcher** to flip between the two — shown in the
+  card **header** when the card has a title, or as a **floating, hover-only**
+  control in the top-right corner when it's untitled (headerless).
 - **Excalidraw & canvas** — dedicated templates for an Excalidraw drawing or a
   `.canvas` file, filling the card edge-to-edge so native pan/zoom (and
   Excalidraw's in-place edit toggle) work like they do in a regular note.
@@ -107,7 +111,14 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   **Priority**, **Date created** or **Alphabetical**, and optionally **reverse**
   it. A list has one control in its header; a Kanban board puts one **on each
   column** so every column sorts independently. The choice is remembered, and
-  incomplete tasks always sort ahead of completed ones. Due dates show as short
+  incomplete tasks always sort ahead of completed ones. For finer control, the
+  list sort control also offers **Custom sort…** — a modal to build an ordered
+  list of **rules** (each a field + direction) applied in sequence, so the first
+  rule is the primary sort and each next one breaks ties (e.g. *Priority
+  descending, then Due date ascending*). Fields include due date, scheduled
+  date, priority, date created, alphabetical and status. A custom sort
+  supersedes the single-key choice and, on a Kanban board, is the fallback for
+  any column without its own override — mirroring how the list **filter** works. Due dates show as short
   relative labels (**Today**, **Tomorrow**, **Yesterday**, the weekday for the
   rest of the week, **Next Friday** / **Last Friday** for the week after, then
   a compact "15 Jul"). They also accept **natural-language input**: write

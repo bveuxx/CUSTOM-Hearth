@@ -2,7 +2,7 @@ import { Component, debounce, Menu, setIcon, TAbstractFile } from "obsidian";
 import { confirmAction } from "./ui";
 import { t } from "./i18n";
 import type { HomeView } from "./view";
-import { renderCardBody, watchedCardPath } from "./cards";
+import { activeEmbedViewEditable, mountEmbedViewSwitcher, renderCardBody, watchedCardPath } from "./cards";
 import { CARD_TEMPLATES, cardFromTemplate, templateName } from "./templates";
 import { CardSettingsModal } from "./editors";
 import {
@@ -110,7 +110,14 @@ export function renderDashboard(
 
 		const body = el.createDiv("hearth-card-body");
 		if (card.background) body.addClass("has-bg");
-		mountCardBody(view, card, body, component);
+		const redraw = mountCardBody(view, card, body, component);
+
+		// A second-view switcher (embed cards only) sits in the header when the
+		// card is titled, or floats over the card (hover-reveal) when it isn't.
+		// Not shown while arranging, where the header holds the title editor.
+		if (!view.arrangeMode) {
+			mountEmbedViewSwitcher(view, card, el, head, redraw);
+		}
 
 		if (view.arrangeMode) {
 			enableDragResize(view, el, grid, card, gridLayout, component, commit);
@@ -184,7 +191,7 @@ function mountCardBody(
 	card: DashboardCard,
 	body: HTMLElement,
 	parent: Component,
-): void {
+): () => void {
 	let child: Component | null = null;
 	const draw = () => {
 		if (child) parent.removeChild(child);
@@ -200,14 +207,16 @@ function mountCardBody(
 		// registerInterval ties the timer to the view's render lifecycle, so it
 		// is cleared on the next full rebuild (and on view close).
 		if (every) parent.registerInterval(window.setInterval(draw, every * 1000));
-		return;
+		return draw;
 	}
 
 	if (card.kind === "embed" || card.kind === "daily") {
 		// Editable cards sync content edits in their textarea, so don't redraw on
 		// modify (it would drop the cursor) — but still redraw on existence changes.
-		watchCardFile(view, card, parent, draw, !card.editable);
-		return;
+		// An embed can switch between a read-only and an editable view, so this is
+		// evaluated per event against whichever view is currently shown.
+		watchCardFile(view, card, parent, draw, () => !watchedCardEditable(card));
+		return draw;
 	}
 
 	// Data-driven cards derive their content from the vault as a whole (tasks,
@@ -222,6 +231,15 @@ function mountCardBody(
 		parent.registerEvent(vault.on("modify", () => redraw()));
 		parent.registerEvent(metadataCache.on("changed", () => redraw()));
 	}
+	return draw;
+}
+
+/** Whether the card's currently-shown content is edited in place (so a modify
+ * event should sync the textarea rather than redraw). For embeds this follows
+ * the active view (primary or second); daily cards use their own flag. */
+function watchedCardEditable(card: DashboardCard): boolean {
+	if (card.kind === "embed") return activeEmbedViewEditable(card);
+	return !!card.editable;
 }
 
 /** Card kinds whose content is derived from the whole vault and should refresh
@@ -229,13 +247,15 @@ function mountCardBody(
 const LIVE_KINDS = new Set<DashboardCard["kind"]>(["tasks", "stats", "calendar", "search", "heatmap"]);
 
 /** Redraw an embed/daily card's body when the file it tracks changes on disk.
- * create/delete/rename always redraw; modify only when `redrawOnModify`. */
+ * create/delete/rename always redraw; modify only when `redrawOnModify` (a
+ * predicate, re-evaluated per event so an embed that switches between a
+ * read-only and an editable view is handled correctly). */
 function watchCardFile(
 	view: HomeView,
 	card: DashboardCard,
 	parent: Component,
 	draw: () => void,
-	redrawOnModify: boolean,
+	redrawOnModify: () => boolean,
 ): void {
 	// Coalesce bursts of writes (e.g. an editor autosaving) into one redraw.
 	const redraw = debounce(draw, 150, true);
@@ -244,11 +264,9 @@ function watchCardFile(
 		return path != null && (file.path === path || oldPath === path);
 	};
 	const { vault } = view.app;
-	if (redrawOnModify) {
-		parent.registerEvent(vault.on("modify", (file) => {
-			if (affects(file)) redraw();
-		}));
-	}
+	parent.registerEvent(vault.on("modify", (file) => {
+		if (redrawOnModify() && affects(file)) redraw();
+	}));
 	parent.registerEvent(vault.on("create", (file) => {
 		if (affects(file)) redraw();
 	}));

@@ -25,6 +25,29 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: "1.7.1.4-beta",
+		tldr:
+			"Two additions: embed cards can carry a second view with a switcher to " +
+			"flip between them, and the tasks list gains a custom multi-rule sort " +
+			"(like the filter) for ordering by several fields at once.",
+		features: [
+			"Embed second view: give an embed card a second file to embed (with its " +
+				"own zoom and editable options) and it grows a switcher to flip between " +
+				"the two views. When the card has a title the switcher sits in its header; " +
+				"when it's untitled (headerless) the switcher floats in the top-right " +
+				"corner and reveals on hover. The chosen view refreshes live on its file's " +
+				"changes just like the primary one.",
+			"Custom task sort: the list sort control now offers “Custom sort…”, opening " +
+				"a modal to build an ordered list of rules — each a field (due, scheduled, " +
+				"priority, created, alphabetical or status) plus a direction — applied in " +
+				"sequence so the first is the primary sort and each next one breaks ties. " +
+				"A custom sort supersedes the single-key choice and, on a Kanban board, is " +
+				"the fallback for any column without its own sort override (mirroring the " +
+				"list filter).",
+		],
+		fixes: [],
+	},
+	{
 		version: "1.7.1.3-beta",
 		tldr:
 			"Dataview card table polish: table results now auto-fit their columns to " +

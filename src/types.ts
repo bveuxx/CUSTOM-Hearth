@@ -58,6 +58,19 @@ export type TaskPriorityLevel = "high" | "medium" | "low" | "none";
  * effective date (due, or the next scheduled occurrence for recurring tasks). */
 export type TaskDueFilter = "overdue" | "today" | "week" | "hasDate" | "noDate";
 
+/** A single field a custom task sort can order by. Mirrors the simple sort
+ * keys but adds `scheduled` and `status`, and drops the composite "smart"
+ * (which is only meaningful as the whole default chain, not one rule level). */
+export type TaskSortField = "due" | "scheduled" | "priority" | "created" | "alpha" | "status";
+
+/** One level of a custom task sort: a field and a direction. Rules apply in
+ * order — the first is the primary sort and each following rule breaks ties. */
+export interface TaskSortRule {
+	field: TaskSortField;
+	/** Reverse this level's natural (ascending) direction. */
+	reverse?: boolean;
+}
+
 /** A list-layout task filter: only tasks matching every set criterion are
  * shown. Every field is optional; an empty/absent field imposes no constraint,
  * so an all-empty filter is inactive and shows everything. */
@@ -130,6 +143,13 @@ export interface TasksConfig {
 	sortKey?: "smart" | "due" | "priority" | "created" | "alpha";
 	/** Reverse the chosen sort direction. */
 	sortReverse?: boolean;
+	/** List/board custom multi-level sort: an ordered list of field+direction
+	 * rules applied in sequence (the first is primary, later rules break ties).
+	 * When set (non-empty) it supersedes the single `sortKey`/`sortReverse`, the
+	 * same way `taskFilter` supersedes the filter presets. Chosen from the sort
+	 * control's "Custom…" option. Incomplete tasks still sort before completed
+	 * ones regardless of the rules. */
+	sortRules?: TaskSortRule[];
 	/** Kanban: per-column sort, keyed by column key. Each column sorts
 	 * independently from its own header; a column with no entry falls back to the
 	 * card's global `sortKey`/`sortReverse`. */
@@ -270,6 +290,20 @@ export interface MobileActionButton {
 	commandId?: string;
 }
 
+/** A secondary embed a card can switch to. Only `target` is required; `scale`
+ * and `editable` mirror the primary embed's fields and default to that view's
+ * behaviour when omitted. A card with a valid second view shows a switcher —
+ * inline in the header when the card has a title, or as a floating
+ * mouseover-only control when it's untitled (headerless). */
+export interface EmbedView {
+	/** Vault path of the file to embed (.md, image, .base, ...). */
+	target?: string;
+	/** Zoom factor for the embedded content (1 = 100%); omitted means no scaling. */
+	scale?: number;
+	/** Edit the embedded note's text in place instead of read-only (Markdown only). */
+	editable?: boolean;
+}
+
 /** A single tile inside a "links" (launchpad) card. */
 export interface LinkItem {
 	id: string;
@@ -344,6 +378,12 @@ export interface DashboardCard {
 	/** kind === "embed": edit the embedded note's text in place instead of
 	 * rendering it read-only. Only applies to Markdown notes. */
 	editable?: boolean;
+
+	/** kind === "embed": an optional second view the card can switch to. When it
+	 * carries a target, a switcher toggles the body between the primary embed
+	 * (`target`/`scale`/`editable`) and this one — shown in the card header when
+	 * the card has a title, or as a floating mouseover-only control otherwise. */
+	secondView?: EmbedView;
 
 	/** kind === "commands": pixel size of the command tiles (min column width).
 	 * Omitted means the default tile size. */
@@ -651,7 +691,8 @@ export function cloneCard(card: DashboardCard): DashboardCard {
 	};
 	if (card.links) copy.links = card.links.map((l) => ({ ...l }));
 	if (card.commands) copy.commands = card.commands.map((c) => ({ ...c }));
-	if (card.tasks) copy.tasks = { ...card.tasks, folders: card.tasks.folders ? [...card.tasks.folders] : undefined, kanbanOrder: card.tasks.kanbanOrder ? [...card.tasks.kanbanOrder] : undefined, kanbanHidden: card.tasks.kanbanHidden ? [...card.tasks.kanbanHidden] : undefined, kanbanDoneColumns: card.tasks.kanbanDoneColumns ? [...card.tasks.kanbanDoneColumns] : undefined, kanbanColumnSort: card.tasks.kanbanColumnSort ? Object.fromEntries(Object.entries(card.tasks.kanbanColumnSort).map(([k, v]) => [k, { ...v }])) : undefined };
+	if (card.secondView) copy.secondView = { ...card.secondView };
+	if (card.tasks) copy.tasks = { ...card.tasks, folders: card.tasks.folders ? [...card.tasks.folders] : undefined, kanbanOrder: card.tasks.kanbanOrder ? [...card.tasks.kanbanOrder] : undefined, kanbanHidden: card.tasks.kanbanHidden ? [...card.tasks.kanbanHidden] : undefined, kanbanDoneColumns: card.tasks.kanbanDoneColumns ? [...card.tasks.kanbanDoneColumns] : undefined, kanbanColumnSort: card.tasks.kanbanColumnSort ? Object.fromEntries(Object.entries(card.tasks.kanbanColumnSort).map(([k, v]) => [k, { ...v }])) : undefined, sortRules: card.tasks.sortRules ? card.tasks.sortRules.map((r) => ({ ...r })) : undefined };
 	if (card.calendar) copy.calendar = { ...card.calendar };
 	if (card.savedSearch) copy.savedSearch = { ...card.savedSearch };
 	if (card.heatmap) copy.heatmap = { ...card.heatmap };

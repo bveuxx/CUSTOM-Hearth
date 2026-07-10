@@ -2670,6 +2670,99 @@
 	color: var(--text-on-accent);
 }
 
+/* ---- Task custom-sort modal ----------------------------------------- */
+.hearth-tasksort-modal h3 {
+	margin: 0 0 6px;
+}
+
+.hearth-tasksort-hint {
+	margin: 0 0 12px;
+	color: var(--text-muted);
+	font-size: 0.82rem;
+}
+
+.hearth-tasksort-rule .setting-item-name {
+	font-size: 0.82rem;
+	color: var(--text-muted);
+	min-width: 56px;
+}
+
+/* Keep each rule row compact: the two dropdowns share the control area and the
+ * reorder/remove buttons trail them. */
+.hearth-tasksort-rule .setting-item-control {
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.hearth-tasksort-empty {
+	padding: 8px 2px;
+	color: var(--text-faint);
+	font-size: 0.82rem;
+}
+
+/* ---- Embed second-view switcher ------------------------------------- */
+/* A small segmented control toggling an embed card between its two views. */
+.hearth-embed-switch {
+	display: inline-flex;
+	gap: 2px;
+	padding: 2px;
+	border-radius: 8px;
+	background: var(--background-modifier-hover);
+	border: 1px solid var(--background-modifier-border);
+}
+
+/* In a titled card's header, sit at the far right of the title row. */
+.hearth-embed-switch.is-inline {
+	margin-left: auto;
+	max-width: 62%;
+}
+
+/* Untitled (headerless) cards: float over the top-right corner and reveal only
+ * on hover / keyboard focus, so the switch stays out of the way otherwise. */
+.hearth-embed-switch.is-floating {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	z-index: 5;
+	opacity: 0;
+	pointer-events: none;
+	background: var(--background-secondary);
+	transition: opacity 140ms ease;
+}
+
+.hearth-card:hover .hearth-embed-switch.is-floating,
+.hearth-embed-switch.is-floating:focus-within {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.hearth-embed-switch-btn {
+	max-width: 140px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	padding: 2px 9px;
+	border: none;
+	border-radius: 6px;
+	background: transparent;
+	color: var(--text-muted);
+	font-size: 0.72rem;
+	font-weight: 600;
+	line-height: 1.5;
+	cursor: pointer;
+	transition: background 140ms ease, color 140ms ease;
+}
+
+.hearth-embed-switch-btn:hover {
+	color: var(--text-normal);
+}
+
+.hearth-embed-switch-btn.is-active {
+	background: var(--background-primary);
+	color: var(--text-normal);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
 /* ---- Activity heatmap card ------------------------------------------ */
 .hearth-heatmap {
 	display: flex;

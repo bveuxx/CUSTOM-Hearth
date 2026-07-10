@@ -20,11 +20,14 @@ import {
 	ClockConfig,
 	CommandItem,
 	DashboardCard,
+	EmbedView,
 	LinkItem,
 	TaskDueFilter,
 	TaskFilterConfig,
 	TaskMeta,
 	TaskPriorityLevel,
+	TaskSortField,
+	TaskSortRule,
 	TasksConfig,
 } from "./types";
 import { evaluate as evaluateCalc } from "./calculator";
@@ -413,13 +416,51 @@ function emptyState(body: HTMLElement, icon: string, text: string): void {
 
 // ---- Embed (note / image / base / ...) ---------------------------------
 
+/** Which embed view (0 = primary, 1 = second) each card is currently showing.
+ * Transient (not persisted): a WeakMap keyed by the card object so the choice
+ * survives body redraws and full view rebuilds — the card objects live in
+ * settings and are reused — but resets to the primary when Obsidian reloads. */
+const activeEmbedView = new WeakMap<DashboardCard, number>();
+
+/** The resolved views an embed card can switch between: always the primary
+ * (`target`/`scale`/`editable`), plus the second view when it carries a target.
+ * Cards without a valid second view return a single-element list. */
+function embedViews(card: DashboardCard): EmbedView[] {
+	const views: EmbedView[] = [
+		{ target: card.target, scale: card.scale, editable: card.editable },
+	];
+	if (card.secondView?.target?.trim()) views.push(card.secondView);
+	return views;
+}
+
+/** The index of the view a card is currently showing, clamped to the views that
+ * still exist (so removing the second view falls back to the primary). */
+function activeEmbedIndex(card: DashboardCard): number {
+	const count = embedViews(card).length;
+	const stored = activeEmbedView.get(card) ?? 0;
+	return Math.min(Math.max(0, stored), count - 1);
+}
+
+/** The embed view a card is currently showing (the primary unless the user has
+ * switched to the second view and it still exists). */
+function activeEmbedViewParams(card: DashboardCard): EmbedView {
+	return embedViews(card)[activeEmbedIndex(card)];
+}
+
+/** Whether the embed view a card is currently showing is edited in place. Used
+ * by the body watcher to decide whether a modify event should redraw. */
+export function activeEmbedViewEditable(card: DashboardCard): boolean {
+	return !!activeEmbedViewParams(card).editable;
+}
+
 function renderEmbed(
 	view: HomeView,
 	card: DashboardCard,
 	body: HTMLElement,
 	component: Component,
 ): void {
-	const target = card.target?.trim();
+	const active = activeEmbedViewParams(card);
+	const target = active.target?.trim();
 	if (!target) {
 		emptyState(body, "file-plus", t().cards.empty.embedPickFile);
 		return;
@@ -461,7 +502,7 @@ function renderEmbed(
 	const excalidraw = isExcalidraw(file);
 
 	// Editable Markdown notes are edited in place rather than rendered read-only.
-	if (card.editable && isMarkdown && !excalidraw) {
+	if (active.editable && isMarkdown && !excalidraw) {
 		renderEditableEmbed(view, file, body, component);
 		return;
 	}
@@ -470,7 +511,7 @@ function renderEmbed(
 	body.addClass("is-embed-host");
 	// Optional zoom: scale the rendered content and widen it inversely so it
 	// still fills the card width before scaling (the body handles overflow).
-	const scale = card.scale && card.scale > 0 ? card.scale : 1;
+	const scale = active.scale && active.scale > 0 ? active.scale : 1;
 	if (scale !== 1) {
 		host.addClass("is-scaled");
 		host.style.setProperty("--hearth-embed-scale", String(scale));
@@ -495,6 +536,63 @@ function renderEmbed(
 			body.addClass("hearth-card-body-live");
 		}
 	}
+}
+
+/** A short label for a view's switcher button — the embedded file's basename,
+ * or a placeholder when the view has no target yet. */
+function embedViewLabel(view: HomeView, ev: EmbedView, index: number): string {
+	const target = ev.target?.trim();
+	if (!target) return t().cards.embed.viewFallback(index + 1);
+	const file = view.app.vault.getAbstractFileByPath(target);
+	return file instanceof TFile ? file.basename : target;
+}
+
+/**
+ * Mount the second-view switcher for an embed card, when it has one. A titled
+ * card gets an inline segmented control in its header; an untitled (headerless)
+ * card gets a floating control that CSS reveals on hover. Selecting a view
+ * records the choice (transiently) and redraws just the card body.
+ *
+ * `head` is the card's header element (hidden by CSS when untitled) and `redraw`
+ * re-renders the body via the same closure the live-refresh watchers use.
+ */
+export function mountEmbedViewSwitcher(
+	view: HomeView,
+	card: DashboardCard,
+	cardEl: HTMLElement,
+	head: HTMLElement,
+	redraw: () => void,
+): void {
+	if (card.kind !== "embed") return;
+	const views = embedViews(card);
+	if (views.length < 2) return;
+
+	const titled = !!(card.title ?? "").trim();
+	const host = titled
+		? head.createDiv("hearth-embed-switch is-inline")
+		: cardEl.createDiv("hearth-embed-switch is-floating");
+
+	const build = () => {
+		host.empty();
+		const activeIdx = activeEmbedIndex(card);
+		views.forEach((ev, index) => {
+			const label = embedViewLabel(view, ev, index);
+			const btn = host.createEl("button", { cls: "hearth-embed-switch-btn", text: label });
+			btn.toggleClass("is-active", index === activeIdx);
+			btn.setAttribute("title", label);
+			btn.setAttribute("aria-label", t().cards.embed.switchTo(label));
+			// Don't let a click on the switcher start a card drag / bubble to the card.
+			btn.addEventListener("pointerdown", (e) => e.stopPropagation());
+			btn.addEventListener("click", (e) => {
+				e.stopPropagation();
+				if (index === activeIdx) return;
+				activeEmbedView.set(card, index);
+				redraw();
+				build();
+			});
+		});
+	};
+	build();
 }
 
 /** Strip a leading YAML frontmatter block so it isn't rendered as body content. */
@@ -789,7 +887,9 @@ function renderDaily(
 /** The vault path an embed/daily card currently tracks, used to refresh the card
  * live when that file changes. Returns null when there's nothing to watch. */
 export function watchedCardPath(view: HomeView, card: DashboardCard): string | null {
-	if (card.kind === "embed") return card.target?.trim() || null;
+	// Track the view the card is currently showing, so switching to the second
+	// view live-refreshes on that file's changes (and back again).
+	if (card.kind === "embed") return activeEmbedViewParams(card).target?.trim() || null;
 	if (card.kind === "daily") {
 		const options = dailyNotesOptions(view);
 		if (!options) return null;
@@ -2411,12 +2511,7 @@ function renderTasksListHeader(
 	// Filter and sort controls for the whole list. Like the add control, they're
 	// revealed on card hover (see styles.css) so the header stays uncluttered.
 	renderTaskFilterControl(view, actions, cfg, availableStatuses, refresh);
-	renderTaskSortControl(actions, { key: cfg.sortKey, reverse: cfg.sortReverse }, false, (next) => {
-		cfg.sortKey = next.key;
-		cfg.sortReverse = next.reverse;
-		void view.plugin.saveData(view.plugin.settings);
-		refresh();
-	});
+	renderTaskListSortControl(view, actions, cfg, availableStatuses, refresh);
 	if (source === "tasknotes") {
 		// TaskNotes add is a single command button, so it sits in the header.
 		taskNotesAddButton(view, actions);
@@ -2634,9 +2729,60 @@ function sortHits(hits: TaskHit[], key: SortKey, reverse: boolean): void {
 	});
 }
 
-/** Sort tasks by the card's persistent (whole-list) sort setting. */
+/** Compare two tasks on a single custom-sort field, ascending. Tasks missing a
+ * value for the field sort after those that have one; ties return 0 so the
+ * next rule (or the created-date backstop) decides. */
+function compareByField(a: TaskHit, b: TaskHit, field: TaskSortField): number {
+	const cmpDate = (x: string | null, y: string | null): number => {
+		if (x && y) return x < y ? -1 : x > y ? 1 : 0;
+		if (x) return -1;
+		if (y) return 1;
+		return 0;
+	};
+	switch (field) {
+		case "due":
+			return cmpDate(effectiveDate(a), effectiveDate(b));
+		case "scheduled":
+			return cmpDate(a.scheduled, b.scheduled);
+		case "priority":
+			return priorityRank(a.priority) - priorityRank(b.priority);
+		case "created":
+			return a.created - b.created;
+		case "alpha":
+			return (a.text || a.file.basename).localeCompare(b.text || b.file.basename);
+		case "status": {
+			const sa = (hitStatusValue(a) ?? "").toLowerCase();
+			const sb = (hitStatusValue(b) ?? "").toLowerCase();
+			return sa.localeCompare(sb);
+		}
+	}
+	return 0;
+}
+
+/** Sort tasks in place by an ordered list of custom rules: each rule is applied
+ * as a tiebreaker for the previous, with the file creation time as the final
+ * backstop. Like the single-key sort, incomplete tasks always come first. */
+function sortHitsByRules(hits: TaskHit[], rules: TaskSortRule[]): void {
+	hits.sort((a, b) => {
+		if (a.done !== b.done) return a.done ? 1 : -1;
+		for (const rule of rules) {
+			const c = compareByField(a, b, rule.field);
+			if (c !== 0) return rule.reverse ? -c : c;
+		}
+		return a.created - b.created;
+	});
+}
+
+/** Whether a custom-rules sort is configured (a non-empty rule list). */
+function hasCustomSort(cfg: TasksConfig): boolean {
+	return !!cfg.sortRules?.length;
+}
+
+/** Sort tasks by the card's persistent (whole-list) sort setting: the custom
+ * rule list when set, otherwise the single sort key + direction. */
 function sortTasks(hits: TaskHit[], cfg: TasksConfig): void {
-	sortHits(hits, cfg.sortKey ?? "smart", !!cfg.sortReverse);
+	if (hasCustomSort(cfg)) sortHitsByRules(hits, cfg.sortRules as TaskSortRule[]);
+	else sortHits(hits, cfg.sortKey ?? "smart", !!cfg.sortReverse);
 }
 
 /** Available sort keys, in the order shown in the sort menu. */
@@ -2683,6 +2829,229 @@ function renderTaskSortControl(
 		);
 		menu.showAtMouseEvent(e);
 	});
+}
+
+/** Fields offered by the custom-sort modal, in menu order. */
+const TASK_SORT_FIELDS: TaskSortField[] = ["due", "scheduled", "priority", "created", "alpha", "status"];
+
+/**
+ * The list header's sort control. Like {@link renderTaskSortControl} it offers
+ * the simple one-key sorts, but it also exposes a "Custom…" option that opens a
+ * modal to build an ordered multi-rule sort (mirroring how the filter control
+ * opens the filter modal). A custom sort supersedes the simple key; picking a
+ * simple key clears it.
+ */
+function renderTaskListSortControl(
+	view: HomeView,
+	parent: HTMLElement,
+	cfg: TasksConfig,
+	availableStatuses: string[],
+	refresh: () => void,
+): void {
+	const custom = hasCustomSort(cfg);
+	const active: SortKey = cfg.sortKey ?? "smart";
+	const labels = t().cards.tasks.sortLabels;
+	const persist = () => {
+		void view.plugin.saveData(view.plugin.settings);
+		refresh();
+	};
+
+	const btn = parent.createEl("button", {
+		cls: "hearth-tasks-sort",
+		attr: { "aria-label": t().cards.tasks.sort, title: t().cards.tasks.sort },
+	});
+	setIcon(btn, "arrow-up-down");
+	btn.createSpan({
+		cls: "hearth-tasks-sort-label",
+		text: custom ? t().cards.tasks.sortCustom : labels[active],
+	});
+	if (!custom && cfg.sortReverse) btn.addClass("is-reversed");
+	if (custom || active !== "smart" || cfg.sortReverse) btn.addClass("is-active");
+
+	btn.addEventListener("click", (e) => {
+		e.stopPropagation();
+		const menu = new Menu();
+		for (const key of TASK_SORT_KEYS) {
+			menu.addItem((item) =>
+				item
+					.setTitle(labels[key])
+					.setChecked(!custom && active === key)
+					.onClick(() => {
+						cfg.sortRules = undefined;
+						cfg.sortKey = key === "smart" ? undefined : key;
+						persist();
+					}),
+			);
+		}
+		// Reverse applies to the simple key sort; hidden while a custom sort (which
+		// carries its own per-rule directions) is active.
+		if (!custom) {
+			menu.addSeparator();
+			menu.addItem((item) =>
+				item
+					.setTitle(t().cards.tasks.sortReverse)
+					.setChecked(!!cfg.sortReverse)
+					.setIcon("arrow-down-up")
+					.onClick(() => {
+						cfg.sortReverse = cfg.sortReverse ? undefined : true;
+						persist();
+					}),
+			);
+		}
+		menu.addSeparator();
+		menu.addItem((item) =>
+			item
+				.setTitle(t().cards.tasks.sortCustomOption)
+				.setChecked(custom)
+				.setIcon("list-ordered")
+				.onClick(() => {
+					new TaskSortModal(view.app, cfg.sortRules ?? [], availableStatuses, (rules) => {
+						cfg.sortRules = rules.length ? rules : undefined;
+						persist();
+					}).open();
+				}),
+		);
+		menu.showAtMouseEvent(e);
+	});
+}
+
+/**
+ * The custom-sort modal: an ordered list of rules (field + direction) applied
+ * in sequence, plus add / reorder / remove controls. Mirrors the filter modal —
+ * edits apply on "Apply", "Clear" empties the list, "Cancel" discards them.
+ */
+class TaskSortModal extends Modal {
+	private rules: TaskSortRule[];
+	private body: HTMLElement | null = null;
+
+	constructor(
+		app: App,
+		initial: TaskSortRule[],
+		private readonly availableStatuses: string[],
+		private readonly onSubmit: (rules: TaskSortRule[]) => void,
+	) {
+		super(app);
+		// Clone so Cancel truly discards edits.
+		this.rules = initial.map((r) => ({ ...r }));
+	}
+
+	/** Sort fields available in this context (status only when the source exposes
+	 * status/column values, matching the filter modal). */
+	private fields(): TaskSortField[] {
+		return TASK_SORT_FIELDS.filter((f) => f !== "status" || this.availableStatuses.length > 0);
+	}
+
+	onOpen(): void {
+		const { contentEl } = this;
+		contentEl.addClass("hearth-tasksort-modal");
+		contentEl.createEl("h3", { text: t().cards.tasks.sortTitle });
+		contentEl.createEl("p", { cls: "hearth-tasksort-hint", text: t().cards.tasks.sortHint });
+		this.body = contentEl.createDiv("hearth-tasksort-body");
+		this.renderBody();
+		this.renderFooter(contentEl);
+	}
+
+	private renderBody(): void {
+		const body = this.body;
+		if (!body) return;
+		body.empty();
+		const labels = t().cards.tasks;
+		const fieldLabels = labels.sortFields;
+		const available = this.fields();
+
+		this.rules.forEach((rule, index) => {
+			const row = new Setting(body).setClass("hearth-tasksort-rule");
+			row.setName(index === 0 ? labels.sortLevelFirst : labels.sortLevelNext);
+			row.addDropdown((d) => {
+				for (const f of available) d.addOption(f, fieldLabels[f]);
+				d.setValue(rule.field).onChange((v) => {
+					rule.field = v as TaskSortField;
+				});
+			});
+			row.addDropdown((d) => {
+				d.addOption("asc", labels.sortAscending);
+				d.addOption("desc", labels.sortDescending);
+				d.setValue(rule.reverse ? "desc" : "asc").onChange((v) => {
+					rule.reverse = v === "desc" ? true : undefined;
+				});
+			});
+			row.addExtraButton((b) =>
+				b
+					.setIcon("chevron-up")
+					.setTooltip(labels.sortMoveUp)
+					.setDisabled(index === 0)
+					.onClick(() => {
+						this.moveRule(index, index - 1);
+					}),
+			);
+			row.addExtraButton((b) =>
+				b
+					.setIcon("chevron-down")
+					.setTooltip(labels.sortMoveDown)
+					.setDisabled(index === this.rules.length - 1)
+					.onClick(() => {
+						this.moveRule(index, index + 1);
+					}),
+			);
+			row.addExtraButton((b) =>
+				b
+					.setIcon("trash-2")
+					.setTooltip(labels.sortRemoveRule)
+					.onClick(() => {
+						this.rules.splice(index, 1);
+						this.renderBody();
+					}),
+			);
+		});
+
+		if (!this.rules.length) {
+			body.createDiv({ cls: "hearth-tasksort-empty", text: labels.sortEmpty });
+		}
+
+		new Setting(body).addButton((b) =>
+			b
+				.setButtonText(labels.sortAddRule)
+				.setIcon("plus")
+				.setDisabled(this.rules.length >= available.length)
+				.onClick(() => {
+					const used = new Set(this.rules.map((r) => r.field));
+					const next = available.find((f) => !used.has(f)) ?? available[0];
+					this.rules.push({ field: next });
+					this.renderBody();
+				}),
+		);
+	}
+
+	private moveRule(from: number, to: number): void {
+		if (to < 0 || to >= this.rules.length) return;
+		const [item] = this.rules.splice(from, 1);
+		this.rules.splice(to, 0, item);
+		this.renderBody();
+	}
+
+	private renderFooter(parent: HTMLElement): void {
+		new Setting(parent)
+			.addButton((b) =>
+				b
+					.setButtonText(t().cards.tasks.filterApply)
+					.setCta()
+					.onClick(() => {
+						this.onSubmit(this.rules);
+						this.close();
+					}),
+			)
+			.addButton((b) =>
+				b.setButtonText(t().cards.tasks.filterClear).onClick(() => {
+					this.rules = [];
+					this.renderBody();
+				}),
+			)
+			.addButton((b) => b.setButtonText(t().cards.tasks.cancel).onClick(() => this.close()));
+	}
+
+	onClose(): void {
+		this.contentEl.empty();
+	}
 }
 
 // ---- List filter ---------------------------------------------------------
@@ -3233,7 +3602,13 @@ function renderTaskKanban(
 
 	for (const col of visible) {
 		const colSort = cfg.kanbanColumnSort?.[col.key] ?? {};
-		sortHits(col.hits, colSort.key ?? globalKey, colSort.reverse ?? globalReverse);
+		// A column with its own override sorts by that; otherwise it follows the
+		// card's global sort — the custom rule list when set, else the simple key.
+		if (colSort.key || colSort.reverse) {
+			sortHits(col.hits, colSort.key ?? globalKey, colSort.reverse ?? globalReverse);
+		} else {
+			sortTasks(col.hits, cfg);
+		}
 
 		const colEl = board.createDiv("hearth-kanban-col");
 		colEl.toggleClass("is-done-col", doneColumns.has(col.key) || !!col.statusDone);

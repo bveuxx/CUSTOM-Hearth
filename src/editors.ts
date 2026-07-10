@@ -1,6 +1,6 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 import { CommandPickerModal, FilePickerModal } from "./pickers";
-import { CardKind, ClockConfig, DashboardCard, LinkItem, TasksConfig } from "./types";
+import { CardKind, ClockConfig, DashboardCard, EmbedView, LinkItem, TasksConfig } from "./types";
 import { confirmAction } from "./ui";
 import { t } from "./i18n";
 
@@ -156,6 +156,7 @@ export class CardSettingsModal extends Modal {
 							this.opts.save();
 						}),
 					);
+				this.embedSecondView(containerEl);
 				break;
 			}
 			case "daily":
@@ -246,6 +247,101 @@ export class CardSettingsModal extends Modal {
 				this.dataviewEditor(containerEl);
 				break;
 		}
+	}
+
+	/** Second-view controls for an embed card: pick a second file to embed, and
+	 * (once one is set) its own zoom and editable options. When set, the card
+	 * shows a switcher between the two views. */
+	private embedSecondView(containerEl: HTMLElement): void {
+		const card = this.card;
+
+		new Setting(containerEl).setName(t().editors.embed.secondViewHeading).setHeading();
+
+		const setting = new Setting(containerEl)
+			.setName(t().editors.embed.secondViewFile)
+			.setDesc(t().editors.embed.secondViewFileDesc);
+		setting.addText((txt) =>
+			txt
+				.setPlaceholder(t().editors.embed.filePlaceholder)
+				.setValue(card.secondView?.target ?? "")
+				.onChange((v) => {
+					this.setSecondViewTarget(v);
+				}),
+		);
+		setting.addExtraButton((b) =>
+			b
+				.setIcon("file-symlink")
+				.setTooltip(t().editors.embed.pickFile)
+				.onClick(() => {
+					new FilePickerModal(this.app, (file) => {
+						this.setSecondViewTarget(file.path);
+						this.render();
+					}).open();
+				}),
+		);
+		if (card.secondView?.target) {
+			setting.addExtraButton((b) =>
+				b
+					.setIcon("trash-2")
+					.setTooltip(t().editors.embed.secondViewClear)
+					.onClick(() => {
+						card.secondView = undefined;
+						this.opts.save();
+						this.render();
+					}),
+			);
+		}
+
+		// Zoom and editable mirror the primary embed's options, but only make
+		// sense once a second file is chosen.
+		if (card.secondView?.target) {
+			const view = card.secondView;
+			new Setting(containerEl)
+				.setName(t().editors.embed.zoom)
+				.setDesc(t().editors.embed.zoomDesc)
+				.addSlider((s) => {
+					s.setLimits(50, 200, 10)
+						.setValue(Math.round((view.scale ?? 1) * 100))
+						.setDynamicTooltip()
+						.onChange((v) => {
+							view.scale = v === 100 ? undefined : v / 100;
+							this.opts.save();
+						});
+				})
+				.addExtraButton((b) =>
+					b
+						.setIcon("rotate-ccw")
+						.setTooltip(t().settings.resetSlider)
+						.onClick(() => {
+							view.scale = undefined;
+							this.opts.save();
+							this.render();
+						}),
+				);
+			new Setting(containerEl)
+				.setName(t().editors.embed.editable)
+				.setDesc(t().editors.embed.editableDesc)
+				.addToggle((tg) =>
+					tg.setValue(view.editable ?? false).onChange((v) => {
+						view.editable = v || undefined;
+						this.opts.save();
+					}),
+				);
+		}
+	}
+
+	/** Set (or clear) the second view's embed target, creating the config object
+	 * on first use and dropping it entirely when emptied. */
+	private setSecondViewTarget(value: string): void {
+		const target = value.trim();
+		if (!target) {
+			this.card.secondView = undefined;
+		} else {
+			const next: EmbedView = { ...(this.card.secondView ?? {}) };
+			next.target = target;
+			this.card.secondView = next;
+		}
+		this.opts.save();
 	}
 
 	private dataviewEditor(containerEl: HTMLElement): void {
