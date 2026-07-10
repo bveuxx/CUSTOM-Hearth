@@ -2979,9 +2979,13 @@ function renderKanbanAddCard(
 			if (!text) return cancel();
 			committed = true;
 			const detail = readDetail();
-			const full = text + buildMetadataSuffix(detail.meta);
 			const doneDate = opts.markDone && opts.extended ? moment().format("YYYY-MM-DD") : undefined;
-			void addKanbanCard(view, cfg, heading, full, opts.markDone, doneDate, detail.description).then((ok) => {
+			// "New tasks as notes": create the card as its own note (a link) right
+			// away instead of an inline checkbox.
+			const add = cfg.newTaskAsNote
+				? addKanbanCardAsNote(view, cfg, heading, text, detail.meta, detail.description, opts.markDone, doneDate)
+				: addKanbanCard(view, cfg, heading, text + buildMetadataSuffix(detail.meta), opts.markDone, doneDate, detail.description);
+			void add.then((ok) => {
 				if (!ok) new Notice(t().notices.couldNotAddKanbanCard);
 				refresh();
 			});
@@ -3945,6 +3949,82 @@ async function addKanbanCard(
 	const block = [`- [${markDone ? "x" : " "}] ${body}`, ...descriptionBullets(description ?? "", "")];
 	if (!insertCardBlock(lines, heading, block)) return false;
 	await view.app.vault.modify(file, lines.join("\n"));
+	return true;
+}
+
+/** Add a new Kanban card as its own note (a link on the board) instead of an
+ * inline checkbox — the same result as adding a card and immediately converting
+ * it, honouring the card's convert-to-note template and metadata-to-frontmatter
+ * options. Creates the note (template + description bullets, and frontmatter
+ * metadata when scraping), then inserts a link card into `heading`'s column. */
+async function addKanbanCardAsNote(
+	view: HomeView,
+	cfg: TasksConfig,
+	heading: string,
+	title: string,
+	meta: TaskMeta,
+	description: string,
+	markDone?: boolean,
+	doneDate?: string,
+): Promise<boolean> {
+	const board = resolveKanbanFile(view, cfg);
+	if (!board) return false;
+	const safeTitle =
+		(title || "Untitled").replace(/[\\/:*?"<>|#^[\]]+/g, " ").replace(/\s+/g, " ").trim() || "Untitled";
+	let note: TFile;
+	try {
+		const parent = view.app.fileManager.getNewFileParent(board.path);
+		const folder = parent instanceof TFolder ? parent : view.app.vault.getRoot();
+		note = await view.app.fileManager.createNewMarkdownFile(folder, safeTitle);
+	} catch {
+		return false;
+	}
+	// Seed the body: optional template, then the description as bullet points.
+	const bodyParts: string[] = [];
+	const templatePath = cfg.convertNoteTemplate?.trim();
+	if (templatePath) {
+		const tpl =
+			view.app.vault.getAbstractFileByPath(templatePath) ??
+			view.app.vault.getAbstractFileByPath(`${templatePath}.md`);
+		if (tpl instanceof TFile) {
+			try {
+				bodyParts.push(applyConvertTemplate(await view.app.vault.read(tpl), safeTitle));
+			} catch {
+				// Template unreadable — carry on without it.
+			}
+		}
+	}
+	const descLines = (description ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+	if (descLines.length) bodyParts.push(descLines.map((l) => `- ${l}`).join("\n"));
+	if (bodyParts.length) await view.app.vault.modify(note, bodyParts.join("\n\n"));
+
+	// Metadata: to the note's frontmatter when scraping, else onto the board link
+	// as emoji markers (matching convert-to-note).
+	const scrape = cfg.convertMetadataToFrontmatter ?? false;
+	if (scrape) {
+		await writeMetadataFrontmatter(view, note, meta);
+		if (markDone && doneDate) {
+			try {
+				await view.app.fileManager.processFrontMatter(note, (fm: Record<string, unknown>) => {
+					fm["done"] = doneDate;
+				});
+			} catch {
+				// Frontmatter write failed — the note and link are still created.
+			}
+		}
+	}
+
+	const content = await view.app.vault.read(board);
+	const lines = content.split("\n");
+	const link = view.app.fileManager.generateMarkdownLink(note, board.path);
+	let cardBody = link;
+	if (!scrape) {
+		cardBody = `${link}${buildMetadataSuffix(meta)}`;
+		if (markDone && doneDate) cardBody = withDoneDate(cardBody, true, doneDate);
+	}
+	const block = [`- [${markDone ? "x" : " "}] ${cardBody}`.trimEnd()];
+	if (!insertCardBlock(lines, heading, block)) return false;
+	await view.app.vault.modify(board, lines.join("\n"));
 	return true;
 }
 

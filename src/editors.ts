@@ -730,6 +730,16 @@ export class CardSettingsModal extends Modal {
 						this.opts.save();
 					}),
 				);
+
+			new Setting(containerEl)
+				.setName(t().editors.tasks.newTaskAsNote)
+				.setDesc(t().editors.tasks.newTaskAsNoteDesc)
+				.addToggle((tg) =>
+					tg.setValue(cfg.newTaskAsNote ?? false).onChange((v) => {
+						cfg.newTaskAsNote = v || undefined;
+						this.opts.save();
+					}),
+				);
 		}
 
 		// Checkbox source: parse the inline Tasks-plugin metadata (dates, priority,

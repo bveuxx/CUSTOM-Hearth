@@ -148,11 +148,13 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   note from a template** (with `{{title}}`/`{{date}}`/`{{time}}` substitution),
   and can optionally **scrape the card's metadata into the note's frontmatter**
   instead of leaving the emoji markers on the board link — all set per card in
-  its settings. A converted card keeps showing its dates & priority on the board
-  (read back from the linked note's frontmatter), and both its metadata and
-  **description stay editable straight from the card** — the quick view writes
-  the metadata to the note's frontmatter and the description to the note body. A
-  column's **check icon** marks
+  its settings. Prefer notes over checkboxes? Turn on **New tasks as notes** and
+  every card you add is created as its own note (a link on the board) straight
+  away, applying the same template and metadata options. A converted card keeps
+  showing its dates & priority on the board (read back from the linked note's
+  frontmatter), and both its metadata and **description stay editable straight
+  from the card** — the quick view writes the metadata to the note's frontmatter
+  and the description to the note body. A column's **check icon** marks
   it a *done column*, so cards complete automatically when dragged or added
   there (and the ones already in it complete at once). Turn on **Dates &
   priorities** to read the marks each card carries (compatible with
@@ -348,6 +350,11 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 [`src/locales/README.md`](src/locales/README.md) for the walkthrough.
 
 ## Shipped:
+
+> **v1.6.8.15-beta** — a new **New tasks as notes** toggle (Kanban source):
+> when on, adding a card creates it as its own note (a link on the board) right
+> away instead of an inline checkbox — applying the same convert-to-note template
+> and metadata-to-frontmatter options, so you skip the add-then-convert step.
 
 > **v1.6.8.14-beta** — the quick view now also lets you **edit a converted
 > card's description**: for a card linked to a note, the description textarea

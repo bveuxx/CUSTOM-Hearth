@@ -90,6 +90,10 @@ export interface TasksConfig {
 	 * (priority, dates, recurrence) into the created note's YAML frontmatter
 	 * instead of trailing the emoji markers on the board link. Default false. */
 	convertMetadataToFrontmatter?: boolean;
+	/** Kanban: create new cards as their own note right away (a link on the
+	 * board) instead of an inline checkbox — applying the same convert-to-note
+	 * template / metadata-to-frontmatter options. Default false. */
+	newTaskAsNote?: boolean;
 	/** Persistent sort order for the list/board, chosen from the card's own sort
 	 * control. "smart" (default) is the due → scheduled → priority → created
 	 * chain; the others sort by a single field. Incomplete tasks always sort

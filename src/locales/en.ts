@@ -482,6 +482,11 @@ export const en = {
 				"When converting a card to a note, move its dates, priority and " +
 				"repeat marks into the new note's YAML frontmatter instead of leaving " +
 				"the emoji markers on the board link.",
+			newTaskAsNote: "New tasks as notes",
+			newTaskAsNoteDesc:
+				"Create each new card as its own note (a link on the board) straight " +
+				"away, instead of an inline checkbox — applying the template and " +
+				"metadata-to-frontmatter options above, just like Convert to note.",
 			layout: "Layout",
 			layoutDesc:
 				"List, or a Kanban board grouped by status. On the board, drag cards " +
