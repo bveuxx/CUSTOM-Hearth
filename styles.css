@@ -2802,6 +2802,19 @@
 	color: var(--text-muted);
 }
 
+/* Each release block, separated by a hairline rule so the log reads as a
+ * stack of dated entries rather than one run-on list. */
+.hearth-whatsnew-entry + .hearth-whatsnew-entry {
+	margin-top: 20px;
+	padding-top: 16px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.hearth-whatsnew-version {
+	margin: 0 0 8px;
+	font-size: 1.05rem;
+}
+
 .hearth-whatsnew-tldr {
 	margin: 0 0 16px;
 	padding: 12px 14px;

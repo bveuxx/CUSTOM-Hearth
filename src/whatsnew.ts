@@ -2,105 +2,148 @@ import { App, Modal, Setting } from "obsidian";
 import { t } from "./i18n";
 import type HearthPlugin from "./main";
 
-/**
- * Release notes shown by the "What's new" dialog. This is the running summary
- * of everything that landed in the 1.6.8 beta series (on top of the last
- * stable release, 1.6.7) — the Tasks-card overhaul plus the search and board
- * refinements around it. Keep it in sync with the README "Shipped" section
- * when cutting a release.
- */
-export const RELEASE_NOTES: {
-	tldr: string;
+/** One dated block in the changelog: a version, an optional one-line TL;DR, and
+ * grouped lists of new features and fixes (either list may be empty). */
+export interface ChangelogEntry {
+	version: string;
+	tldr?: string;
 	features: string[];
 	fixes: string[];
-} = {
-	tldr:
-		"A big Tasks-card release. Hearth now reads and edits Kanban plugin boards, " +
-		"understands the full obsidian-tasks metadata (dates, 5-level priority, " +
-		"recurrence), and gives every card a quick-view popover for editing in place. " +
-		"You can define custom checkbox task states, convert cards into notes (or " +
-		"create them as notes outright), and the search bar can now be powered by " +
-		"Omnisearch.",
-	features: [
-		"Kanban plugin boards: a Tasks card can read a Kanban board note — each " +
-			"heading becomes a column and each checkbox a card. Show it as a list or a " +
-			"drag-and-drop board that rewrites the note in Kanban's own format.",
-		"Full obsidian-tasks metadata: start (🛫), scheduled (⏳), due (📅) and done " +
-			"(✅) dates, a 5-level priority (🔺⏫🔼🔽⏬) and recurrence (🔁), shown as " +
-			"compact card indicators with a right-click editor and add-card pickers.",
-		"Custom checkbox task states: define your own “[symbol] Label” states for the " +
-			"Markdown-checkbox source (defaults To do / In progress / Done); each becomes " +
-			"a draggable board column that writes its own checkbox symbol.",
-		"Quick view: clicking a checkbox task or Kanban card opens a compact popover — " +
-			"metadata and description editable in place, with buttons to open the full " +
-			"note or delete the task (toggle per card, on by default).",
-		"Convert to note: right-click a card to turn it into its own linked note, " +
-			"optionally seeded from a template ({{title}}/{{date}}/{{time}}) and with its " +
-			"metadata scraped into frontmatter and its description moved into the note.",
-		"New tasks as notes: an optional toggle so adding a card creates it as its own " +
-			"note (a link on the board) right away instead of an inline checkbox — with a " +
-			"template preview in the add form.",
-		"Optional Omnisearch engine: point the search bar at the Omnisearch community " +
-			"plugin when it's installed, with a graceful fall back to Hearth's built-in " +
-			"vault search.",
-		"Per-column sort: the sort control lives on each Kanban column so columns sort " +
-			"independently; every list and board also gets an always-visible sort " +
-			"(Smart / Due / Priority / Created / Alphabetical, reversible) that persists.",
-		"Board editing niceties: mark any column a “done” column (cards auto-complete " +
-			"when dropped there), rename a column by double-clicking its title, cards " +
-			"render clickable [[wikilinks]] and Markdown links, carry a plain-text " +
-			"description, and can be deleted from the right-click menu.",
-		"Editable converted cards: a card linked to a note keeps showing its dates & " +
-			"priority (read back from frontmatter) and its metadata and description can be " +
-			"edited straight from the quick view.",
-		"Scroll-mode boards now grow while you drag a card down, so you can drop past " +
-			"the current bottom without fighting the scroll.",
-	],
-	fixes: [
-		"All five priorities now use distinct colours, so highest/lowest read apart " +
-			"from high/low.",
-		"The repeat picker is a deterministic dropdown + interval (no free text), and a " +
-			"recurrence and fixed dates are mutually exclusive; a recurring card is " +
-			"anchored by its scheduled date.",
-		"Recurring checkbox / Kanban tasks complete per-occurrence like TaskNotes: " +
-			"checking stamps today's ✅ and rolls to the next occurrence instead of " +
-			"retiring the task.",
-		"Scraping a card's metadata to frontmatter no longer hides its dates & priority " +
-			"on the board.",
-		"Empty checkboxes (“- [ ]” with no text) are ignored, the done-column toggle " +
-			"stays hover-only, and “show completed” lists completed tasks below the open " +
-			"ones instead of crowding them out.",
-	],
-};
+}
 
 /**
- * The "What's new" dialog: a TL;DR followed by grouped lists of new features
- * and fixes. Purely informational — it just reports {@link RELEASE_NOTES}.
+ * The running changelog, **newest entry first**. To cut a release, prepend a
+ * new entry here — older entries stay untouched, so this is a permanent,
+ * accumulating log. The "What's new" dialog shows only the entries newer than
+ * the version the user last saw (see {@link entriesSince}).
+ *
+ * Invariant: `CHANGELOG[0].version` must equal the `manifest.json` version of
+ * the release being cut, so the top entry is what a freshly-updated user sees.
+ */
+export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: "1.6.8.19-beta",
+		tldr:
+			"The “What's new” dialog is now backed by a continuous changelog: each " +
+			"release adds an entry on top and older entries are kept, so the popup " +
+			"shows exactly what changed since you last opened it.",
+		features: [
+			"Changelog entries accumulate over releases (newest first) instead of " +
+				"being overwritten each version; the popup lists only what's new since " +
+				"your last-seen version.",
+		],
+		fixes: [],
+	},
+	{
+		version: "1.6.8.18-beta",
+		tldr:
+			"Fix the “What's new” dialog not appearing for people upgrading into the " +
+			"first build that shipped it.",
+		features: [],
+		fixes: [
+			"An existing vault that simply predated the lastSeenVersion setting was " +
+				"mistaken for a fresh install and seeded silently. A true first run is now " +
+				"detected from having no persisted data at all, so upgraders see the " +
+				"release notes while first-time users don't.",
+		],
+	},
+	{
+		version: "1.6.8.17-beta",
+		tldr:
+			"A big Tasks-card release (the 1.6.8 beta series). Hearth now reads and " +
+			"edits Kanban plugin boards, understands the full obsidian-tasks metadata " +
+			"(dates, 5-level priority, recurrence), and gives every card a quick-view " +
+			"popover for editing in place. You can define custom checkbox task states, " +
+			"convert cards into notes (or create them as notes outright), and the " +
+			"search bar can now be powered by Omnisearch.",
+		features: [
+			"Kanban plugin boards: a Tasks card can read a Kanban board note — each " +
+				"heading becomes a column and each checkbox a card. Show it as a list or a " +
+				"drag-and-drop board that rewrites the note in Kanban's own format.",
+			"Full obsidian-tasks metadata: start (🛫), scheduled (⏳), due (📅) and done " +
+				"(✅) dates, a 5-level priority (🔺⏫🔼🔽⏬) and recurrence (🔁), shown as " +
+				"compact card indicators with a right-click editor and add-card pickers.",
+			"Custom checkbox task states: define your own “[symbol] Label” states for the " +
+				"Markdown-checkbox source (defaults To do / In progress / Done); each becomes " +
+				"a draggable board column that writes its own checkbox symbol.",
+			"Quick view: clicking a checkbox task or Kanban card opens a compact popover — " +
+				"metadata and description editable in place, with buttons to open the full " +
+				"note or delete the task (toggle per card, on by default).",
+			"Convert to note: right-click a card to turn it into its own linked note, " +
+				"optionally seeded from a template ({{title}}/{{date}}/{{time}}) and with its " +
+				"metadata scraped into frontmatter and its description moved into the note.",
+			"New tasks as notes: an optional toggle so adding a card creates it as its own " +
+				"note (a link on the board) right away instead of an inline checkbox — with a " +
+				"template preview in the add form.",
+			"Optional Omnisearch engine: point the search bar at the Omnisearch community " +
+				"plugin when it's installed, with a graceful fall back to Hearth's built-in " +
+				"vault search.",
+			"Per-column sort: the sort control lives on each Kanban column so columns sort " +
+				"independently; every list and board also gets an always-visible sort " +
+				"(Smart / Due / Priority / Created / Alphabetical, reversible) that persists.",
+			"Board editing niceties: mark any column a “done” column (cards auto-complete " +
+				"when dropped there), rename a column by double-clicking its title, cards " +
+				"render clickable [[wikilinks]] and Markdown links, carry a plain-text " +
+				"description, and can be deleted from the right-click menu.",
+			"Editable converted cards: a card linked to a note keeps showing its dates & " +
+				"priority (read back from frontmatter) and its metadata and description can be " +
+				"edited straight from the quick view.",
+			"Scroll-mode boards now grow while you drag a card down, so you can drop past " +
+				"the current bottom without fighting the scroll.",
+		],
+		fixes: [
+			"All five priorities now use distinct colours, so highest/lowest read apart " +
+				"from high/low.",
+			"The repeat picker is a deterministic dropdown + interval (no free text), and a " +
+				"recurrence and fixed dates are mutually exclusive; a recurring card is " +
+				"anchored by its scheduled date.",
+			"Recurring checkbox / Kanban tasks complete per-occurrence like TaskNotes: " +
+				"checking stamps today's ✅ and rolls to the next occurrence instead of " +
+				"retiring the task.",
+			"Scraping a card's metadata to frontmatter no longer hides its dates & priority " +
+				"on the board.",
+			"Empty checkboxes (“- [ ]” with no text) are ignored, the done-column toggle " +
+				"stays hover-only, and “show completed” lists completed tasks below the open " +
+				"ones instead of crowding them out.",
+		],
+	},
+];
+
+/**
+ * Entries strictly newer than {@link seen}, in newest-first order. Uses each
+ * entry's position in {@link CHANGELOG} (which is hand-ordered newest-first)
+ * rather than parsing the 4-part `x.y.z.n-beta` version scheme. If the seen
+ * version isn't in the log (a much older build, or none recorded), the whole
+ * log is returned so nothing is silently withheld.
+ */
+export function entriesSince(seen: string): ChangelogEntry[] {
+	const idx = CHANGELOG.findIndex((e) => e.version === seen);
+	return idx === -1 ? CHANGELOG.slice() : CHANGELOG.slice(0, idx);
+}
+
+/**
+ * The "What's new" dialog: one block per release (newest first), each a TL;DR
+ * followed by grouped lists of new features and fixes. Purely informational.
  */
 export class WhatsNewModal extends Modal {
-	private version: string;
+	private entries: ChangelogEntry[];
 
-	constructor(app: App, version: string) {
+	constructor(app: App, entries: ChangelogEntry[]) {
 		super(app);
-		this.version = version;
+		this.entries = entries;
 	}
 
 	onOpen(): void {
 		const { contentEl, modalEl } = this;
 		modalEl.addClass("hearth-whatsnew-modal");
-		this.titleEl.setText(t().whatsNew.title(this.version));
+		this.titleEl.setText(t().whatsNew.title);
 
 		contentEl.createEl("p", {
 			cls: "hearth-whatsnew-intro",
 			text: t().whatsNew.intro,
 		});
 
-		const tldr = contentEl.createDiv({ cls: "hearth-whatsnew-tldr" });
-		tldr.createEl("h4", { text: t().whatsNew.tldr });
-		tldr.createEl("p", { text: RELEASE_NOTES.tldr });
-
-		this.section(t().whatsNew.features, RELEASE_NOTES.features);
-		this.section(t().whatsNew.fixes, RELEASE_NOTES.fixes);
+		for (const entry of this.entries) this.renderEntry(entry);
 
 		contentEl.createEl("p", {
 			cls: "hearth-whatsnew-footer",
@@ -115,11 +158,25 @@ export class WhatsNewModal extends Modal {
 		);
 	}
 
-	private section(heading: string, items: string[]): void {
+	private renderEntry(entry: ChangelogEntry): void {
+		const wrap = this.contentEl.createDiv({ cls: "hearth-whatsnew-entry" });
+		wrap.createEl("h3", { cls: "hearth-whatsnew-version", text: entry.version });
+
+		if (entry.tldr) {
+			const tldr = wrap.createDiv({ cls: "hearth-whatsnew-tldr" });
+			tldr.createEl("h4", { text: t().whatsNew.tldr });
+			tldr.createEl("p", { text: entry.tldr });
+		}
+
+		this.section(wrap, t().whatsNew.features, entry.features);
+		this.section(wrap, t().whatsNew.fixes, entry.fixes);
+	}
+
+	private section(parent: HTMLElement, heading: string, items: string[]): void {
 		if (items.length === 0) return;
-		const wrap = this.contentEl.createDiv({ cls: "hearth-whatsnew-section" });
-		wrap.createEl("h4", { text: heading });
-		const list = wrap.createEl("ul");
+		const sec = parent.createDiv({ cls: "hearth-whatsnew-section" });
+		sec.createEl("h4", { text: heading });
+		const list = sec.createEl("ul");
 		for (const item of items) list.createEl("li", { text: item });
 	}
 
@@ -129,12 +186,13 @@ export class WhatsNewModal extends Modal {
 }
 
 /**
- * Show the "What's new" dialog once per version bump. A genuinely fresh install
- * is seeded silently so first-time users aren't greeted by a changelog. Any
- * other version change — including an existing vault upgrading into the first
- * build that ships this feature, where {@link HomeSettings.lastSeenVersion} is
- * still empty — pops the dialog and records the new version so it won't show
- * again until the next update.
+ * Show the "What's new" dialog once per version bump, listing only the entries
+ * newer than the version the user last saw. A genuinely fresh install is seeded
+ * silently so first-time users aren't greeted by a changelog. Any other version
+ * change — including an existing vault upgrading into the first build that ships
+ * this feature, where {@link HomeSettings.lastSeenVersion} is still empty — pops
+ * the dialog and records the new version so it won't show again until the next
+ * update.
  */
 export async function maybeShowWhatsNew(plugin: HearthPlugin): Promise<void> {
 	const current = plugin.manifest.version;
@@ -142,11 +200,12 @@ export async function maybeShowWhatsNew(plugin: HearthPlugin): Promise<void> {
 
 	if (seen === current) return;
 
+	const entries = entriesSince(seen);
 	plugin.settings.lastSeenVersion = current;
 	await plugin.saveData(plugin.settings);
 
 	// First-ever run: record the version but don't greet a brand-new user with a
 	// changelog for a build they never ran the predecessor of.
-	if (plugin.isFirstRun) return;
-	new WhatsNewModal(plugin.app, current).open();
+	if (plugin.isFirstRun || entries.length === 0) return;
+	new WhatsNewModal(plugin.app, entries).open();
 }

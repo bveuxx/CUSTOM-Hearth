@@ -81,8 +81,8 @@ export const en = {
 
 	// ---- "What's new" release-notes dialog -----------------------------
 	whatsNew: {
-		title: (version: string) => `What's new in Hearth ${version}`,
-		intro: "Thanks for updating! Here's everything that landed since the last stable release.",
+		title: "What's new in Hearth",
+		intro: "Thanks for updating! Here's what's changed since you last checked.",
 		tldr: "TL;DR",
 		features: "New features",
 		fixes: "Bug fixes & polish",
