@@ -688,6 +688,48 @@ export class CardSettingsModal extends Modal {
 						this.opts.save();
 					}),
 				);
+
+			// Convert-to-note options (the card right-click "Convert to note"
+			// action): seed the new note from a template, and/or scrape the card's
+			// metadata into the note's frontmatter instead of onto the board link.
+			const tplSetting = new Setting(containerEl)
+				.setName(t().editors.tasks.convertTemplate)
+				.setDesc(t().editors.tasks.convertTemplateDesc);
+			tplSetting.addText((txt) =>
+				txt
+					.setPlaceholder(t().editors.tasks.convertTemplatePlaceholder)
+					.setValue(cfg.convertNoteTemplate ?? "")
+					.onChange((v) => {
+						cfg.convertNoteTemplate = v.trim() || undefined;
+						this.opts.save();
+					}),
+			);
+			tplSetting.addExtraButton((b) =>
+				b
+					.setIcon("file-symlink")
+					.setTooltip(t().editors.tasks.pickTemplate)
+					.onClick(() => {
+						new FilePickerModal(
+							this.app,
+							(file) => {
+								cfg.convertNoteTemplate = file.path;
+								this.opts.save();
+								this.render();
+							},
+							t().editors.tasks.pickTemplate,
+						).open();
+					}),
+			);
+
+			new Setting(containerEl)
+				.setName(t().editors.tasks.convertScrape)
+				.setDesc(t().editors.tasks.convertScrapeDesc)
+				.addToggle((tg) =>
+					tg.setValue(cfg.convertMetadataToFrontmatter ?? false).onChange((v) => {
+						cfg.convertMetadataToFrontmatter = v || undefined;
+						this.opts.save();
+					}),
+				);
 		}
 
 		// Checkbox source: parse the inline Tasks-plugin metadata (dates, priority,
@@ -702,6 +744,20 @@ export class CardSettingsModal extends Modal {
 						cfg.checkboxExtended = v ? undefined : false;
 						this.opts.save();
 						this.render();
+					}),
+				);
+		}
+
+		// Quick-view on click applies to line-based tasks (checkboxes and Kanban
+		// cards); TaskNotes tasks always open in their own editor.
+		if ((cfg.source ?? "checkbox") !== "tasknotes") {
+			new Setting(containerEl)
+				.setName(t().editors.tasks.quickView)
+				.setDesc(t().editors.tasks.quickViewDesc)
+				.addToggle((tg) =>
+					tg.setValue(cfg.taskQuickView ?? true).onChange((v) => {
+						cfg.taskQuickView = v ? undefined : false;
+						this.opts.save();
 					}),
 				);
 		}

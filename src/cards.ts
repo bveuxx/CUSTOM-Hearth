@@ -21,7 +21,7 @@ import { evaluate as evaluateCalc } from "./calculator";
 import { cachedRates, loadRates } from "./currency";
 import { EXCALIDRAW_PLUGIN_ID, iconForFile, isExcalidraw } from "./filetypes";
 import { QueryHit, runQuery, searchFileContents } from "./query";
-import { makeClickable } from "./ui";
+import { confirmAction, makeClickable } from "./ui";
 import { parseNaturalDate, formatRelativeDate } from "./dates";
 import { t } from "./i18n";
 
@@ -2562,7 +2562,7 @@ function renderTaskRow(
 	renderTaskDateChips(row, hit, today);
 	if (hit.description) renderTaskDescription(row, hit.description);
 
-	const open = () => void openTask(view, hit);
+	const open = () => void openTask(view, cfg, hit, refresh);
 	row.addEventListener("click", open);
 	makeClickable(row, open, hit.text || hit.file.basename);
 	// Line-based tasks (Kanban cards and plain checkboxes) get the right-click
@@ -2895,7 +2895,7 @@ function renderTaskKanban(
 			const meta = cardEl.createDiv("hearth-kanban-card-meta");
 			if (source !== "kanban" && hit.priority) renderPriority(meta, hit.priority);
 			renderTaskDateChips(meta, hit, today);
-			const open = () => void openTask(view, hit);
+			const open = () => void openTask(view, cfg, hit, refresh);
 			cardEl.addEventListener("click", open);
 			makeClickable(cardEl, open, hit.text || hit.file.basename);
 			// Line-based cards (Kanban cards and plain checkboxes) get the
@@ -3180,6 +3180,104 @@ class TaskMetadataModal extends Modal {
 					}),
 			)
 			.addButton((b) => b.setButtonText(t().cards.tasks.cancel).onClick(() => this.close()));
+	}
+	onClose(): void {
+		this.contentEl.empty();
+	}
+}
+
+/** A compact quick-view for a line-based task, opened by clicking it: shows the
+ * task title, its Tasks-plugin metadata and (for Kanban cards) description, and
+ * offers to open the full note or delete the task. When the task's metadata is
+ * managed (checkbox extended / Kanban extended) the fields are editable and a
+ * Save button writes them back; otherwise the metadata is shown read-only. */
+class TaskDetailModal extends Modal {
+	private read: (() => { meta: TaskMeta; description: string }) | null = null;
+	constructor(
+		private readonly view: HomeView,
+		private readonly cfg: TasksConfig,
+		private readonly hit: TaskHit,
+		private readonly refresh: () => void,
+	) {
+		super(view.app);
+	}
+	onOpen(): void {
+		const { contentEl } = this;
+		const { view, cfg, hit } = this;
+		contentEl.addClass("hearth-taskdetail-modal");
+		const isKanban = !!hit.boardColumn;
+		const editable = taskMetaEnabled(cfg, hit);
+
+		const title = contentEl.createEl("h3", { cls: "hearth-taskdetail-title" });
+		fillTaskText(view, title, hit.text || hit.file.basename, hit.file.path);
+
+		if (editable) {
+			const current: TaskMeta = {
+				priority: priorityKey(hit.priority),
+				recurrence: hit.recurrence ?? "",
+				start: hit.start ?? "",
+				scheduled: hit.scheduled ?? "",
+				due: hit.due ?? "",
+			};
+			this.read = buildTaskDetailFields(contentEl, current, hit.description ?? "", isKanban);
+		} else {
+			// Plain (non-extended) task: no managed metadata to edit, so show a
+			// read-only summary of whatever the task carries, plus its description.
+			const today: string = moment().format("YYYY-MM-DD");
+			const chips = contentEl.createDiv("hearth-taskdetail-readonly");
+			if (hit.priority) renderPriority(chips, hit.priority);
+			renderTaskDateChips(chips, hit, today);
+			if (!chips.childNodes.length)
+				chips.createSpan({ cls: "hearth-taskdetail-empty", text: t().cards.tasks.noMetadata });
+			if (hit.description) renderTaskDescription(contentEl, hit.description);
+		}
+
+		const actions = new Setting(contentEl);
+		if (editable) {
+			actions.addButton((b) =>
+				b
+					.setButtonText(t().cards.tasks.save)
+					.setCta()
+					.onClick(() => {
+						if (this.read) {
+							const r = this.read();
+							void setKanbanCardMetadata(view, hit, r.meta, r.description).then((ok) => {
+								if (!ok) new Notice(t().notices.taskChangedOnDisk);
+								this.refresh();
+							});
+						}
+						this.close();
+					}),
+			);
+		}
+		actions.addButton((b) =>
+			b
+				.setButtonText(t().cards.tasks.openNote)
+				.setIcon("file-symlink")
+				.onClick(() => {
+					this.close();
+					void openTaskFile(view, hit);
+				}),
+		);
+		actions.addExtraButton((b) =>
+			b
+				.setIcon("trash-2")
+				.setTooltip(t().cards.tasks.deleteTask)
+				.onClick(() => {
+					confirmAction(view.app, {
+						title: t().cards.tasks.deleteTask,
+						message: t().cards.tasks.deleteTaskConfirm,
+						confirmText: t().cards.tasks.deleteTask,
+						onConfirm: () => {
+							void deleteKanbanCard(view, hit).then((ok) => {
+								if (!ok) new Notice(t().notices.taskChangedOnDisk);
+								this.refresh();
+								this.close();
+							});
+						},
+					});
+				}),
+		);
 	}
 	onClose(): void {
 		this.contentEl.empty();
@@ -3710,7 +3808,7 @@ function attachKanbanCardMenu(
 				item
 					.setTitle(t().cards.tasks.convertToNote)
 					.setIcon("file-output")
-					.onClick(() => void convertKanbanCardToNote(view, hit).then(refresh)),
+					.onClick(() => void convertKanbanCardToNote(view, cfg, hit).then(refresh)),
 			);
 			menu.addItem((item) =>
 				item
@@ -3907,7 +4005,7 @@ async function renameKanbanColumn(
  * note in the user's default new-note location named after the card, then
  * replace the card's text with a link to it — preserving the checkbox state and
  * any Tasks-plugin metadata tail. */
-async function convertKanbanCardToNote(view: HomeView, hit: TaskHit): Promise<void> {
+async function convertKanbanCardToNote(view: HomeView, cfg: TasksConfig, hit: TaskHit): Promise<void> {
 	const board = hit.file;
 	const content = await view.app.vault.read(board);
 	const lines = content.split("\n");
@@ -3928,12 +4026,74 @@ async function convertKanbanCardToNote(view: HomeView, hit: TaskHit): Promise<vo
 		new Notice(t().notices.couldNotConvertCard);
 		return;
 	}
+	// Optionally seed the note body from a template (Obsidian-core-style
+	// {{title}}/{{date}}/{{time}} substitution). A missing/unreadable template
+	// leaves the note empty rather than aborting the convert.
+	const templatePath = cfg.convertNoteTemplate?.trim();
+	if (templatePath) {
+		const tpl =
+			view.app.vault.getAbstractFileByPath(templatePath) ??
+			view.app.vault.getAbstractFileByPath(`${templatePath}.md`);
+		if (tpl instanceof TFile) {
+			try {
+				const raw = await view.app.vault.read(tpl);
+				await view.app.vault.modify(note, applyConvertTemplate(raw, title));
+			} catch {
+				// Template unreadable — carry on with an empty note.
+			}
+		}
+	}
+	// Optionally scrape the card's Tasks-plugin metadata into the note's YAML
+	// frontmatter (read straight off the card text so it works even when the
+	// card wasn't parsed in extended mode). When scraping, the metadata now
+	// lives in the note, so the emoji tail is dropped from the board link.
+	const scrape = cfg.convertMetadataToFrontmatter ?? false;
+	if (scrape) await writeTaskFrontmatter(view, note, m[2]);
+
 	const link = view.app.fileManager.generateMarkdownLink(note, board.path);
-	const meta = extractMetadataTail(m[2]);
+	const meta = scrape ? "" : extractMetadataTail(m[2]);
 	// Everything before the card's text (indent + `- [x] `) is preserved.
 	const prefix = cur.slice(0, cur.length - m[2].length);
 	lines[hit.line] = `${prefix}${link}${meta ? ` ${meta}` : ""}`;
 	await view.app.vault.modify(board, lines.join("\n"));
+}
+
+/** Substitute the note-template variables supported for convert-to-note:
+ * {{title}}, {{date}}, {{time}} and their {{date:FMT}}/{{time:FMT}} formatted
+ * variants (mirrors the daily-note template substitution). */
+function applyConvertTemplate(raw: string, title: string): string {
+	const now = moment();
+	return raw
+		.replace(/\{\{\s*date\s*:\s*([^}]+?)\s*\}\}/gi, (_m, f: string) => now.format(f))
+		.replace(/\{\{\s*time\s*:\s*([^}]+?)\s*\}\}/gi, (_m, f: string) => now.format(f))
+		.replace(/\{\{\s*date\s*\}\}/gi, now.format("YYYY-MM-DD"))
+		.replace(/\{\{\s*time\s*\}\}/gi, now.format("HH:mm"))
+		.replace(/\{\{\s*title\s*\}\}/gi, title);
+}
+
+/** Write a card's Tasks-plugin metadata (read from its raw text) into a note's
+ * YAML frontmatter, using conventional keys (priority, due, scheduled, start,
+ * done, recurrence). Only fields the card actually carries are written; merges
+ * with any frontmatter a template already added. */
+async function writeTaskFrontmatter(view: HomeView, note: TFile, rawText: string): Promise<void> {
+	const priority = priorityKey(readPriorityEmoji(rawText));
+	const due = readEmojiDate(rawText, "📅");
+	const scheduled = readEmojiDate(rawText, "⏳");
+	const start = readEmojiDate(rawText, "🛫");
+	const done = readEmojiDate(rawText, "✅");
+	const recurrence = readEmojiField(rawText, "🔁");
+	try {
+		await view.app.fileManager.processFrontMatter(note, (fm: Record<string, unknown>) => {
+			if (priority) fm["priority"] = priority;
+			if (due) fm["due"] = due;
+			if (scheduled) fm["scheduled"] = scheduled;
+			if (start) fm["start"] = start;
+			if (done) fm["done"] = done;
+			if (recurrence) fm["recurrence"] = recurrence;
+		});
+	} catch {
+		// Frontmatter write failed — the link and note are still created.
+	}
 }
 
 /** The substring of a card's text from its first Tasks-plugin metadata emoji to
@@ -4206,7 +4366,23 @@ function openInTaskNotes(view: HomeView, file: TFile): boolean {
 	return false;
 }
 
-async function openTask(view: HomeView, hit: TaskHit): Promise<void> {
+async function openTask(view: HomeView, cfg: TasksConfig, hit: TaskHit, refresh: () => void): Promise<void> {
+	// Line-based tasks (checkboxes / Kanban cards) open a compact quick-view by
+	// default — metadata + description with open-note / delete actions — instead
+	// of jumping straight into the file. TaskNotes tasks (whole-file, no line)
+	// keep opening in their own editor. Storing `taskQuickView: false` restores
+	// the old open-on-click behaviour.
+	if (hit.line >= 0 && (cfg.taskQuickView ?? true)) {
+		new TaskDetailModal(view, cfg, hit, refresh).open();
+		return;
+	}
+	await openTaskFile(view, hit);
+}
+
+/** Open a task's underlying file: TaskNotes tasks in TaskNotes' own editor when
+ * possible, otherwise the note, scrolled to the task's line for line-based
+ * tasks. */
+async function openTaskFile(view: HomeView, hit: TaskHit): Promise<void> {
 	// TaskNotes tasks (no line) open in TaskNotes' own editor when possible.
 	if (hit.line < 0 && openInTaskNotes(view, hit.file)) return;
 

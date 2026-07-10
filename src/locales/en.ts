@@ -464,6 +464,24 @@ export const en = {
 				"checkbox (compatible with the obsidian-tasks plugin) so they show as " +
 				"indicators, sort the list, and can be edited from the item's " +
 				"right-click menu. Off reads checkboxes as plain text.",
+			quickView: "Quick view on click",
+			quickViewDesc:
+				"Clicking a task opens a compact popover — its metadata and " +
+				"description, editable in place, with buttons to open the full note " +
+				"or delete the task — instead of opening the note straight away. Off " +
+				"opens the note on click.",
+			convertTemplate: "Convert-to-note template",
+			convertTemplateDesc:
+				"When you right-click a card and choose “Convert to note”, seed the " +
+				"new note from this template. Supports {{title}}, {{date}} and " +
+				"{{time}}. Leave empty to create a blank note.",
+			convertTemplatePlaceholder: "e.g. Templates/Task.md",
+			pickTemplate: "Pick a template note",
+			convertScrape: "Scrape metadata to frontmatter",
+			convertScrapeDesc:
+				"When converting a card to a note, move its dates, priority and " +
+				"repeat marks into the new note's YAML frontmatter instead of leaving " +
+				"the emoji markers on the board link.",
 			layout: "Layout",
 			layoutDesc:
 				"List, or a Kanban board grouped by status. On the board, drag cards " +
@@ -635,6 +653,10 @@ export const en = {
 			convertToNote: "Convert to note",
 			editMetadata: "Edit dates & priority",
 			deleteCard: "Delete card",
+			openNote: "Open note",
+			deleteTask: "Delete task",
+			deleteTaskConfirm: "Delete this task? This removes it from the note.",
+			noMetadata: "No dates or priority set.",
 			save: "Save",
 			cancel: "Cancel",
 			setDoneColumn: (label: string) => `Mark "${label}" as a done column`,

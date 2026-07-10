@@ -143,7 +143,11 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   **description** shown as sub-bullets. **Double-click a column title** to
   rename it. **Right-click a card** (on the board or in the list) to **edit its
   dates & priority**, **convert it into its own note** (like the Kanban plugin
-  — the card becomes a link), or **delete** it. A column's **check icon** marks
+  — the card becomes a link), or **delete** it. Convert-to-note can **seed the
+  new note from a template** (with `{{title}}`/`{{date}}`/`{{time}}`
+  substitution) and, optionally, **scrape the card's metadata into the note's
+  frontmatter** instead of leaving the emoji markers on the board link — both
+  set per card in its settings. A column's **check icon** marks
   it a *done column*, so cards complete automatically when dragged or added
   there (and the ones already in it complete at once). Turn on **Dates &
   priorities** to read the marks each card carries (compatible with
@@ -161,6 +165,12 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   and a quick-add. Leave the mode off to read the board as plain text.
   Everything is written back in Kanban's own format, so the board stays fully
   editable in the Kanban plugin.
+- **Task quick view** — clicking a checkbox task or Kanban card opens a compact
+  popover with its metadata and description, editable in place, plus buttons to
+  **open the full note** or **delete the task** — instead of jumping straight
+  into the note. It's a per-card **Quick view on click** toggle (on by default);
+  turn it off to open the note on click. (TaskNotes tasks always open in their
+  own editor.)
 - **Mini calendar** — a month grid resolved from the core Daily notes plugin's
   format/folder, with a dot on days that already have a note. Optional ISO week
   numbers and an edit-count heatmap tint; click an empty day to create that
@@ -329,6 +339,15 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 [`src/locales/README.md`](src/locales/README.md) for the walkthrough.
 
 ## Shipped:
+
+> **v1.6.8.11-beta** — Tasks-card note workflow: clicking a checkbox task or
+> Kanban card now opens a compact **quick view** — its metadata and description,
+> editable in place, with buttons to open the full note or delete the task —
+> instead of jumping straight into the note (a per-card **Quick view on click**
+> toggle, on by default). **Convert to note** gains two per-card options: seed
+> the new note from a **template** (`{{title}}`/`{{date}}`/`{{time}}`), and
+> **scrape the card's metadata into frontmatter** instead of leaving the emoji
+> markers on the board link.
 
 > **v1.6.8.10-beta** — the Kanban board's sort control now lives **on each
 > column** (an icon in the column header) instead of a shared board header, so

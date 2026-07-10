@@ -2406,6 +2406,28 @@
 	margin: 8px 0;
 }
 
+/* Quick-view popover: the task title, then metadata (editable or read-only). */
+.hearth-taskdetail-title {
+	margin: 0 0 4px;
+	font-size: 1.05rem;
+	line-height: 1.35;
+	word-break: break-word;
+}
+
+/* Read-only metadata summary shown for plain (non-extended) tasks. */
+.hearth-taskdetail-readonly {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	margin: 8px 0;
+}
+
+.hearth-taskdetail-empty {
+	font-size: 0.82rem;
+	color: var(--text-muted);
+}
+
 /* Minimalistic list-mode header: task count on the left, add control right. */
 .hearth-tasks-listhead {
 	display: flex;

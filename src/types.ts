@@ -75,6 +75,21 @@ export interface TasksConfig {
 	 * visible text and no metadata is written on completion). Mirrors
 	 * `kanbanExtended` for the Kanban source. */
 	checkboxExtended?: boolean;
+	/** Clicking a line-based task (a checkbox or Kanban card) opens a compact
+	 * quick-view popover — the task's metadata and description, editable in place,
+	 * with actions to open the full note or delete the task — instead of jumping
+	 * straight into the file. On by default; storing `false` restores the old
+	 * open-the-note-on-click behaviour. TaskNotes tasks always open in their own
+	 * editor and ignore this. */
+	taskQuickView?: boolean;
+	/** Convert-to-note (Kanban cards): vault path of a template note whose body
+	 * seeds the created note. Supports {{title}}, {{date}}, {{time}} and their
+	 * {{date:FMT}}/{{time:FMT}} formatted variants. Empty creates a blank note. */
+	convertNoteTemplate?: string;
+	/** Convert-to-note (Kanban cards): scrape the card's Tasks-plugin metadata
+	 * (priority, dates, recurrence) into the created note's YAML frontmatter
+	 * instead of trailing the emoji markers on the board link. Default false. */
+	convertMetadataToFrontmatter?: boolean;
 	/** Persistent sort order for the list/board, chosen from the card's own sort
 	 * control. "smart" (default) is the due → scheduled → priority → created
 	 * chain; the others sort by a single field. Incomplete tasks always sort
