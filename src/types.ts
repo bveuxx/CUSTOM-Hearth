@@ -385,6 +385,11 @@ export interface DashboardCard {
 	 * the card has a title, or as a floating mouseover-only control otherwise. */
 	secondView?: EmbedView;
 
+	/** kind === "embed": hide the Bases view's own toolbar/header (the view
+	 * switcher and filter/property controls) when embedding a `.base` file, so
+	 * only the results show. No effect on non-base embeds. */
+	hideBaseHeader?: boolean;
+
 	/** kind === "commands": pixel size of the command tiles (min column width).
 	 * Omitted means the default tile size. */
 	tileSize?: number;

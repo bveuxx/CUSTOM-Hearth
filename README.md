@@ -89,7 +89,10 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   **second view** (a second file to embed, with its own zoom and editable
   options) and it grows a **switcher** to flip between the two — shown in the
   card **header** when the card has a title, or as a **floating, hover-only**
-  control in the top-right corner when it's untitled (headerless).
+  control in the top-right corner when it's untitled (headerless). Embedding a
+  `.base` file? A **Hide base header** toggle strips the Bases view's own
+  toolbar (view switcher + filter/property controls) so the card shows only the
+  results.
 - **Excalidraw & canvas** — dedicated templates for an Excalidraw drawing or a
   `.canvas` file, filling the card edge-to-edge so native pan/zoom (and
   Excalidraw's in-place edit toggle) work like they do in a regular note.

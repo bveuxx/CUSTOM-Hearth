@@ -363,6 +363,9 @@ export const en = {
 			zoomDesc: "Scale the embedded content. Applies when you close this dialog.",
 			editable: "Editable",
 			editableDesc: "Edit the embedded note's text in place (Markdown notes only).",
+			hideBaseHeader: "Hide base header",
+			hideBaseHeaderDesc:
+				"For embedded .base files, hide the Bases view's own toolbar (view switcher and filter/property controls) so only the results show.",
 			secondViewHeading: "Second view",
 			secondViewFile: "Second file to embed",
 			secondViewFileDesc:

@@ -4,6 +4,11 @@ import { CardKind, ClockConfig, DashboardCard, EmbedView, LinkItem, TasksConfig 
 import { confirmAction } from "./ui";
 import { t } from "./i18n";
 
+/** Whether an embed target points at a Bases (.base) file. */
+function isBaseTarget(target: string | undefined): boolean {
+	return !!target && target.trim().toLowerCase().endsWith(".base");
+}
+
 export interface CardSettingsOptions {
 	/** The global favorites list (shared by all favorites cards). */
 	favorites: string[];
@@ -156,7 +161,21 @@ export class CardSettingsModal extends Modal {
 							this.opts.save();
 						}),
 					);
-				this.embedSecondView(containerEl);
+				// Hide-base-header is only relevant to .base embeds; shown when either
+					// view targets one.
+					if (isBaseTarget(card.target) || isBaseTarget(card.secondView?.target)) {
+						new Setting(containerEl)
+							.setName(t().editors.embed.hideBaseHeader)
+							.setDesc(t().editors.embed.hideBaseHeaderDesc)
+							.addToggle((tg) =>
+								tg.setValue(card.hideBaseHeader ?? false).onChange((v) => {
+									card.hideBaseHeader = v || undefined;
+									this.opts.save();
+									this.opts.rerender();
+								}),
+							);
+					}
+					this.embedSecondView(containerEl);
 				break;
 			}
 			case "daily":

@@ -25,6 +25,19 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: "1.7.1.5-beta",
+		tldr:
+			"Embed cards that show a .base file gain a “Hide base header” option that " +
+			"hides the Bases view's own toolbar (view switcher and filter/property " +
+			"controls) so the card shows only the results.",
+		features: [
+			"Hide base header: a per-card toggle (shown for embed cards whose file — " +
+				"either view — is a .base) that hides the embedded Bases view's toolbar, " +
+				"leaving just the table/results on the dashboard.",
+		],
+		fixes: [],
+	},
+	{
 		version: "1.7.1.4-beta",
 		tldr:
 			"Two additions: embed cards can carry a second view with a switcher to " +

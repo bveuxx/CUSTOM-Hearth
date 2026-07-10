@@ -2700,6 +2700,16 @@
 	font-size: 0.82rem;
 }
 
+/* When "Hide base header" is on, hide the embedded Bases view's own toolbar
+ * (view switcher + filter/property controls) so the card shows only results.
+ * Scoped to the opted-in host so no other embed is affected; several candidate
+ * selectors cover Obsidian's Bases markup across versions. */
+.hearth-embed-hide-base-header .bases-toolbar,
+.hearth-embed-hide-base-header .bases-tbar,
+.hearth-embed-hide-base-header .bases-embed-title {
+	display: none !important;
+}
+
 /* ---- Embed second-view switcher ------------------------------------- */
 /* A small segmented control toggling an embed card between its two views. */
 .hearth-embed-switch {

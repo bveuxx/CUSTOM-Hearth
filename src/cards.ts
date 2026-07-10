@@ -509,6 +509,10 @@ function renderEmbed(
 
 	const host = body.createDiv("hearth-embed markdown-rendered");
 	body.addClass("is-embed-host");
+	// Optionally hide the embedded Bases view's own toolbar/header (view switcher
+	// + filter/property controls) so only the results show. Scoped via a class on
+	// the host so it only affects this card's base embed.
+	if (ext === "base" && card.hideBaseHeader) host.addClass("hearth-embed-hide-base-header");
 	// Optional zoom: scale the rendered content and widen it inversely so it
 	// still fills the card width before scaling (the body handles overflow).
 	const scale = active.scale && active.scale > 0 ? active.scale : 1;
