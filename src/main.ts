@@ -12,6 +12,10 @@ const AUDIO_RECORDER_PLUGIN_ID = "audio-recorder";
 
 export default class HearthPlugin extends Plugin {
 	settings: HomeSettings;
+	/** True when this load had no persisted data at all (a brand-new install),
+	 * as opposed to an existing vault that simply predates a given setting.
+	 * Used so the "What's new" dialog greets upgraders but not first-timers. */
+	isFirstRun = false;
 
 	async onload() {
 		// Pick the locale from Obsidian's UI language before anything renders or
@@ -221,6 +225,10 @@ export default class HearthPlugin extends Plugin {
 
 	async loadSettings() {
 		const raw = ((await this.loadData()) ?? {}) as Record<string, unknown>;
+		// No persisted keys at all => a genuinely fresh install. An existing vault
+		// that merely lacks a newly-added field (like lastSeenVersion) still has
+		// its other settings here, so it is correctly treated as an upgrade.
+		this.isFirstRun = Object.keys(raw).length === 0;
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, raw);
 		// Backfill nested config defaults too, not just top-level keys, so an
 		// object persisted by an older version isn't missing a nested field.

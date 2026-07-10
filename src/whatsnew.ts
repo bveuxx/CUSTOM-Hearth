@@ -129,10 +129,12 @@ export class WhatsNewModal extends Modal {
 }
 
 /**
- * Show the "What's new" dialog once per version bump. A fresh install (no
- * recorded version) is seeded silently so first-time users aren't greeted by a
- * changelog. Any later change to the manifest version pops the dialog and
- * records the new version so it won't show again until the next update.
+ * Show the "What's new" dialog once per version bump. A genuinely fresh install
+ * is seeded silently so first-time users aren't greeted by a changelog. Any
+ * other version change — including an existing vault upgrading into the first
+ * build that ships this feature, where {@link HomeSettings.lastSeenVersion} is
+ * still empty — pops the dialog and records the new version so it won't show
+ * again until the next update.
  */
 export async function maybeShowWhatsNew(plugin: HearthPlugin): Promise<void> {
 	const current = plugin.manifest.version;
@@ -140,10 +142,11 @@ export async function maybeShowWhatsNew(plugin: HearthPlugin): Promise<void> {
 
 	if (seen === current) return;
 
-	const isFreshInstall = !seen;
 	plugin.settings.lastSeenVersion = current;
 	await plugin.saveData(plugin.settings);
 
-	if (isFreshInstall) return;
+	// First-ever run: record the version but don't greet a brand-new user with a
+	// changelog for a build they never ran the predecessor of.
+	if (plugin.isFirstRun) return;
 	new WhatsNewModal(plugin.app, current).open();
 }

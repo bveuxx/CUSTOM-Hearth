@@ -358,6 +358,12 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 
 ## Shipped:
 
+> **v1.6.8.18-beta** — fix the **"What's new" dialog** not appearing when
+> upgrading into the first build that shipped it: an existing vault that simply
+> predated the `lastSeenVersion` setting was mistaken for a fresh install and
+> seeded silently. A true first run is now detected from having no persisted
+> data at all, so upgraders see the release notes while first-time users don't.
+
 > **v1.6.8.17-beta** — a **"What's new" dialog** now pops up after the plugin
 > updates (once per version, never on a fresh install), summarising the release
 > with a TL;DR plus grouped lists of new features and bug fixes. The last-seen
