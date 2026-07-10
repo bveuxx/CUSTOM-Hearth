@@ -2530,7 +2530,11 @@ function renderTaskRow(
 	const row = listEl.createDiv("hearth-list-item hearth-task");
 	row.toggleClass("is-done", hit.done);
 
-	if (hit.line >= 0 && hit.recurrence && taskMetaEnabled(cfg, hit)) {
+	if (hit.linkedFile && hit.recurrence && taskMetaEnabled(cfg, hit)) {
+		// Recurring card linked to a note: complete per-occurrence in the note's
+		// frontmatter (complete_instances + next scheduled), TaskNotes-style.
+		renderRecurringCheckbox(view, hit, today, row, refresh, hit.linkedFile);
+	} else if (hit.line >= 0 && hit.recurrence && taskMetaEnabled(cfg, hit)) {
 		// Recurring checkbox / Kanban task: complete per-occurrence (stamp today's
 		// ✅ and roll the date forward), resetting to open on its next date rather
 		// than retiring the line.
@@ -2877,6 +2881,10 @@ function renderTaskKanban(
 		const textRow = cardEl.createDiv("hearth-kanban-card-row");
 		if (source === "tasknotes" && hit.recurrence) {
 			renderRecurringCheckbox(view, hit, today, textRow, refresh);
+		} else if (source === "kanban" && hit.linkedFile && hit.recurrence && taskMetaEnabled(cfg, hit)) {
+			// Recurring card linked to a note: complete per-occurrence in the note's
+			// frontmatter (complete_instances + next scheduled), TaskNotes-style.
+			renderRecurringCheckbox(view, hit, today, textRow, refresh, hit.linkedFile);
 		} else if (source === "kanban" && hit.line >= 0 && hit.recurrence && taskMetaEnabled(cfg, hit)) {
 			// Recurring Kanban card: complete per-occurrence (stamp ✅ today, roll
 			// the date forward) rather than retiring the card.
@@ -3220,9 +3228,11 @@ class TaskDetailModal extends Modal {
 		const { view, cfg, hit } = this;
 		contentEl.addClass("hearth-taskdetail-modal");
 		const isKanban = !!hit.boardColumn;
-		// A card linked to a note keeps its metadata and description inside that
-		// note, so the quick view shows them read-only (edit them in the note).
-		const editable = taskMetaEnabled(cfg, hit) && !hit.linkedFile;
+		const editable = taskMetaEnabled(cfg, hit);
+		// A card linked to a note stores its metadata in that note's frontmatter
+		// (edited here, written back there) and its description inside the note
+		// (shown read-only — edit it in the note itself).
+		const linked = !!hit.linkedFile;
 
 		const title = contentEl.createEl("h3", { cls: "hearth-taskdetail-title" });
 		fillTaskText(view, title, hit.text || hit.file.basename, hit.file.path);
@@ -3235,7 +3245,15 @@ class TaskDetailModal extends Modal {
 				scheduled: hit.scheduled ?? "",
 				due: hit.due ?? "",
 			};
-			this.read = buildTaskDetailFields(contentEl, current, hit.description ?? "", isKanban);
+			this.read = buildTaskDetailFields(contentEl, current, hit.description ?? "", isKanban && !linked);
+			if (linked && hit.linkedFile) {
+				// Description lives inside the linked note; show it read-only below
+				// the editable metadata fields.
+				const descHost = contentEl.createDiv();
+				void readNoteDescription(view, hit.linkedFile).then((desc) => {
+					if (desc) renderTaskDescription(descHost, desc);
+				});
+			}
 		} else {
 			// Read-only summary of whatever metadata the task carries (from the card
 			// or, for a linked card, its note's frontmatter), plus its description.
@@ -3245,8 +3263,7 @@ class TaskDetailModal extends Modal {
 			renderTaskDateChips(chips, hit, today);
 			if (!chips.childNodes.length)
 				chips.createSpan({ cls: "hearth-taskdetail-empty", text: t().cards.tasks.noMetadata });
-			if (hit.linkedFile) {
-				// Description lives inside the linked note; read its body lazily.
+			if (linked && hit.linkedFile) {
 				const descHost = contentEl.createDiv();
 				void readNoteDescription(view, hit.linkedFile).then((desc) => {
 					if (desc) renderTaskDescription(descHost, desc);
@@ -3625,6 +3642,7 @@ async function collectKanbanTasks(
 			// the note's frontmatter so it still shows and sorts, and "open note"
 			// opens the linked note.
 			const linkedFile = soleLinkedNote(view, extended ? text : stripTaskMetadata(rawText), file.path);
+			let completeInstances: string[] | undefined;
 			if (extended && linkedFile) {
 				const fm = view.app.metadataCache.getFileCache(linkedFile)?.frontmatter;
 				if (fm) {
@@ -3645,6 +3663,8 @@ async function collectKanbanTasks(
 					const fmPrio = fmStr("priority");
 					if (!priority && fmPrio) priority = PRIORITY_EMOJI[fmPrio] ?? fmPrio;
 					recurrence = recurrence || fmStr("recurrence") || undefined;
+					const ci = fm["complete_instances"];
+					if (Array.isArray(ci)) completeInstances = ci.map((v) => String(v)).filter(Boolean);
 				}
 			}
 			hits.push({
@@ -3663,6 +3683,7 @@ async function collectKanbanTasks(
 				boardColumn: col.heading,
 				description: descLines.join("\n"),
 				linkedFile,
+				completeInstances,
 			});
 			i = end;
 		}
@@ -3931,9 +3952,9 @@ function attachKanbanCardMenu(
 ): void {
 	const isKanban = !!hit.boardColumn;
 	// Metadata editing is offered wherever the marks are managed (checkboxes by
-	// default, Kanban cards in extended mode). A card linked to a note keeps its
-	// metadata in the note, so inline editing is suppressed for it.
-	const canEditMeta = taskMetaEnabled(cfg, hit) && !hit.linkedFile;
+	// default, Kanban cards in extended mode). A card linked to a note edits its
+	// note's frontmatter instead of the board line (handled in setKanbanCardMetadata).
+	const canEditMeta = taskMetaEnabled(cfg, hit);
 	// Nothing to show for a plain checkbox with metadata off — leave the native
 	// context menu alone rather than popping an empty one.
 	if (!canEditMeta && !isKanban) return;
@@ -3954,7 +3975,9 @@ function attachKanbanCardMenu(
 							scheduled: hit.scheduled ?? "",
 							due: hit.due ?? "",
 						};
-						new TaskMetadataModal(view.app, current, hit.description ?? "", isKanban, (meta, description) => {
+						// A linked card's description lives in its note, so only its
+						// metadata (frontmatter) is editable here.
+						new TaskMetadataModal(view.app, current, hit.description ?? "", isKanban && !hit.linkedFile, (meta, description) => {
 							void setKanbanCardMetadata(view, hit, meta, description).then((ok) => {
 								if (!ok) new Notice(t().notices.taskChangedOnDisk);
 								refresh();
@@ -4031,6 +4054,9 @@ async function setKanbanCardMetadata(
 	meta: TaskMeta,
 	description: string,
 ): Promise<boolean> {
+	// A card linked to a note keeps its metadata in that note's frontmatter —
+	// edits are written there, not onto the board link.
+	if (hit.linkedFile) return writeMetadataFrontmatter(view, hit.linkedFile, meta);
 	const content = await view.app.vault.read(hit.file);
 	const lines = content.split("\n");
 	const cur = lines[hit.line];
@@ -4268,6 +4294,30 @@ async function writeTaskFrontmatter(view: HomeView, note: TFile, rawText: string
 	}
 }
 
+/** Write edited task metadata into a note's YAML frontmatter, using the same
+ * conventional keys convert-to-note scrapes to (priority/recurrence/start/
+ * scheduled/due). Empty fields are removed. Used when editing a converted
+ * (linked) card's metadata from the quick view or right-click editor. */
+async function writeMetadataFrontmatter(view: HomeView, file: TFile, meta: TaskMeta): Promise<boolean> {
+	const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+	try {
+		await view.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+			const set = (k: string, v: string) => {
+				if (v) fm[k] = v;
+				else delete fm[k];
+			};
+			set("priority", meta.priority);
+			set("recurrence", meta.recurrence.trim());
+			set("start", isDate(meta.start) ? meta.start : "");
+			set("scheduled", isDate(meta.scheduled) ? meta.scheduled : "");
+			set("due", isDate(meta.due) ? meta.due : "");
+		});
+	} catch {
+		return false;
+	}
+	return true;
+}
+
 /** The substring of a card's text from its first Tasks-plugin metadata emoji to
  * the end (trimmed), or "" when the card carries no metadata. Used to keep
  * due/priority markers on the card when its text is replaced with a link. */
@@ -4435,12 +4485,12 @@ function nextRecurrenceDate(rule: string, fromDate: string): string | null {
  * kept sorted) and advance `scheduled` to the next occurrence derived from the
  * recurrence rule. The task's `status` is left untouched — a recurring task
  * stays open and just rolls forward to its next due date. */
-async function completeRecurringInstance(view: HomeView, hit: TaskHit): Promise<void> {
+async function completeRecurringInstance(view: HomeView, hit: TaskHit, targetFile?: TFile): Promise<void> {
 	if (!hit.recurrence) return;
 	const today: string = moment().format("YYYY-MM-DD");
-	const next = nextOccurrence(hit.recurrence, today);
+	const next = nextRecurrenceDate(hit.recurrence, today);
 	try {
-		await view.app.fileManager.processFrontMatter(hit.file, (fm) => {
+		await view.app.fileManager.processFrontMatter(targetFile ?? hit.file, (fm) => {
 			const cur = typeof fm["scheduled"] === "string" ? String(fm["scheduled"]) : null;
 			const timeMatch = cur ? /T(\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z?)\s*$/.exec(cur) : null;
 			const instances = Array.isArray(fm["complete_instances"])
@@ -4464,11 +4514,11 @@ async function completeRecurringInstance(view: HomeView, hit: TaskHit): Promise<
  * `complete_instances` and roll `scheduled` back to today (the occurrence we
  * just un-completed). Used when the user unchecks the box to cancel a
  * mistaken completion. */
-async function uncompleteRecurringInstance(view: HomeView, hit: TaskHit): Promise<void> {
+async function uncompleteRecurringInstance(view: HomeView, hit: TaskHit, targetFile?: TFile): Promise<void> {
 	if (!hit.recurrence) return;
 	const today: string = moment().format("YYYY-MM-DD");
 	try {
-		await view.app.fileManager.processFrontMatter(hit.file, (fm) => {
+		await view.app.fileManager.processFrontMatter(targetFile ?? hit.file, (fm) => {
 			const cur = typeof fm["scheduled"] === "string" ? String(fm["scheduled"]) : null;
 			const timeMatch = cur ? /T(\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z?)\s*$/.exec(cur) : null;
 			const instances = Array.isArray(fm["complete_instances"])
@@ -4496,6 +4546,7 @@ function renderRecurringCheckbox(
 	today: string,
 	parent: HTMLElement,
 	refresh: () => void,
+	targetFile?: TFile,
 ): void {
 	const check = parent.createEl("input", {
 		cls: "hearth-task-check hearth-task-check-recurring",
@@ -4512,9 +4563,9 @@ function renderRecurringCheckbox(
 	check.addEventListener("change", () => {
 		const wasChecked = (hit.completeInstances ?? []).includes(today);
 		if (check.checked && !wasChecked) {
-			void completeRecurringInstance(view, hit).then(refresh);
+			void completeRecurringInstance(view, hit, targetFile).then(refresh);
 		} else if (!check.checked && wasChecked) {
-			void uncompleteRecurringInstance(view, hit).then(refresh);
+			void uncompleteRecurringInstance(view, hit, targetFile).then(refresh);
 		} else {
 			// State already matches the data — keep the checkbox in sync.
 			check.checked = wasChecked;
