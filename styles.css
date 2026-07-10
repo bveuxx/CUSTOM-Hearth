@@ -587,6 +587,19 @@
 	height: 100%;
 }
 
+/* The hosted view carries Obsidian's own opaque --background-primary on its
+ * leaf/content/header wrappers, which would paint over the card's translucent
+ * surface and make the card look fully filled regardless of its opacity. Clear
+ * those wrapper backgrounds so the card surface (and its --card-opacity) shows
+ * through, exactly like every other card. The view's own inner elements keep
+ * their styling — only the outermost chrome is made transparent. */
+.hearth-leaf-host .workspace-leaf,
+.hearth-leaf-host .workspace-leaf-content,
+.hearth-leaf-host .view-content,
+.hearth-leaf-host .view-header {
+	background: transparent;
+}
+
 /* Obsidian renders a canvas/Excalidraw embed as:
  *   <p> › span.internal-embed › (div.embed-title + svg.canvas-minimap)
  * To make the drawing fill the card without leaving an empty "chin" (or, worse,

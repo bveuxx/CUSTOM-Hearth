@@ -25,6 +25,19 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: "1.7.1.9-beta",
+		tldr:
+			"Plugin view cards now honour card opacity: the hosted view's own solid " +
+			"background no longer fills the card, so it matches every other card's " +
+			"translucent surface.",
+		features: [],
+		fixes: [
+			"Plugin view card: cleared the hosted view's opaque leaf/content/header " +
+				"backgrounds so the card's surface (and its opacity) shows through, " +
+				"instead of the card always looking fully filled.",
+		],
+	},
+	{
 		version: "1.7.1.8-beta",
 		tldr:
 			"New “Plugin view” card (beta): host another plugin's — or a core — " +
