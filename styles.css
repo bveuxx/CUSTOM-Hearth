@@ -531,12 +531,14 @@
 	border-radius: 8px;
 }
 
-/* Per-card zoom: anchor at the top-left and widen inversely so scaled-up
- * content fills the card before scaling (the embed host scrolls any overflow). */
+/* Per-card zoom. Uses the `zoom` property rather than `transform: scale()` so
+ * the content actually reflows to the scaled size — the element's box resizes
+ * with it, instead of keeping its unscaled height. That avoids the empty strip
+ * left below scaled-down content (and the clipped bottom on scaled-up content),
+ * which was visible on full interactive embeds like Bases views. Chromium (the
+ * desktop runtime) and modern WebKit (mobile) both support `zoom`. */
 .hearth-embed.is-scaled {
-	transform: scale(var(--hearth-embed-scale, 1));
-	transform-origin: top left;
-	width: calc(100% / var(--hearth-embed-scale, 1));
+	zoom: var(--hearth-embed-scale, 1);
 }
 
 /* Editable embed: a plain textarea bound to the note's file. Uses a monospace

@@ -25,6 +25,20 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: "1.7.1.7-beta",
+		tldr:
+			"Embed zoom now reflows instead of just visually scaling, so a zoomed " +
+			"embed no longer leaves an empty strip below it (or clips its bottom) — " +
+			"most noticeable on full views like an embedded base.",
+		features: [],
+		fixes: [
+			"Embed zoom uses the CSS `zoom` property instead of `transform: scale()`, " +
+				"so the content reflows to its scaled size and the card fits it exactly. " +
+				"Previously the scaled element kept its unscaled height, leaving an empty " +
+				"footer under zoomed-out content and cutting off zoomed-in content.",
+		],
+	},
+	{
 		version: "1.7.1.6-beta",
 		tldr:
 			"Fix for “Hide base header”: it now hides the whole Bases header wrapper " +
