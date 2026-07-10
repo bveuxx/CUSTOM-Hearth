@@ -143,11 +143,14 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   **description** shown as sub-bullets. **Double-click a column title** to
   rename it. **Right-click a card** (on the board or in the list) to **edit its
   dates & priority**, **convert it into its own note** (like the Kanban plugin
-  — the card becomes a link), or **delete** it. Convert-to-note can **seed the
-  new note from a template** (with `{{title}}`/`{{date}}`/`{{time}}`
-  substitution) and, optionally, **scrape the card's metadata into the note's
-  frontmatter** instead of leaving the emoji markers on the board link — both
-  set per card in its settings. A column's **check icon** marks
+  — the card becomes a link), or **delete** it. Convert-to-note moves the
+  card's **description into the new note** (as bullet points), can **seed the
+  note from a template** (with `{{title}}`/`{{date}}`/`{{time}}` substitution),
+  and can optionally **scrape the card's metadata into the note's frontmatter**
+  instead of leaving the emoji markers on the board link — all set per card in
+  its settings. A converted card keeps showing its dates & priority on the board
+  (read back from the linked note's frontmatter), and its metadata and
+  description are edited in the note itself. A column's **check icon** marks
   it a *done column*, so cards complete automatically when dragged or added
   there (and the ones already in it complete at once). Turn on **Dates &
   priorities** to read the marks each card carries (compatible with
@@ -160,8 +163,12 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   deterministic repeat picker (daily/weekly/monthly/yearly × an interval),
   start/scheduled/due date pickers, and a description — where a repeat is
   mutually exclusive with fixed start/due dates (a recurring card is anchored by
-  its scheduled date). Checking a card off stamps its ✅ done date (unchecking
-  removes it). The list layout gains a minimalistic header with the task count
+  its scheduled date). Checking a one-off card off stamps its ✅ done date
+  (unchecking removes it). A **recurring** card (one with a 🔁) completes
+  **per-occurrence** instead — like TaskNotes: checking it stamps today's ✅ and
+  rolls its date to the next occurrence, so it reads as done today and resets to
+  open on its next date rather than retiring. The list layout gains a
+  minimalistic header with the task count
   and a quick-add. Leave the mode off to read the board as plain text.
   Everything is written back in Kanban's own format, so the board stays fully
   editable in the Kanban plugin.
@@ -339,6 +346,16 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 [`src/locales/README.md`](src/locales/README.md) for the walkthrough.
 
 ## Shipped:
+
+> **v1.6.8.12-beta** — Tasks-card follow-ups: a **converted card keeps showing
+> its dates & priority** on the board — read back from the linked note's
+> frontmatter — so scraping metadata to frontmatter no longer hides it. **Convert
+> to note** now moves the card's **description into the note** (as bullet points)
+> rather than leaving it on the board, and a linked card's metadata/description
+> are edited in the note itself. **Recurring** checkbox / Kanban tasks (with a 🔁)
+> now complete **per-occurrence** like TaskNotes: checking stamps today's ✅ and
+> rolls the date to the next occurrence, resetting to open the next day instead
+> of retiring the task.
 
 > **v1.6.8.11-beta** — Tasks-card note workflow: clicking a checkbox task or
 > Kanban card now opens a compact **quick view** — its metadata and description,

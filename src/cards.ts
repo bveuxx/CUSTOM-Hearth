@@ -2116,6 +2116,11 @@ interface TaskHit {
 	/** Kanban card description: the plain-text lines nested under the card,
 	 * shown as sub-bullets. Joined with "\n"; empty when the card has none. */
 	description?: string;
+	/** Kanban card that is essentially a single link to a note (as produced by
+	 * "Convert to note"): the linked note. When set, the card's metadata is read
+	 * from that note's frontmatter and its description from the note body, and
+	 * "open note" opens it. */
+	linkedFile?: TFile | null;
 }
 
 /** Whether `path` is in scope per the card's folder whitelist/blacklist. An
@@ -2525,7 +2530,12 @@ function renderTaskRow(
 	const row = listEl.createDiv("hearth-list-item hearth-task");
 	row.toggleClass("is-done", hit.done);
 
-	if (hit.line >= 0) {
+	if (hit.line >= 0 && hit.recurrence && taskMetaEnabled(cfg, hit)) {
+		// Recurring checkbox / Kanban task: complete per-occurrence (stamp today's
+		// ✅ and roll the date forward), resetting to open on its next date rather
+		// than retiring the line.
+		renderLineRecurringCheckbox(view, hit, today, row, refresh);
+	} else if (hit.line >= 0) {
 		const check = row.createEl("input", {
 			cls: "hearth-task-check",
 			attr: { type: "checkbox" },
@@ -2867,6 +2877,10 @@ function renderTaskKanban(
 		const textRow = cardEl.createDiv("hearth-kanban-card-row");
 		if (source === "tasknotes" && hit.recurrence) {
 			renderRecurringCheckbox(view, hit, today, textRow, refresh);
+		} else if (source === "kanban" && hit.line >= 0 && hit.recurrence && taskMetaEnabled(cfg, hit)) {
+			// Recurring Kanban card: complete per-occurrence (stamp ✅ today, roll
+			// the date forward) rather than retiring the card.
+			renderLineRecurringCheckbox(view, hit, today, textRow, refresh);
 		} else if (source === "kanban" && hit.line >= 0) {
 			// Kanban cards are Markdown checkboxes: a checkbox toggles the card's
 			// done state in place, independent of which column it's in.
@@ -3206,7 +3220,9 @@ class TaskDetailModal extends Modal {
 		const { view, cfg, hit } = this;
 		contentEl.addClass("hearth-taskdetail-modal");
 		const isKanban = !!hit.boardColumn;
-		const editable = taskMetaEnabled(cfg, hit);
+		// A card linked to a note keeps its metadata and description inside that
+		// note, so the quick view shows them read-only (edit them in the note).
+		const editable = taskMetaEnabled(cfg, hit) && !hit.linkedFile;
 
 		const title = contentEl.createEl("h3", { cls: "hearth-taskdetail-title" });
 		fillTaskText(view, title, hit.text || hit.file.basename, hit.file.path);
@@ -3221,15 +3237,23 @@ class TaskDetailModal extends Modal {
 			};
 			this.read = buildTaskDetailFields(contentEl, current, hit.description ?? "", isKanban);
 		} else {
-			// Plain (non-extended) task: no managed metadata to edit, so show a
-			// read-only summary of whatever the task carries, plus its description.
+			// Read-only summary of whatever metadata the task carries (from the card
+			// or, for a linked card, its note's frontmatter), plus its description.
 			const today: string = moment().format("YYYY-MM-DD");
 			const chips = contentEl.createDiv("hearth-taskdetail-readonly");
 			if (hit.priority) renderPriority(chips, hit.priority);
 			renderTaskDateChips(chips, hit, today);
 			if (!chips.childNodes.length)
 				chips.createSpan({ cls: "hearth-taskdetail-empty", text: t().cards.tasks.noMetadata });
-			if (hit.description) renderTaskDescription(contentEl, hit.description);
+			if (hit.linkedFile) {
+				// Description lives inside the linked note; read its body lazily.
+				const descHost = contentEl.createDiv();
+				void readNoteDescription(view, hit.linkedFile).then((desc) => {
+					if (desc) renderTaskDescription(descHost, desc);
+				});
+			} else if (hit.description) {
+				renderTaskDescription(contentEl, hit.description);
+			}
 		}
 
 		const actions = new Setting(contentEl);
@@ -3498,6 +3522,52 @@ function descriptionBullets(description: string, itemIndent: string): string[] {
 		.map((l) => `${itemIndent}\t- ${l}`);
 }
 
+/** If `text` is essentially a single link to a note (`[[Note]]`, `[[Note|alias]]`
+ * or `[alias](Note.md)`) — the shape "Convert to note" leaves on the board —
+ * return the resolved note, else null. */
+function soleLinkedNote(view: HomeView, text: string, sourcePath: string): TFile | null {
+	const s = text.trim();
+	let target: string | null = null;
+	const wiki = /^\[\[([^\]]+?)\]\]$/.exec(s);
+	if (wiki) {
+		target = wiki[1].split("|")[0].trim();
+	} else {
+		const md = /^\[[^\]]*\]\(([^)]+?)\)$/.exec(s);
+		if (md) {
+			try {
+				target = decodeURIComponent(md[1].trim());
+			} catch {
+				target = md[1].trim();
+			}
+		}
+	}
+	if (!target) return null;
+	// Drop any heading/block anchor and a trailing ".md" so linkpath resolution
+	// matches whether the link was written as a path or a bare basename.
+	target = target.replace(/[#^].*$/, "").replace(/\.md$/i, "").trim();
+	if (!target) return null;
+	const f = view.app.metadataCache.getFirstLinkpathDest(target, sourcePath);
+	return f instanceof TFile ? f : null;
+}
+
+/** Read a linked note's body (frontmatter stripped) as plain description lines,
+ * with any leading list marker removed. Joined with "\n"; empty when the note
+ * has no body. Used to show a converted card's description "inside the note". */
+async function readNoteDescription(view: HomeView, file: TFile): Promise<string> {
+	let content: string;
+	try {
+		content = await view.app.vault.cachedRead(file);
+	} catch {
+		return "";
+	}
+	const body = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+	return body
+		.split(/\r?\n/)
+		.map((l) => l.replace(/^\s*(?:[-*+]|\d+\.)\s+/, "").trim())
+		.filter(Boolean)
+		.join("\n");
+}
+
 /** Read a Kanban board note: each `##` heading is a column and each checkbox
  * item beneath it is a card. In extended mode the Tasks-plugin emoji metadata
  * (📅 due, ⏫/🔼/🔽 priority, 🔁 recurrence) is parsed off each card so due dates
@@ -3550,6 +3620,33 @@ async function collectKanbanTasks(
 				recurrence = readEmojiField(rawText, "🔁") ?? undefined;
 				text = stripTaskMetadata(rawText);
 			}
+			// A card that is just a link to a note (as "Convert to note" produces)
+			// is treated as that note: metadata missing from the card is read from
+			// the note's frontmatter so it still shows and sorts, and "open note"
+			// opens the linked note.
+			const linkedFile = soleLinkedNote(view, extended ? text : stripTaskMetadata(rawText), file.path);
+			if (extended && linkedFile) {
+				const fm = view.app.metadataCache.getFileCache(linkedFile)?.frontmatter;
+				if (fm) {
+					const fmStr = (k: string): string | null => {
+						const v = fm[k];
+						return typeof v === "string" && v.trim() ? v.trim() : null;
+					};
+					if (!due) {
+						const d = fmStr("due");
+						if (d) {
+							dueRaw = d;
+							due = /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : parseNaturalDate(d);
+						}
+					}
+					scheduled = scheduled || fmStr("scheduled");
+					start = start || fmStr("start");
+					doneDate = doneDate || fmStr("done");
+					const fmPrio = fmStr("priority");
+					if (!priority && fmPrio) priority = PRIORITY_EMOJI[fmPrio] ?? fmPrio;
+					recurrence = recurrence || fmStr("recurrence") || undefined;
+				}
+			}
 			hits.push({
 				file,
 				line: i,
@@ -3565,6 +3662,7 @@ async function collectKanbanTasks(
 				priority,
 				boardColumn: col.heading,
 				description: descLines.join("\n"),
+				linkedFile,
 			});
 			i = end;
 		}
@@ -3636,6 +3734,67 @@ function withDoneDate(text: string, done: boolean, today: string): string {
 	const re = new RegExp(`✅[^\\n\\r${TASK_EMOJI_CLASS}]*`, "gu");
 	const base = text.replace(re, "").replace(/\s+/g, " ").trim();
 	return done ? `${base} ✅ ${today}`.trim() : base;
+}
+
+/** Set (or, when null, remove) a Tasks-plugin date field (e.g. 📅/⏳/🛫) on a
+ * task's text to `date`, replacing any existing value for that marker. */
+function withEmojiDate(text: string, emoji: string, date: string | null): string {
+	const re = new RegExp(`${emoji}[^\\n\\r${TASK_EMOJI_CLASS}]*`, "gu");
+	const base = text.replace(re, "").replace(/\s+/g, " ").trim();
+	return date ? `${base} ${emoji} ${date}`.trim() : base;
+}
+
+/** Complete (or un-complete) the current occurrence of a recurring checkbox /
+ * Kanban task in place, TaskNotes-style: the line stays unchecked (a recurring
+ * task never retires) but on completion its ✅ done date is stamped to today and
+ * its reference date (📅 due, else ⏳ scheduled, else 🛫 start) rolls forward to
+ * the next occurrence — so it reads as done today and resets to open on its next
+ * date. Un-completing removes today's ✅ and rolls the reference date back to
+ * today. Bails (false) when the stored line no longer matches. */
+async function setLineRecurringInstanceDone(
+	view: HomeView,
+	hit: TaskHit,
+	done: boolean,
+): Promise<boolean> {
+	const content = await view.app.vault.read(hit.file);
+	const lines = content.split("\n");
+	const cur = lines[hit.line];
+	const m = cur != null ? KANBAN_CARD_RE.exec(cur) : null;
+	if (!m || stripTaskMetadata(m[2]) !== stripTaskMetadata(hit.text)) return false;
+	const today: string = moment().format("YYYY-MM-DD");
+	const rule = hit.recurrence ?? readEmojiField(m[2], "🔁") ?? "";
+	// The reference date the recurrence advances: due first, then scheduled, then
+	// start (whichever the card carries).
+	const refEmoji = readEmojiField(m[2], "📅")
+		? "📅"
+		: readEmojiField(m[2], "⏳")
+			? "⏳"
+			: readEmojiField(m[2], "🛫")
+				? "🛫"
+				: null;
+	let body = withDoneDate(m[2], false, today); // strip any existing ✅ first
+	if (done) {
+		if (refEmoji) {
+			const curRef = readEmojiDate(m[2], refEmoji);
+			// Advance from whichever is later — the card's date or today — so a
+			// same-day or overdue occurrence lands on a future date.
+			const from = curRef && curRef > today ? curRef : today;
+			const next = nextRecurrenceDate(rule, from);
+			if (next) body = withEmojiDate(body, refEmoji, next);
+		}
+		body = `${body} ✅ ${today}`.trim();
+	} else if (refEmoji) {
+		// Restore the occurrence being un-completed to today.
+		body = withEmojiDate(body, refEmoji, today);
+	}
+	// A recurring task never retires its line — keep the checkbox unchecked so it
+	// stays open; today's completion is tracked by the ✅ date instead.
+	const prefix = cur
+		.slice(0, cur.length - m[2].length)
+		.replace(CHECKBOX_MARKER, (_x, pre: string, _s: string, post: string) => `${pre} ${post}`);
+	lines[hit.line] = `${prefix}${body}`.trimEnd();
+	await view.app.vault.modify(hit.file, lines.join("\n"));
+	return true;
 }
 
 /** Flip a Kanban card's checkbox to `done` in place, and — in extended mode —
@@ -3772,8 +3931,9 @@ function attachKanbanCardMenu(
 ): void {
 	const isKanban = !!hit.boardColumn;
 	// Metadata editing is offered wherever the marks are managed (checkboxes by
-	// default, Kanban cards in extended mode).
-	const canEditMeta = taskMetaEnabled(cfg, hit);
+	// default, Kanban cards in extended mode). A card linked to a note keeps its
+	// metadata in the note, so inline editing is suppressed for it.
+	const canEditMeta = taskMetaEnabled(cfg, hit) && !hit.linkedFile;
 	// Nothing to show for a plain checkbox with metadata off — leave the native
 	// context menu alone rather than popping an empty one.
 	if (!canEditMeta && !isKanban) return;
@@ -3804,12 +3964,15 @@ function attachKanbanCardMenu(
 			);
 		}
 		if (isKanban) {
-			menu.addItem((item) =>
-				item
-					.setTitle(t().cards.tasks.convertToNote)
-					.setIcon("file-output")
-					.onClick(() => void convertKanbanCardToNote(view, cfg, hit).then(refresh)),
-			);
+			// A card already linked to a note has nothing to convert.
+			if (!hit.linkedFile) {
+				menu.addItem((item) =>
+					item
+						.setTitle(t().cards.tasks.convertToNote)
+						.setIcon("file-output")
+						.onClick(() => void convertKanbanCardToNote(view, cfg, hit).then(refresh)),
+				);
+			}
 			menu.addItem((item) =>
 				item
 					.setTitle(t().cards.tasks.deleteCard)
@@ -4017,6 +4180,9 @@ async function convertKanbanCardToNote(view: HomeView, cfg: TasksConfig, hit: Ta
 	}
 	// Sanitise the card title for use as a filename.
 	const title = (stripTaskMetadata(m[2]) || "Untitled").replace(/[\\/:*?"<>|#^[\]]+/g, " ").replace(/\s+/g, " ").trim() || "Untitled";
+	// The card's nested lines are its description — they move into the note (as
+	// bullet points), not left orphaned on the board.
+	const { end, descLines } = cardBlockRange(lines, hit.line);
 	let note: TFile;
 	try {
 		const parent = view.app.fileManager.getNewFileParent(board.path);
@@ -4026,9 +4192,11 @@ async function convertKanbanCardToNote(view: HomeView, cfg: TasksConfig, hit: Ta
 		new Notice(t().notices.couldNotConvertCard);
 		return;
 	}
-	// Optionally seed the note body from a template (Obsidian-core-style
-	// {{title}}/{{date}}/{{time}} substitution). A missing/unreadable template
-	// leaves the note empty rather than aborting the convert.
+	// Seed the note body: an optional template (Obsidian-core-style
+	// {{title}}/{{date}}/{{time}} substitution) followed by the card's
+	// description as bullet points. A missing/unreadable template is skipped
+	// rather than aborting the convert.
+	const bodyParts: string[] = [];
 	const templatePath = cfg.convertNoteTemplate?.trim();
 	if (templatePath) {
 		const tpl =
@@ -4036,13 +4204,15 @@ async function convertKanbanCardToNote(view: HomeView, cfg: TasksConfig, hit: Ta
 			view.app.vault.getAbstractFileByPath(`${templatePath}.md`);
 		if (tpl instanceof TFile) {
 			try {
-				const raw = await view.app.vault.read(tpl);
-				await view.app.vault.modify(note, applyConvertTemplate(raw, title));
+				bodyParts.push(applyConvertTemplate(await view.app.vault.read(tpl), title));
 			} catch {
-				// Template unreadable — carry on with an empty note.
+				// Template unreadable — carry on without it.
 			}
 		}
 	}
+	if (descLines.length) bodyParts.push(descLines.map((l) => `- ${l.trim()}`).join("\n"));
+	if (bodyParts.length) await view.app.vault.modify(note, bodyParts.join("\n\n"));
+
 	// Optionally scrape the card's Tasks-plugin metadata into the note's YAML
 	// frontmatter (read straight off the card text so it works even when the
 	// card wasn't parsed in extended mode). When scraping, the metadata now
@@ -4052,9 +4222,11 @@ async function convertKanbanCardToNote(view: HomeView, cfg: TasksConfig, hit: Ta
 
 	const link = view.app.fileManager.generateMarkdownLink(note, board.path);
 	const meta = scrape ? "" : extractMetadataTail(m[2]);
-	// Everything before the card's text (indent + `- [x] `) is preserved.
+	// Everything before the card's text (indent + `- [x] `) is preserved; the
+	// card's description lines are removed from the board (they moved into the
+	// note), leaving just the link line.
 	const prefix = cur.slice(0, cur.length - m[2].length);
-	lines[hit.line] = `${prefix}${link}${meta ? ` ${meta}` : ""}`;
+	lines.splice(hit.line, end - hit.line, `${prefix}${link}${meta ? ` ${meta}` : ""}`);
 	await view.app.vault.modify(board, lines.join("\n"));
 }
 
@@ -4246,6 +4418,18 @@ function nextOccurrence(rule: string, fromDate: string): string | null {
 	return null;
 }
 
+/** Next occurrence strictly after `fromDate` for either an RRULE ("FREQ=…") or
+ * a Tasks-plugin "every N unit" recurrence string (e.g. "every 2 weeks"), as
+ * YYYY-MM-DD. Null when the rule is empty or unparseable. Used to roll a
+ * recurring checkbox/Kanban task's date forward as each occurrence completes. */
+function nextRecurrenceDate(rule: string, fromDate: string): string | null {
+	if (!rule || !fromDate) return null;
+	if (/FREQ=/i.test(rule)) return nextOccurrence(rule, fromDate);
+	const { unit, interval } = parseRecurrence(rule);
+	if (!unit) return null;
+	return moment(fromDate).add(interval, unit).format("YYYY-MM-DD");
+}
+
 /** Mark today's occurrence of a recurring TaskNotes task complete the way
  * TaskNotes does: append today's YYYY-MM-DD to `complete_instances` (deduped,
  * kept sorted) and advance `scheduled` to the next occurrence derived from the
@@ -4338,6 +4522,36 @@ function renderRecurringCheckbox(
 	});
 }
 
+/** Render the per-occurrence completion checkbox for a recurring checkbox /
+ * Kanban task (one carrying a 🔁 mark). Checked when the task's ✅ done date is
+ * today; checking stamps today and rolls the reference date to the next
+ * occurrence, unchecking undoes it — so it resets to open on its next date.
+ * Rendered as the first child of `parent`. */
+function renderLineRecurringCheckbox(
+	view: HomeView,
+	hit: TaskHit,
+	today: string,
+	parent: HTMLElement,
+	refresh: () => void,
+): void {
+	const check = parent.createEl("input", {
+		cls: "hearth-task-check hearth-task-check-recurring",
+		attr: { type: "checkbox", "aria-label": t().cards.tasks.markOccurrence },
+	});
+	parent.insertBefore(check, parent.firstChild);
+	check.checked = hit.doneDate === today;
+	const stop = (e: Event) => e.stopPropagation();
+	check.addEventListener("click", stop);
+	check.addEventListener("mousedown", stop);
+	check.addEventListener("pointerdown", stop);
+	check.addEventListener("change", () => {
+		void setLineRecurringInstanceDone(view, hit, check.checked).then((ok) => {
+			if (!ok) new Notice(t().notices.taskChangedOnDisk);
+			refresh();
+		});
+	});
+}
+
 /** Best-effort: open a TaskNotes task in TaskNotes' own editor rather than the
  * raw Markdown note. TaskNotes exposes no stable public API, so this tries a
  * couple of plausible instance/api methods and returns whether one handled it;
@@ -4383,6 +4597,11 @@ async function openTask(view: HomeView, cfg: TasksConfig, hit: TaskHit, refresh:
  * possible, otherwise the note, scrolled to the task's line for line-based
  * tasks. */
 async function openTaskFile(view: HomeView, hit: TaskHit): Promise<void> {
+	// A card that links to a note opens that note directly (not the board line).
+	if (hit.linkedFile) {
+		await view.app.workspace.getLeaf(true).openFile(hit.linkedFile);
+		return;
+	}
 	// TaskNotes tasks (no line) open in TaskNotes' own editor when possible.
 	if (hit.line < 0 && openInTaskNotes(view, hit.file)) return;
 
