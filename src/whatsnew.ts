@@ -25,6 +25,23 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: "1.7.1.14-beta",
+		tldr:
+			"Seamless frosted glass. Cards that touch to form one tile no longer show " +
+			"a faint seam along the join where their blur meets — a merged group now " +
+			"reads as a single sheet of frosted glass.",
+		features: [],
+		fixes: [
+			"Fixed a visible seam in the frosted-glass (card blur) effect between " +
+				"connected cards. Each card used to blur the background on its own, so " +
+				"the blur was clamped independently on either side of a shared edge and " +
+				"left a hairline where two cards met. The blur is now drawn once on a " +
+				"shared layer behind a group of touching cards, so merged cards blend " +
+				"into one seamless surface while the gaps between separate cards stay " +
+				"crisp.",
+		],
+	},
+	{
 		version: "1.7.1.13-beta",
 		tldr:
 			"Settings, reorganized. The plugin settings tab now opens on a category " +

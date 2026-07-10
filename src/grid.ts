@@ -650,4 +650,105 @@ export function applyEdgeMerging(gridEl: HTMLElement): void {
 		if (r.lT && r.lB) cl.add("merge-left");
 		if (r.rT && r.rB) cl.add("merge-right");
 	}
+
+	// The frosted-glass blur is shared across touching cards, and its mask keys
+	// off the merge classes just set above, so rebuild it here — every reflow
+	// path (initial render, drag/resize, viewport resize, fit) already routes
+	// through applyEdgeMerging.
+	updateFrostLayers(gridEl);
+}
+
+/** Card corner radius (px), matching `border-radius` in styles.css. Merged
+ *  corners flatten to 0 (the .merge-tl/tr/bl/br rules), so the frost mask must
+ *  round the same corners the cards do. */
+const CARD_RADIUS = 14;
+
+/** SVG path for one card's border-box silhouette, rounding each corner to
+ *  CARD_RADIUS unless that corner is merged flat. A zero-radius elliptical arc
+ *  renders as a straight line to its endpoint, so all four arcs are always
+ *  emitted regardless of merge state. Coordinates are in the grid's own pixel
+ *  space (offset* is relative to the positioned grid). */
+function cardSilhouettePath(el: HTMLElement): string {
+	const x = el.offsetLeft;
+	const y = el.offsetTop;
+	const w = el.offsetWidth;
+	const h = el.offsetHeight;
+	const cl = el.classList;
+	const tl = cl.contains("merge-tl") ? 0 : CARD_RADIUS;
+	const tr = cl.contains("merge-tr") ? 0 : CARD_RADIUS;
+	const br = cl.contains("merge-br") ? 0 : CARD_RADIUS;
+	const bl = cl.contains("merge-bl") ? 0 : CARD_RADIUS;
+	return (
+		`M${x + tl},${y}` +
+		`L${x + w - tr},${y}A${tr},${tr} 0 0 1 ${x + w},${y + tr}` +
+		`L${x + w},${y + h - br}A${br},${br} 0 0 1 ${x + w - br},${y + h}` +
+		`L${x + bl},${y + h}A${bl},${bl} 0 0 1 ${x},${y + h - bl}` +
+		`L${x},${y + tl}A${tl},${tl} 0 0 1 ${x + tl},${y}Z`
+	);
+}
+
+/** Rebuild the shared frosted-glass blur layers behind the cards. See the
+ *  .hearth-frost note in styles.css for why the blur is shared rather than
+ *  per-card. One .hearth-frost layer is created per distinct resolved blur value
+ *  (stashed on each card as data-blur), each masked — via an inline SVG built
+ *  from the cards' live silhouettes — to the union of its cards. The blur is
+ *  therefore computed once per value and shows only under the cards, so touching
+ *  cards blur as one seamless surface while gaps stay sharp. */
+export function updateFrostLayers(gridEl: HTMLElement): void {
+	let root = gridEl.querySelector<HTMLElement>(":scope > .hearth-frost-root");
+	const cards = Array.from(
+		gridEl.querySelectorAll<HTMLElement>(":scope > .hearth-card.has-blur"),
+	);
+	if (cards.length === 0) {
+		root?.remove();
+		return;
+	}
+	if (!root) {
+		root = gridEl.createDiv("hearth-frost-root");
+		// Paint behind every card by sitting first in the grid.
+		gridEl.prepend(root);
+	}
+
+	// Group cards by resolved blur so touching cards that share a value blur as
+	// one surface; a card with a custom blur gets its own layer (and may still
+	// seam against a neighbour of a different blur — that difference is intended).
+	const byBlur = new Map<string, HTMLElement[]>();
+	for (const c of cards) {
+		const b = c.dataset.blur ?? "0";
+		const list = byBlur.get(b);
+		if (list) list.push(c);
+		else byBlur.set(b, [c]);
+	}
+
+	const w = gridEl.clientWidth;
+	const h = gridEl.clientHeight;
+	const seen = new Set<string>();
+	for (const [blur, group] of byBlur) {
+		seen.add(blur);
+		let layer = root.querySelector<HTMLElement>(
+			`:scope > .hearth-frost[data-blur="${blur}"]`,
+		);
+		if (!layer) {
+			layer = root.createDiv("hearth-frost");
+			layer.dataset.blur = blur;
+		}
+		const filter = `blur(${blur}px)`;
+		layer.style.setProperty("backdrop-filter", filter);
+		layer.style.setProperty("-webkit-backdrop-filter", filter);
+		const paths = group
+			.map((c) => `<path d="${cardSilhouettePath(c)}" fill="#fff"/>`)
+			.join("");
+		const svg =
+			`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" ` +
+			`viewBox="0 0 ${w} ${h}">${paths}</svg>`;
+		const mask = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+		layer.style.setProperty("mask-image", mask);
+		layer.style.setProperty("-webkit-mask-image", mask);
+	}
+	// Drop layers for blur values that no longer have any cards.
+	for (const layer of Array.from(
+		root.querySelectorAll<HTMLElement>(":scope > .hearth-frost"),
+	)) {
+		if (!seen.has(layer.dataset.blur ?? "")) layer.remove();
+	}
 }

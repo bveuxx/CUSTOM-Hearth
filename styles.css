@@ -410,16 +410,33 @@
 	transition: box-shadow 120ms ease, transform 120ms ease;
 }
 
-/* Frosted glass: blur what's behind a translucent card. --card-blur is a
- * unitless px number set on the grid (board/global default) and, when a card
- * overrides it, on the card. The property is applied only via .has-blur — added
- * by the renderer solely when the resolved blur is > 0 — so cards without blur
- * never pay the cost of a backdrop-filter compositing layer. Only shows when
- * the surface is translucent (card opacity < 100%); card content stays sharp,
- * as backdrop-filter blurs only what's behind the element. */
-.hearth-card.has-blur {
-	-webkit-backdrop-filter: blur(calc(var(--card-blur, 0) * 1px));
-	backdrop-filter: blur(calc(var(--card-blur, 0) * 1px));
+/* Frosted glass: a SINGLE shared blur layer per grid, not a backdrop-filter on
+ * each card. A per-card backdrop-filter seams where merged cards meet: each card
+ * is its own backdrop root, so the blur is computed and edge-clamped
+ * independently on either side of a shared edge, leaving a visible line that no
+ * border/shadow trick can hide (and oversizing a per-card blur only trades the
+ * clamp seam for paint-order contamination from the neighbour). Instead one or
+ * more .hearth-frost layers sit behind the cards (in .hearth-frost-root, the
+ * grid's first child) and blur the wallpaper ONCE; an SVG mask — rebuilt from
+ * live card geometry in updateFrostLayers() — reveals each layer only under its
+ * cards, so gaps between cards stay sharp while a run of touching cards reads as
+ * one seamless frosted tile. Cards keep their translucent tint (see the
+ * .hearth-card background), which paints over the shared blur: blur-then-tint,
+ * the correct frosted-glass order. One layer is created per distinct resolved
+ * blur value (usually just the board default); the blur radius and mask are set
+ * inline per layer by updateFrostLayers(). .has-blur simply marks which cards
+ * feed the frost — cards without blur never enter a layer, so they pay nothing. */
+.hearth-frost-root {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+.hearth-frost {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	-webkit-mask-repeat: no-repeat;
+	mask-repeat: no-repeat;
 }
 
 /* While dragging/resizing, drop position transitions so the card tracks the

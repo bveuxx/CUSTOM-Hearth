@@ -9,7 +9,6 @@ import {
 	activeCards,
 	cloneCard,
 	DashboardCard,
-	effectiveCardBlur,
 	effectiveCardOpacity,
 	effectiveColumns,
 	effectiveFitToPage,
@@ -66,7 +65,6 @@ export function renderDashboard(
 	grid.toggleClass("is-arranging", view.arrangeMode);
 	// Board-level defaults; per-card overrides are set in the render loop below.
 	grid.style.setProperty("--card-opacity", String(effectiveCardOpacity(s)));
-	grid.style.setProperty("--card-blur", String(effectiveCardBlur(s)));
 	const fit = effectiveFitToPage(s);
 	// In fit-to-page mode the board is locked to one screen, so leave the
 	// min-height to CSS (which clips the overflow). Otherwise grow the board
@@ -102,12 +100,15 @@ export function renderDashboard(
 		if (card.cardOpacity != null) {
 			el.style.setProperty("--card-opacity", String(card.cardOpacity));
 		}
-		if (card.cardBlur != null) {
-			el.style.setProperty("--card-blur", String(card.cardBlur));
+		// Cards whose resolved blur is > 0 feed the shared frost layer (see
+		// updateFrostLayers / the .hearth-frost note in styles.css). The value is
+		// stashed on the element so the frost rebuild can group cards by blur
+		// without re-reading settings, and blur-off cards never enter a layer.
+		const cardBlur = resolveCardBlur(s, card);
+		if (cardBlur > 0) {
+			el.addClass("has-blur");
+			el.dataset.blur = String(cardBlur);
 		}
-		// Only cards whose resolved blur is > 0 get the backdrop-filter, so blur-off
-		// cards never pay for an extra compositing layer.
-		if (resolveCardBlur(s, card) > 0) el.addClass("has-blur");
 
 		const head = el.createDiv("hearth-card-head");
 		if (view.arrangeMode) {
