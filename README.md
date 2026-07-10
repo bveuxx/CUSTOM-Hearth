@@ -358,6 +358,12 @@ load. Adding a language is a matter of copying `en.ts`, translating the values
 
 ## Shipped:
 
+> **v1.6.8.19-beta** — the **"What's new" dialog** is now backed by a
+> continuous, accumulating changelog: each release prepends an entry and older
+> entries are kept, so the popup shows exactly the entries newer than the
+> version you last saw (newest first), each with its own version heading,
+> TL;DR, new features and fixes.
+
 > **v1.6.8.18-beta** — fix the **"What's new" dialog** not appearing when
 > upgrading into the first build that shipped it: an existing vault that simply
 > predated the `lastSeenVersion` setting was mistaken for a fresh install and
