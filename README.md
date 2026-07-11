@@ -9,13 +9,15 @@ cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
 
 ## Screenshots
 
-![Fullnew](assets/7.png)
+![Full_dash](assets/Full_Dash.png)
 
-![Simple](assets/1.png)
+![Simple](assets/Just_search.png)
 
-![Dashboard](assets/4.png)
+![Dashboard](assets/Full_Dash2.png)
 
-![Cards](assets/6.png)
+![Cards](assets/cards.png)
+
+<img src="assets/mobile.png" width="300" />
 
 ---
 
