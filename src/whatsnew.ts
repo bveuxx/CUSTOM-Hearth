@@ -27,6 +27,28 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: "1.8.1.1-beta",
+		tldr:
+			"A privacy toggle to switch off Hearth's only network request, plus a " +
+			"mobile fix so the search autocomplete no longer hides behind the " +
+			"on-screen keyboard.",
+		features: [
+			"Disable external calls: a new Behaviour → Privacy & network toggle that " +
+				"blocks the only outbound request Hearth makes — the calculator's " +
+				"currency-rate lookup (the free, key-less, ECB-backed Frankfurter API). " +
+				"With it on, currency conversions report that rates are unavailable " +
+				"instead of reaching out to the internet.",
+		],
+		fixes: [
+			"Mobile: the search autocomplete results no longer hide behind the " +
+				"on-screen keyboard. The dropdown is now capped to the space actually " +
+				"visible above the keyboard and re-measured as the keyboard animates, " +
+				"and the scroll area is constrained the moment the field is focused " +
+				"(not only when a viewport-size heuristic fires), so results stay " +
+				"reachable on devices where that heuristic misfired.",
+		],
+	},
+	{
 		version: "1.8.0",
 		tldr:
 			"A big cards-and-appearance release aggregating the whole 1.7.1 beta " +
