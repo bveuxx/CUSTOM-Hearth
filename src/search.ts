@@ -89,6 +89,10 @@ export class SearchSection {
 				window.setTimeout(() => {
 					if (root.ownerDocument.activeElement === this.inputEl) {
 						this.inputEl.scrollIntoView({ block: "start" });
+						// The field just moved to the top of the visible area; re-cap
+						// the dropdown to the freed space so its rows aren't left
+						// tucked behind the keyboard.
+						this.capResultsToViewport();
 					}
 				}, 300);
 			});
@@ -128,6 +132,20 @@ export class SearchSection {
 		component.registerDomEvent(this.view.containerEl.ownerDocument, "click", (e) => {
 			if (!boundary.contains(e.target as Node)) this.hide();
 		});
+
+		// On mobile the on-screen keyboard resizes the visual viewport as it
+		// animates in/out; keep the open dropdown re-capped to whatever space is
+		// left above it so its rows never disappear behind the keyboard.
+		const vv = window.visualViewport;
+		if (Platform.isMobile && vv) {
+			const reposition = () => this.capResultsToViewport();
+			vv.addEventListener("resize", reposition);
+			vv.addEventListener("scroll", reposition);
+			component.register(() => {
+				vv.removeEventListener("resize", reposition);
+				vv.removeEventListener("scroll", reposition);
+			});
+		}
 	}
 
 	// ---- Filters --------------------------------------------------------
@@ -378,12 +396,35 @@ export class SearchSection {
 	private showEmpty(text: string = t().search.noMatches): void {
 		this.resultsEl.createDiv("hearth-search-empty").setText(text);
 		this.resultsEl.show();
+		this.capResultsToViewport();
 		this.inputEl.setAttribute("aria-expanded", "true");
 	}
 
 	private finishResults(): void {
 		this.resultsEl.show();
+		this.capResultsToViewport();
 		this.inputEl.setAttribute("aria-expanded", "true");
+	}
+
+	/**
+	 * On mobile the on-screen keyboard overlays the window rather than resizing
+	 * the leaf, so a results dropdown sized against the full page can spill down
+	 * behind it — hiding the very rows the user is scanning. Cap the visible
+	 * dropdown's height to the space that's actually above the keyboard, measured
+	 * from the visualViewport. No-op on desktop or when the list is hidden.
+	 */
+	private capResultsToViewport(): void {
+		const vv = window.visualViewport;
+		if (!Platform.isMobile || !vv || !this.resultsEl) return;
+		// hide() sets display:none; only cap a list that's actually showing.
+		if (this.resultsEl.style.display === "none") return;
+		const top = this.resultsEl.getBoundingClientRect().top;
+		const visibleBottom = vv.offsetTop + vv.height;
+		// Leave a small gap so the last row isn't flush against the keyboard.
+		const avail = visibleBottom - top - 12;
+		// Never collapse below a couple of rows even if the measurement is momentarily
+		// off (e.g. mid keyboard animation); the internal scroll handles overflow.
+		this.resultsEl.style.maxHeight = `${Math.max(140, Math.round(avail))}px`;
 	}
 
 	private onKeyDown(e: KeyboardEvent): void {
