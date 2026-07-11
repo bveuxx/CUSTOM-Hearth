@@ -1,5 +1,10 @@
 # Hearth
 
+[![Build](https://img.shields.io/github/actions/workflow/status/ondreu/Hearth/ci.yml?branch=main&label=build)](https://github.com/ondreu/Hearth/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ondreu/Hearth?sort=semver)](https://github.com/ondreu/Hearth/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/ondreu/Hearth/total)](https://github.com/ondreu/Hearth/releases)
+[![License](https://img.shields.io/github/license/ondreu/Hearth)](LICENSE)
+
 ![banner](assets/2.png)
 
 A beautiful, customizable **home screen for Obsidian** — search, dashboard, and
@@ -34,6 +39,7 @@ cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Development](#development)
 - [Contributing](#contributing)
+- [Support](#support)
 - [Roadmap](#roadmap)
 - [License](#license)
 
@@ -426,6 +432,14 @@ with work in flight. Small, obvious fixes are always welcome; for anything
 larger, please open an issue first. As development slows down I'll be able to
 take PRs far more readily. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full
 story.
+
+## Support
+
+Hearth is free and open source. If it's earned a place on your vault's front
+page and you'd like to support its development, you can buy me a coffee — it's
+genuinely appreciated and helps keep the updates coming.
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/B7K822EW68)
 
 ## Shipped:
 
