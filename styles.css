@@ -2718,27 +2718,17 @@
 	color: var(--text-muted);
 }
 
-/* Minimalistic list-mode header: task count on the left, add control right. */
-.hearth-tasks-listhead {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	padding: 2px 2px 6px;
-	border-bottom: 1px solid var(--background-modifier-border);
-	margin-bottom: 6px;
-}
-
-.hearth-tasks-listhead-count {
-	font-size: 0.76rem;
-	font-weight: 600;
-	color: var(--text-muted);
-}
-
+/* Layout shared by the list-mode filter/sort/add controls, wherever they're
+ * hosted (a titled card's header, or floating over an untitled card). */
 .hearth-tasks-listhead-actions {
 	display: flex;
-	align-items: flex-start;
+	align-items: center;
 	gap: 4px;
+}
+
+/* Controls docked into a titled card's header sit flush at its far right. */
+.hearth-tasks-headactions {
+	margin-left: auto;
 }
 
 .hearth-tasks-listadd {
@@ -2794,17 +2784,25 @@
 /* Like the "new task" button, the list-header sort & filter controls stay
  * hidden until the card is hovered (or focused), keeping the header quiet. A
  * set filter or a non-default sort stays visible as an at-a-glance indicator. */
-.hearth-tasks-listhead .hearth-tasks-sort,
-.hearth-tasks-listhead .hearth-tasks-filter {
+.hearth-tasks-head .hearth-tasks-sort,
+.hearth-tasks-head .hearth-tasks-filter,
+.hearth-tasks-headactions .hearth-tasks-sort,
+.hearth-tasks-headactions .hearth-tasks-filter {
 	opacity: 0;
 }
 
-.hearth-card:hover .hearth-tasks-listhead .hearth-tasks-sort,
-.hearth-card:hover .hearth-tasks-listhead .hearth-tasks-filter,
-.hearth-tasks-listhead .hearth-tasks-sort:focus-visible,
-.hearth-tasks-listhead .hearth-tasks-filter:focus-visible,
-.hearth-tasks-listhead .hearth-tasks-sort.is-active,
-.hearth-tasks-listhead .hearth-tasks-filter.is-active {
+.hearth-card:hover .hearth-tasks-head .hearth-tasks-sort,
+.hearth-card:hover .hearth-tasks-head .hearth-tasks-filter,
+.hearth-tasks-head .hearth-tasks-sort:focus-visible,
+.hearth-tasks-head .hearth-tasks-filter:focus-visible,
+.hearth-tasks-head .hearth-tasks-sort.is-active,
+.hearth-tasks-head .hearth-tasks-filter.is-active,
+.hearth-card:hover .hearth-tasks-headactions .hearth-tasks-sort,
+.hearth-card:hover .hearth-tasks-headactions .hearth-tasks-filter,
+.hearth-tasks-headactions .hearth-tasks-sort:focus-visible,
+.hearth-tasks-headactions .hearth-tasks-filter:focus-visible,
+.hearth-tasks-headactions .hearth-tasks-sort.is-active,
+.hearth-tasks-headactions .hearth-tasks-filter.is-active {
 	opacity: 1;
 }
 
