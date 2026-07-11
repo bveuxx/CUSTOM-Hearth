@@ -71,25 +71,22 @@ export function confirmAction(
 export function downloadTextFile(filename: string, content: string, mime = "application/json"): void {
 	const blob = new Blob([content], { type: mime });
 	const url = URL.createObjectURL(blob);
-	const a = activeDocument.createElement("a");
-	a.href = url;
-	a.download = filename;
-	a.style.display = "none";
-	activeDocument.body.appendChild(a);
+	const a = activeDocument.body.createEl("a", { attr: { href: url, download: filename } });
+	a.hide();
 	a.click();
 	a.remove();
 	// Revoke on the next tick so the download has had a chance to start.
-	activeWindow.setTimeout(() => URL.revokeObjectURL(url), 0);
+	window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 /** Open the OS file picker for a single file and resolve with its text content,
  * or null if the user cancelled or the file couldn't be read. */
 export function pickTextFile(accept = "application/json,.json"): Promise<string | null> {
 	return new Promise((resolve) => {
-		const input = activeDocument.createElement("input");
+		const input = activeDocument.body.createEl("input");
 		input.type = "file";
 		input.accept = accept;
-		input.style.display = "none";
+		input.hide();
 		let settled = false;
 		const finish = (value: string | null) => {
 			if (settled) return;
@@ -104,7 +101,6 @@ export function pickTextFile(accept = "application/json,.json"): Promise<string 
 		});
 		// Fires when the dialog is dismissed without choosing a file.
 		input.addEventListener("cancel", () => finish(null));
-		activeDocument.body.appendChild(input);
 		input.click();
 	});
 }
