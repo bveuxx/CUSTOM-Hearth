@@ -35,9 +35,13 @@
 
 /* While the mobile keyboard is open, constrain the scroll area to the visible
    viewport height and allow scrolling so nothing hides behind the keyboard
-   (overrides fit-to-page clipping for the duration). */
+   (overrides fit-to-page clipping for the duration). Keyed off the focus flag
+   as well as the viewport heuristic — focus is set reliably from search.ts even
+   on devices where the visualViewport size change doesn't register. */
 .hearth-view.hearth-kbd-open .hearth-scroll,
-.hearth-view.hearth-kbd-open .hearth-scroll.hearth-fit {
+.hearth-view.hearth-kbd-open .hearth-scroll.hearth-fit,
+.hearth-view.hearth-search-active .hearth-scroll,
+.hearth-view.hearth-search-active .hearth-scroll.hearth-fit {
 	height: var(--hearth-vh, 100%);
 	overflow-y: auto;
 }
@@ -230,9 +234,11 @@
 
 /* On mobile keep the list short enough to stay above the on-screen keyboard
  * (with the search anchored to the top via hearth-search-active) instead of
- * extending down behind it. */
+ * extending down behind it. The --hearth-vh clamp bounds it by the real visible
+ * area while the keyboard is up (search.ts caps it precisely once shown); the
+ * 42vh keeps it sensible before that variable is set. */
 .is-mobile .hearth-search-results {
-	max-height: 42vh;
+	max-height: min(42vh, calc(var(--hearth-vh, 100vh) - 96px));
 }
 
 .hearth-result {
