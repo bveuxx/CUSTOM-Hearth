@@ -529,6 +529,11 @@ export interface HomeSettings {
 	showMobileActionBar: boolean;
 	/** Buttons shown in the mobile action bar. */
 	mobileActionButtons: MobileActionButton[];
+	/** Block all outbound network requests Hearth would otherwise make. The only
+	 * such request is the calculator's currency-rate fetch (the key-less,
+	 * ECB-backed Frankfurter API); with this on, currency conversions report that
+	 * rates are unavailable instead of reaching out. */
+	disableExternalCalls: boolean;
 
 	// ---- Appearance (layout density) ----
 	/** Tighten card and top-of-page spacing to enlarge the usable area. */
@@ -606,6 +611,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	// Backfilled by migrateSettings so a fresh install gets the defaults below
 	// and existing vaults aren't silently reset if the list is emptied.
 	mobileActionButtons: [],
+	disableExternalCalls: false,
 
 	compact: false,
 	cardOpacity: 0.5,

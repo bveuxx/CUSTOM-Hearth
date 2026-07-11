@@ -206,6 +206,8 @@ export const en = {
 			startupDesc: "When and where the home view opens.",
 			mobileMode: "Mobile mode",
 			mobileModeDesc: "How Hearth behaves on phones and tablets.",
+			privacy: "Privacy & network",
+			privacyDesc: "Control the outbound requests Hearth is allowed to make.",
 		},
 		about: {
 			heading: "About Hearth",
@@ -295,6 +297,12 @@ export const en = {
 			mobileSearchOnlyDesc:
 				"On phones and tablets, hide the dashboard and show only the search " +
 				"field. No effect on desktop.",
+			disableExternalCalls: "Disable external calls",
+			disableExternalCallsDesc:
+				"Block all outbound network requests Hearth makes. The only such " +
+				"request is the calculator's currency-rate lookup (the free, key-less " +
+				"Frankfurter API). With this on, currency conversions report that rates " +
+				"are unavailable instead of reaching out to the internet.",
 		},
 		mobileActions: {
 			heading: "Mobile action bar",

@@ -167,6 +167,9 @@ export class HomeSettingTab extends PluginSettingTab {
 				this.section(body, s.mobileActions.heading, s.mobileActions.headingDesc, (b) =>
 					this.mobileActionsSection(b),
 				);
+				this.section(body, s.sections.privacy, s.sections.privacyDesc, (b) =>
+					this.privacySection(b),
+				);
 				break;
 			case "integrations":
 				this.section(body, s.tasks.heading, s.tasks.headingDesc, (b) => this.tasksSection(b));
@@ -520,6 +523,22 @@ export class HomeSettingTab extends PluginSettingTab {
 			.addToggle((t) =>
 				t.setValue(s.replaceNewTabs).onChange(async (v) => {
 					s.replaceNewTabs = v;
+					await this.save();
+				}),
+			);
+	}
+
+	// ---- Privacy & network ----------------------------------------------
+
+	private privacySection(containerEl: HTMLElement): void {
+		const s = this.plugin.settings;
+
+		new Setting(containerEl)
+			.setName(t().settings.behaviour.disableExternalCalls)
+			.setDesc(t().settings.behaviour.disableExternalCallsDesc)
+			.addToggle((tg) =>
+				tg.setValue(s.disableExternalCalls).onChange(async (v) => {
+					s.disableExternalCalls = v;
 					await this.save();
 				}),
 			);

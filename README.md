@@ -241,7 +241,11 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   queries (`20% of 150`, `5 squared`, `3 x 4`). An optional on-screen **keypad**
   (basic or scientific, chosen in card settings) is handy on mobile. Everything
   except currency is computed locally; exchange rates are fetched once and
-  cached, and currency degrades gracefully offline.
+  cached, and currency degrades gracefully offline. The currency lookup uses the
+  free, key-less [Frankfurter API](https://www.frankfurter.app/) (ECB rates) and
+  is the only outbound network request Hearth makes — it can be turned off under
+  **Settings → Hearth → Behaviour → Privacy & network → Disable external
+  calls**.
 - **Dataview query** *(requires the [Dataview](https://github.com/blacksmithgu/obsidian-dataview)
   plugin)* — a card that runs a Dataview query and renders the results through
   Dataview's own renderers, so tables, lists and task lists look exactly as they
@@ -376,7 +380,9 @@ many fields have a reset (↺) button back to their default.
 - **Dashboard** — fit to page, columns, row height, max width, card opacity,
   **card blur** (frosted glass).
 - **Behaviour** — open on startup, replace empty new tabs, mobile search-only,
-  mobile action bar.
+  mobile action bar, and a **Privacy & network** toggle to disable external
+  calls (the calculator's currency-rate lookup — the only outbound request
+  Hearth makes).
 - **Integrations** — Tasks / TaskNotes frontmatter field names and the status
   value(s) that count as "done".
 - **Backup** — import / export the current dashboard's layout as JSON.

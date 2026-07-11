@@ -57,8 +57,13 @@ export function cachedRates(): CurrencyRates | null {
  * Return fresh rates, fetching if the cache is missing or expired. Concurrent
  * callers share a single in-flight request. Never throws: on failure it returns
  * whatever is cached (possibly null).
+ *
+ * When `disabled` is true (the "disable external calls" setting), no network
+ * request is made — only already-cached rates, if any, are returned. This is
+ * the one outbound request Hearth makes, so the flag lives right at its source.
  */
-export async function loadRates(): Promise<CurrencyRates | null> {
+export async function loadRates(disabled = false): Promise<CurrencyRates | null> {
+	if (disabled) return cache;
 	if (cache && Date.now() - cache.fetched < TTL_MS) return cache;
 	if (inflight) return inflight;
 	inflight = (async () => {

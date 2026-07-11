@@ -1637,7 +1637,13 @@ function renderCalculator(view: HomeView, card: DashboardCard, body: HTMLElement
 			noteEl.setText(/rate|currency/i.test(res.error) ? res.error : "");
 			// A currency query needs rates we don't have yet — fetch them once,
 			// then re-evaluate so the answer fills in without a manual retry.
-			if (!triedRates && /rate/i.test(res.error) && !currentRates()) {
+			// Skipped entirely when external calls are disabled.
+			if (
+				!triedRates &&
+				!view.plugin.settings.disableExternalCalls &&
+				/rate/i.test(res.error) &&
+				!currentRates()
+			) {
 				triedRates = true;
 				void loadRates().then((rates) => {
 					if (rates) update();
