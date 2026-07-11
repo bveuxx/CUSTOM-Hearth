@@ -33,6 +33,7 @@ cards: embeds, web pages, tasks, calendars, stats, clocks, launchpads and more.
 - [Settings](#settings)
 - [Keyboard shortcuts](#keyboard-shortcuts)
 - [Development](#development)
+- [Contributing](#contributing)
 - [Roadmap](#roadmap)
 - [License](#license)
 
@@ -415,6 +416,16 @@ User-facing strings live in [`src/locales/`](src/locales/). English
 load. Adding a language is a matter of copying `en.ts`, translating the values
 (the keys are type-checked against English), and registering the file — see
 [`src/locales/README.md`](src/locales/README.md) for the walkthrough.
+
+## Contributing
+
+Hearth is moving fast, so right now the most valuable contributions are **bug
+reports**, **feature ideas** and **translations** rather than large pull
+requests — a big PR against a fast-moving codebase tends to go stale or collide
+with work in flight. Small, obvious fixes are always welcome; for anything
+larger, please open an issue first. As development slows down I'll be able to
+take PRs far more readily. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full
+story.
 
 ## Shipped:
 
