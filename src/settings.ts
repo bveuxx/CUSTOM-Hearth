@@ -1,4 +1,4 @@
-import { App, ButtonComponent, Notice, PluginSettingTab, setIcon, Setting, SliderComponent, TextComponent } from "obsidian";
+import { App, ButtonComponent, Notice, Platform, PluginSettingTab, setIcon, Setting, SliderComponent, TextComponent, TFile } from "obsidian";
 import type HearthPlugin from "./main";
 import { FILE_TYPE_GROUPS, fileTypeLabel } from "./filetypes";
 import { CommandPickerModal } from "./pickers";
@@ -846,17 +846,12 @@ export class HomeSettingTab extends PluginSettingTab {
 	private layoutSection(containerEl: HTMLElement): void {
 		const s = this.plugin.settings;
 
-		// Export the current dashboard layout as a downloaded JSON file.
+		// Export the current dashboard layout as a JSON file.
 		new Setting(containerEl)
 			.setName(t().settings.layout.export)
 			.setDesc(t().settings.layout.exportDesc)
 			.addButton((b) =>
-				b
-					.setButtonText(t().settings.layout.exportButton)
-					.onClick(() => {
-						downloadTextFile(LAYOUT_FILE, exportLayout(s));
-						new Notice(t().notices.layoutExported);
-					}),
+				this.exportButton(b, LAYOUT_FILE, () => exportLayout(s), t().notices.layoutExported),
 			);
 
 		// Import a dashboard layout from a chosen JSON file.
@@ -875,17 +870,12 @@ export class HomeSettingTab extends PluginSettingTab {
 				);
 			});
 
-		// Export every Hearth setting as a downloaded JSON file.
+		// Export every Hearth setting as a JSON file.
 		new Setting(containerEl)
 			.setName(t().settings.layout.exportSettings)
 			.setDesc(t().settings.layout.exportSettingsDesc)
 			.addButton((b) =>
-				b
-					.setButtonText(t().settings.layout.exportButton)
-					.onClick(() => {
-						downloadTextFile(SETTINGS_FILE, exportSettings(s));
-						new Notice(t().notices.settingsExported);
-					}),
+				this.exportButton(b, SETTINGS_FILE, () => exportSettings(s), t().notices.settingsExported),
 			);
 
 		// Import a full settings backup from a chosen JSON file.
@@ -903,6 +893,47 @@ export class HomeSettingTab extends PluginSettingTab {
 					}),
 				);
 			});
+	}
+
+	/** Wire an export button. `build` is called at click time so it always
+	 * serializes the current settings. On mobile, where a browser download can't
+	 * be triggered, the file is written to the vault root instead and the button
+	 * carries a tooltip saying so. */
+	private exportButton(
+		b: ButtonComponent,
+		filename: string,
+		build: () => string,
+		desktopNotice: string,
+	): void {
+		b.setButtonText(t().settings.layout.exportButton);
+		if (Platform.isMobile) b.setTooltip(t().settings.layout.exportMobileTooltip);
+		b.onClick(() => void this.exportJson(filename, build(), desktopNotice));
+	}
+
+	/** Save an export: download it (desktop) or write it to the vault root
+	 * (mobile, which can't download). */
+	private async exportJson(filename: string, content: string, desktopNotice: string): Promise<void> {
+		if (Platform.isMobile) {
+			try {
+				await this.saveToVaultRoot(filename, content);
+				new Notice(t().notices.exportedToVault(filename));
+			} catch {
+				new Notice(t().notices.exportFailed);
+			}
+			return;
+		}
+		downloadTextFile(filename, content);
+		new Notice(desktopNotice);
+	}
+
+	/** Create (or overwrite) a file at the vault root. */
+	private async saveToVaultRoot(filename: string, content: string): Promise<void> {
+		const existing = this.app.vault.getAbstractFileByPath(filename);
+		if (existing instanceof TFile) {
+			await this.app.vault.modify(existing, content);
+		} else {
+			await this.app.vault.create(filename, content);
+		}
 	}
 
 	/** Shared flow for the file-based imports: pick a JSON file, confirm the

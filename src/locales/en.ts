@@ -52,6 +52,8 @@ export const en = {
 		layoutImportError: (error: string) => `Hearth: ${error}`,
 		settingsExported: "Hearth: settings exported.",
 		settingsImported: "Hearth: settings imported.",
+		exportedToVault: (file: string) => `Hearth: saved ${file} to your vault's root folder.`,
+		exportFailed: "Hearth: couldn't save the export file.",
 		cardCopied: "Card copied to the dashboard.",
 	},
 
@@ -372,6 +374,7 @@ export const en = {
 			export: "Export layout",
 			exportDesc: "Download the current dashboard layout as a JSON file.",
 			exportButton: "Export file",
+			exportMobileTooltip: "On mobile the file is saved to your vault's root folder.",
 			import: "Import layout",
 			importDesc:
 				"Choose a previously exported layout file. This replaces your current dashboards.",

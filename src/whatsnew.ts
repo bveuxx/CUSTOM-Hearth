@@ -27,6 +27,20 @@ export interface ChangelogEntry {
  */
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: "1.8.1.4-beta",
+		tldr:
+			"Mobile fix: exporting a layout or settings now saves the JSON file to " +
+			"your vault's root folder, since mobile can't trigger a file download.",
+		features: [],
+		fixes: [
+			"Mobile: Export layout / Export settings now write the JSON file to your " +
+				"vault's root folder (e.g. hearth-layout.json), because mobile Obsidian " +
+				"can't trigger a browser download — the button did nothing there before. " +
+				"The export button shows a tooltip noting where the file lands. Desktop " +
+				"still downloads the file as usual.",
+		],
+	},
+	{
 		version: "1.8.1.3-beta",
 		tldr:
 			"Layout and settings export/import now use JSON files directly — export " +
