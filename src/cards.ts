@@ -2538,28 +2538,26 @@ function taskNotesAddButton(view: HomeView, parent: HTMLElement): void {
 	});
 }
 
-/** A minimalistic header for the list layout: the task count on the left and a
- * source-appropriate add control on the right (TaskNotes' create command, or a
- * Kanban quick-add into the first column). */
+/** Places the list layout's controls: the filter/sort controls and a
+ * source-appropriate add control (TaskNotes' create command, or a Kanban
+ * quick-add into the first column). When the card has a title the controls dock
+ * into its title header; otherwise they float over the card's top-right corner. */
 function renderTasksListHeader(
 	view: HomeView,
 	cfg: TasksConfig,
 	source: string,
-	count: number,
 	availableStatuses: string[],
 	boardColumns: string[] | undefined,
 	container: HTMLElement,
 	refresh: () => void,
 ): void {
-	const head = container.createDiv("hearth-tasks-head hearth-tasks-listhead");
-	head.createSpan({ cls: "hearth-tasks-listhead-count", text: t().cards.tasks.taskCount(count) });
-	const actions = head.createDiv("hearth-tasks-listhead-actions");
+	const actions = resolveTaskActionsHost(view, container);
 	// Filter and sort controls for the whole list. Like the add control, they're
 	// revealed on card hover (see styles.css) so the header stays uncluttered.
 	renderTaskFilterControl(view, actions, cfg, availableStatuses, refresh);
 	renderTaskListSortControl(view, actions, cfg, availableStatuses, refresh);
 	if (source === "tasknotes") {
-		// TaskNotes add is a single command button, so it sits in the header.
+		// TaskNotes add is a single command button, so it sits with the controls.
 		taskNotesAddButton(view, actions);
 	} else if (source === "kanban" && boardColumns && boardColumns.length) {
 		// Kanban add expands into a form, so give it a full-width row below the
@@ -2571,6 +2569,31 @@ function renderTasksListHeader(
 			markDone: (cfg.kanbanDoneColumns ?? []).includes(target.toLowerCase()),
 		});
 	}
+}
+
+/** Resolve where the list-layout controls (filter/sort/add) should live and
+ * return the element to render them into.
+ *
+ * A titled card docks the controls at the right of its title header, reusing a
+ * single host so a task refresh replaces — rather than stacks — them. An
+ * untitled card, or any card while arranging (where the header holds the title
+ * editor), floats them over the card's top-right corner instead. */
+function resolveTaskActionsHost(view: HomeView, container: HTMLElement): HTMLElement {
+	const head = view.arrangeMode
+		? null
+		: container.closest(".hearth-card")?.querySelector<HTMLElement>(".hearth-card-head");
+	if (head && !head.classList.contains("is-untitled")) {
+		const existing = head.querySelector<HTMLElement>(":scope > .hearth-tasks-headactions");
+		if (existing) {
+			existing.empty();
+			return existing;
+		}
+		return head.createDiv("hearth-tasks-headactions hearth-tasks-listhead-actions");
+	}
+	// Untitled (or arranging): float the controls over the card's top-right
+	// corner, revealed on hover — matching the add button and embed switcher on
+	// headerless cards, and never reserving a row of its own.
+	return container.createDiv("hearth-tasks-head hearth-tasks-listhead-actions");
 }
 
 /** A short, human-readable label for a recurrence rule (e.g. "FREQ=WEEKLY;
@@ -3394,9 +3417,10 @@ async function loadAndRenderTasks(
 	const limit = cfg.count && cfg.count > 0 ? cfg.count : 10;
 	list = list.slice(0, limit);
 
-	// A minimalistic header (count + sort/filter/add controls) sits above the
-	// list, shown even when empty so the controls stay reachable.
-	renderTasksListHeader(view, cfg, source, list.length, availableStatuses, boardColumns, container, refresh);
+	// The list's sort/filter/add controls — docked into the card's title header
+	// when it has one, otherwise floating over the card's corner. Rendered even
+	// when empty so the controls stay reachable.
+	renderTasksListHeader(view, cfg, source, availableStatuses, boardColumns, container, refresh);
 
 	if (list.length === 0) {
 		const empty = isTaskFilterActive(cfg.taskFilter) ? t().cards.empty.tasksNoMatch : t().cards.empty.tasksEmpty;
