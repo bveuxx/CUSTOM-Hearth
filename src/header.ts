@@ -1,7 +1,8 @@
-import { Component, Platform, setIcon } from "obsidian";
+import { type Component, Platform, setIcon } from "obsidian";
 import type { HomeView } from "./view";
 import { SearchSection } from "./search";
 import { HEARTH_ICON_ID } from "./icon";
+import { effectiveShowSearch } from "./types";
 import { t } from "./i18n";
 
 /** The search engine used by the “Search online” button action.
@@ -34,6 +35,8 @@ export function renderHeader(view: HomeView, container: HTMLElement, component: 
 		}
 		titleRow.createSpan({ cls: "hearth-title-text", text: s.title });
 	}
+
+	if (!effectiveShowSearch(s)) return;
 
 	const search = new SearchSection(view);
 

@@ -1,25 +1,25 @@
 import {
-	BackgroundConfig,
-	BackgroundKind,
-	CalculatorConfig,
-	CalendarConfig,
-	CardKind,
-	ClockConfig,
-	CommandItem,
-	Dashboard,
-	DashboardCard,
-	DataviewConfig,
-	EmbedView,
-	HeatmapConfig,
-	HomeSettings,
-	LeafViewConfig,
-	LinkItem,
-	MobileActionButton,
+	type BackgroundConfig,
+	type BackgroundKind,
+	type CalculatorConfig,
+	type CalendarConfig,
+	type CardKind,
+	type ClockConfig,
+	type CommandItem,
+	type Dashboard,
+	type DashboardCard,
+	type DataviewConfig,
+	type EmbedView,
+	type HeatmapConfig,
+	type HomeSettings,
+	type LeafViewConfig,
+	type LinkItem,
+	type MobileActionButton,
 	newDashboardId,
-	SavedSearchConfig,
-	TaskFilterConfig,
-	TaskSortRule,
-	TasksConfig,
+	type SavedSearchConfig,
+	type TaskFilterConfig,
+	type TaskSortRule,
+	type TasksConfig,
 	activeDashboard,
 } from "./types";
 import { t } from "./i18n";
@@ -537,6 +537,7 @@ function sanitizeDashboard(raw: unknown, s: HomeSettings, index: number): Dashbo
 		dash.rowHeight = clampNum(r.rowHeight, RANGE.rowHeight.min, RANGE.rowHeight.max, s.rowHeight);
 	}
 	if (typeof r.fitToPage === "boolean") dash.fitToPage = r.fitToPage;
+	if (typeof r.showSearch === "boolean") dash.showSearch = r.showSearch;
 	if (typeof r.maxWidth === "number") {
 		dash.maxWidth = clampNum(r.maxWidth, RANGE.maxWidth.min, RANGE.maxWidth.max, s.maxWidth);
 	}

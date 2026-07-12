@@ -1,11 +1,11 @@
-import { Component, ItemView, Platform, WorkspaceLeaf } from "obsidian";
+import { Component, ItemView, Platform, type WorkspaceLeaf } from "obsidian";
 import type HearthPlugin from "./main";
 import { renderHeader } from "./header";
 import { renderDashboard } from "./dashboard";
 import { renderDashboardSwitcher } from "./dashboards";
 import { renderMobileActionBar } from "./mobileactions";
 import { applyBackground } from "./background";
-import { effectiveFitToPage, effectiveMaxWidth, renderCards } from "./types";
+import { effectiveFitToPage, effectiveMaxWidth, effectiveShowSearch, renderCards } from "./types";
 import { HEARTH_ICON_ID } from "./icon";
 import { t } from "./i18n";
 
@@ -130,8 +130,10 @@ export class HomeView extends ItemView {
 
 		if (!mobileOnly) renderDashboardSwitcher(this, inner);
 
-		const header = inner.createDiv("hearth-header");
-		renderHeader(this, header, child);
+		if (this.plugin.settings.showTitle || effectiveShowSearch(this.plugin.settings)) {
+			const header = inner.createDiv("hearth-header");
+			renderHeader(this, header, child);
+		}
 
 		if (!mobileOnly) {
 			const dashboard = inner.createDiv("hearth-dashboard");

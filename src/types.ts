@@ -494,6 +494,8 @@ export interface Dashboard {
 	/** Override the card surface backdrop blur (px) for this board (undefined =
 	 * global). */
 	cardBlur?: number;
+	/** Show the dashboard search/command section (undefined = visible). */
+	showSearch?: boolean;
 }
 
 export type ChromeVisibility = "always" | "hover";
@@ -776,6 +778,11 @@ export function effectiveRowHeight(s: HomeSettings): number {
 /** Effective "fit to page" for the active board (per-dashboard override or global). */
 export function effectiveFitToPage(s: HomeSettings): boolean {
 	return activeDashboard(s).fitToPage ?? s.fitToPage;
+}
+
+/** Whether the active board should show the search/command section. */
+export function effectiveShowSearch(s: HomeSettings): boolean {
+	return activeDashboard(s).showSearch ?? true;
 }
 
 /** Effective content max-width for the active board (per-dashboard override or global). */

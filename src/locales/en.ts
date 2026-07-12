@@ -148,6 +148,8 @@ export const en = {
 			switcherLucideDesc:
 				"A Lucide icon id (e.g. “home”, “star”, “layout-dashboard”). Takes precedence over the emoji above.",
 			lucidePlaceholder: "home",
+			showSearch: "Show search section",
+			showSearchDesc: "Show the search and command bar with its results and filter buttons on this dashboard.",
 			contentWidth: "Content width",
 			fitToPage: "Fit to page",
 			fitToPageDesc: "Override scrolling for this board.",
