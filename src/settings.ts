@@ -16,7 +16,8 @@ type NumericSettingKey =
 	| "backgroundOpacity"
 	| "backgroundBlur"
 	| "cardOpacity"
-	| "cardBlur";
+	| "cardBlur"
+	| "cardRadius";
 
 /** Keys of HomeSettings whose default lives in DEFAULT_SETTINGS as a string and
  * would be awkward to reconstruct by hand (frontmatter field names, the search
@@ -906,6 +907,22 @@ export class HomeSettingTab extends PluginSettingTab {
 					await this.save();
 				});
 			this.addSliderReset(cardBlur, sl, "cardBlur");
+		});
+
+		const cardRadius = new Setting(containerEl)
+			.setName(t().settings.dashboard.cardRadius)
+			.setDesc(t().settings.dashboard.cardRadiusDesc);
+		cardRadius.addSlider((sl) => {
+			// Capped at the design baseline (14): only sharper corners are offered,
+			// since rounding beyond it was never tuned for.
+			sl.setLimits(0, DEFAULT_SETTINGS.cardRadius, 1)
+				.setValue(s.cardRadius)
+				.setDynamicTooltip()
+				.onChange(async (v) => {
+					s.cardRadius = v;
+					await this.save();
+				});
+			this.addSliderReset(cardRadius, sl, "cardRadius");
 		});
 	}
 

@@ -407,7 +407,9 @@
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
-	border-radius: 14px;
+	/* --hearth-card-radius (px) is set per-board by renderDashboard; the 14px
+	 * fallback keeps the design baseline when it isn't set. */
+	border-radius: var(--hearth-card-radius, 14px);
 	border: 1px solid var(--background-modifier-border);
 	/* --card-opacity (0..1) tints the card surface without dimming content. */
 	background: color-mix(
@@ -2379,7 +2381,7 @@
 	position: absolute;
 	inset: 0;
 	border: 1px dashed var(--interactive-accent);
-	border-radius: 14px;
+	border-radius: var(--hearth-card-radius, 14px);
 	opacity: 0.5;
 	pointer-events: none;
 }
@@ -2411,7 +2413,7 @@
 	background: color-mix(in srgb, var(--background-primary) 88%, transparent);
 	backdrop-filter: blur(6px);
 	border-bottom: 1px solid var(--background-modifier-border);
-	border-radius: 14px 14px 0 0;
+	border-radius: var(--hearth-card-radius, 14px) var(--hearth-card-radius, 14px) 0 0;
 }
 
 .hearth-card-title-input {
