@@ -111,6 +111,13 @@ export function renderDashboard(
 
 	for (const card of cards) {
 		const el = grid.createDiv("hearth-card");
+		// CUSTOM: expose card metadata for CSS selectors
+    el.dataset.hearthCardId = card.id;
+    el.dataset.hearthCardKind = card.kind;
+    if (card.target) {
+        el.dataset.hearthCardTarget = card.target;
+    }
+		
 		gridLayout.elements.set(card, el);
 		applyCardPosition(el, card);
 
