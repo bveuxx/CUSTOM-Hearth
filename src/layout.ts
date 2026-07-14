@@ -58,6 +58,7 @@ const RANGE = {
 	cardW: { min: 1, max: 16 },
 	cardH: { min: 1, max: 60 },
 	cardBlur: { min: 0, max: 24 },
+	cardRadius: { min: 0, max: 14 },
 };
 
 const CARD_KINDS: CardKind[] = [
@@ -139,6 +140,7 @@ export function exportSettings(s: HomeSettings): string {
 		compact: s.compact,
 		cardOpacity: s.cardOpacity,
 		cardBlur: s.cardBlur,
+		cardRadius: s.cardRadius,
 
 		// Search filters
 		hiddenFilters: s.hiddenFilters,
@@ -694,6 +696,14 @@ function sanitizeDashboard(
 			s.cardBlur,
 		);
 	}
+	if (typeof r.cardRadius === "number") {
+		dash.cardRadius = clampNum(
+			r.cardRadius,
+			RANGE.cardRadius.min,
+			RANGE.cardRadius.max,
+			s.cardRadius,
+		);
+	}
 	const bg = sanitizeBackground(r.background);
 	if (bg) dash.background = bg;
 	return dash;
@@ -924,6 +934,14 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 			RANGE.cardBlur.min,
 			RANGE.cardBlur.max,
 			s.cardBlur,
+		);
+	}
+	if (typeof data.cardRadius === "number") {
+		s.cardRadius = clampNum(
+			data.cardRadius,
+			RANGE.cardRadius.min,
+			RANGE.cardRadius.max,
+			s.cardRadius,
 		);
 	}
 

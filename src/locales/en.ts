@@ -157,6 +157,7 @@ export const en = {
 			fitOptionScroll: "Allow scrolling",
 			cardOpacity: "Card opacity",
 			cardBlur: "Card blur",
+			cardRadius: "Card corner radius",
 			done: "Done",
 			overriding: "Overriding the global default.",
 			usingGlobal: (value: number | string) =>
@@ -392,6 +393,9 @@ export const en = {
 			cardBlur: "Card blur",
 			cardBlurDesc:
 				"Frosted-glass blur behind translucent cards. Needs card opacity below 100% to show. 0 = off.",
+			cardRadius: "Card corner radius",
+			cardRadiusDesc:
+				"How rounded card corners are, in pixels. 14 is the default; lower makes corners sharper.",
 			cards: "Cards",
 			cardsDesc:
 				"Add and configure cards on the dashboard itself: open the home view, " +
